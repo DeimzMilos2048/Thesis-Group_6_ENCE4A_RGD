@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 Here's a brief description of the project setup and instructions to run both the client and server, suitable for a `README.md` file.
 
 ### Project Setup
@@ -40,3 +41,7 @@ This will launch the client application in your default web browser, usually at 
   npx react-native start 
   npx react-native run-android
 ```
+=======
+# Thesis_Web-Mobile_App
+This repo for making thesis Web and Mobile Application
+>>>>>>> a7964861985208c3902c301a802c07da17ac6aec
