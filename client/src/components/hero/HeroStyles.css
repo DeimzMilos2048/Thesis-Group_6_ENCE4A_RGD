@@ -1,0 +1,39 @@
+.hero{
+    width: 100%;
+    min-height: 100vh;
+    background: linear-gradient(rgba(72, 187, 116, 0.7),rgba(72, 187, 116, 0.7)), 
+    url('../../assets/images/banner1.jpg');
+    background-size: cover;
+    background-position: center;
+    display: flex;
+    align-items: center;
+    position: relative;
+    justify-content: center;
+}
+.hero-title{
+    text-align: center;
+    max-width: 700px;
+    font-size: 40px;
+    color:#fff;
+    padding: 2rem 0 2rem 0;
+}
+
+.hero-text{
+    text-align: center;
+    max-width: 800px;
+}
+
+.hero-text p{
+    font-size: 1.5rem;
+    color: #fff;
+    padding: 0.5rem 0 2rem 0;
+}
+
+.btn{
+    text-decoration: none;
+    padding: 1rem 2rem;
+    border-radius: 6px;
+    font-size: 1.1.rem;
+    font-weight: bold;
+    letter-spacing: 2px;
+}

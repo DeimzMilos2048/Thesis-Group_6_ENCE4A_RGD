@@ -1,0 +1,27 @@
+{
+  "name": "frontend-bautista_milos_roquero",
+  "version": "1.0.0",
+  "description": "Here's a brief description of the project setup and instructions to run both the client and server, suitable for a `README.md` file.",
+  "main": "index.js",
+  "scripts": {
+    "build": "npm --prefix client run build",
+    "start": "npm --prefix server run start",
+    "bulid": "npm run build"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ECPE405-Class-AY2526/frontend-bautista_milos_roquero.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/ECPE405-Class-AY2526/frontend-bautista_milos_roquero/issues"
+  },
+  "homepage": "https://github.com/ECPE405-Class-AY2526/frontend-bautista_milos_roquero#readme",
+  "dependencies": {
+    "@react-navigation/native": "^7.1.17",
+    "react-navigation": "^5.0.0"
+  }
+}
