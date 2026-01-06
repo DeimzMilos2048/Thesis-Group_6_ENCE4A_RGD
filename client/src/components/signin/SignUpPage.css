@@ -264,14 +264,14 @@
 }
 
 .form-input:focus {
-  border-color: #667eea;
+  border-color: #66ea9d;
   background: #fff;
   box-shadow: 0 8px 20px rgba(102, 126, 234, 0.06);
   outline: none;
 }
 
 .form-input:focus + .form-label {
-    color: #667eea;
+    color: #66ea9d;
 }
 
 .password-container {
@@ -294,7 +294,7 @@
 }
 
 .password-toggle:hover {
-    color: #667eea;
+    color: #66ea9d;
 }
 
 .error-message {
@@ -404,14 +404,14 @@ transform: translateY(0);
 }
 
 .signin-link a {
-    color: #667eea;
+    color: #66ea9d;
     text-decoration: none;
     font-weight: 600;
     transition: color 0.3s ease;
 }
 
 .signin-link a:hover {
-    color: #764ba2;
+    color: #66ea9d;
     text-decoration: underline;
 }
 

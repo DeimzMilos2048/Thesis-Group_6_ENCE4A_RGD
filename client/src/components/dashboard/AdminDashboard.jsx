@@ -171,13 +171,7 @@ export default function UserManagement({ view }) {
             <Users size={16} />
             <span>Users</span>
           </button>
-          <button 
-            className={`nav-item ${view === 'settings' ? 'active' : ''}`}
-            onClick={() => navigate('/admindashboard/settings')}
-          >
-            <Settings size={16} />
-            <span>Settings</span>
-          </button>
+          
         </nav>
 
         {/* Log Out */}
@@ -197,20 +191,7 @@ export default function UserManagement({ view }) {
       <div className="main-content">
         {view === 'settings' ? (
           <>
-            {/* Header */}
-            <div className="header">
-              <h1>SETTINGS</h1>
-              <p>Admin settings placeholder. Configure platform preferences.</p>
-            </div>
-            {/* Content Area */}
-            <div className="content-area">
-              <div className="stats-container">
-                <div className="stat-card">
-                  <h3>Settings</h3>
-                  <p className="stat-number">PlaceHolder</p>
-                </div>
-              </div>
-            </div>
+            
           </>
         ) : (
           <>

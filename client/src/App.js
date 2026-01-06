@@ -15,6 +15,9 @@ import SignUp from "./LandingPage/SignUp";
 import AdminDashboard from "./components/dashboard/AdminDashboard";
 import Dashboard from './components/dashboard/Dashboard';
 import Analytics from './components/dashboard/Analytics';
+import History from './components/dashboard/History';
+import Profile from './components/dashboard/Profile';
+import Notification from './components/dashboard/Notification';
 
 
 export default function App(){
@@ -45,23 +48,7 @@ export default function App(){
                 </UserRoute>
               }
             />
-            <Route
-              path="/dashboard/history"
-              element={
-                <UserRoute>
-                  <Dashboard view="history" />
-                </UserRoute>
-              }
-            />
-            <Route
-              path="/dashboard/settings"
-              element={
-                <UserRoute>
-                  <Dashboard view="settings" />
-                </UserRoute>
-              }
-            />
-
+          
             {/* Protected Admin Routes */}
             <Route
               path="/admindashboard"
@@ -86,6 +73,35 @@ export default function App(){
               element={
                 <UserRoute>
                   <Analytics />
+                </UserRoute>
+              }
+            />
+
+            {/* History Route */}
+            <Route 
+              path="/history"
+              element={
+                <UserRoute>
+                  <History />
+                </UserRoute>
+              }
+            />
+
+           {/* Profile Route */}
+           <Route path ="/profile"
+            element ={
+                <UserRoute>
+                  <Profile />
+                </UserRoute>
+            }
+            />
+
+            {/* Notification Route */}
+            <Route
+              path="/notification"
+              element={
+                <UserRoute>
+                  <Notification />
                 </UserRoute>
               }
             />

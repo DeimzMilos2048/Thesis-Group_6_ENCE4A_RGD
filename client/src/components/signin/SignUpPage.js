@@ -64,7 +64,7 @@ function SignUpPage() {
       <div className="signup-hero">
         <div className="signup-container">
           <div className="form-header">
-            <h1 className="form-title">Create Account</h1>
+            <h1 className="form-title">SIGN UP</h1>
             
           </div>
 

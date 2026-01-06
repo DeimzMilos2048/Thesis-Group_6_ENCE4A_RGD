@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Activity, BarChart2, Clock, Settings, AlertTriangle, LogOut, Thermometer, Droplets, Waves, Weight, CheckCircle, Server } from 'lucide-react';
+import { Activity,BarChart2, Bell, CircleUser,Clock, Settings,AlertTriangle, LogOut, Thermometer, Droplets, Waves, Weight, CheckCircle, Server } from 'lucide-react';
 import './Dashboard.css';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import authService from '../../api/authService';
 import logo from "../../assets/images/logo2.png";
 
@@ -10,13 +10,32 @@ export default function RiceDryingDashboard({ view }) {
   const [targetMoisture, setTargetMoisture] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [activeTab, setActiveTab] = useState('dashboard');
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Update active tab based on current route
+  useEffect(() => {
+    const path = location.pathname;
+    if (path.includes('/analytics')) {
+      setActiveTab('analytics');
+    } else if (path.includes('/history')) {
+      setActiveTab('history');
+    } else if (path.includes('/notification')) {
+      setActiveTab('notification');
+    } else if (path.includes('/profile')) {
+      setActiveTab('profile');
+    }
+      else {
+      setActiveTab('dashboard');
+    }
+  }, [location]);
 
   useEffect(() => {
     let isMounted = true;
     const fetchDashboardData = async () => {
       try {
-        // Only show loading if data fetch takes longer than 300ms
         const loadingTimeout = setTimeout(() => {
           if (isMounted) setLoading(true);
         }, 300);
@@ -45,6 +64,24 @@ export default function RiceDryingDashboard({ view }) {
     };
   }, [navigate]);
 
+  const handleNavigation = (path, tab) => {
+    setActiveTab(tab);
+    navigate(path);
+  };
+
+  const handleLogoutClick = () => {
+    setShowLogoutConfirm(true);
+  };
+
+  const handleLogoutConfirm = () => {
+    authService.logout();
+    navigate('/login');
+  };
+
+  const handleLogoutCancel = () => {
+    setShowLogoutConfirm(false);
+  };
+
   return (
     <div className="dashboard-container">
       {error && (
@@ -59,262 +96,210 @@ export default function RiceDryingDashboard({ view }) {
           <p>Loading dashboard...</p>
         </div>
       )}
+
+      {/* Logout Confirmation Modal */}
+      {showLogoutConfirm && (
+        <div className="modal-overlay" onClick={handleLogoutCancel}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <LogOut size={24} />
+              <h3>Confirm Logout</h3>
+            </div>
+            <div className="modal-body">
+              <p>Are you sure you want to log out?</p>
+            </div>
+            <div className="modal-footer">
+              <button className="modal-button cancel" onClick={handleLogoutCancel}>
+                Cancel
+              </button>
+              <button className="modal-button confirm" onClick={handleLogoutConfirm}>
+                Log Out
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
       {/* Sidebar */}
       <div className="sidebar">
-        {/* Logo */}
-  <div class="logo-section">
-    <div class="logo-box">
-      <img src={logo} alt="" class="sidebar-logo" />
-    </div>
-    </div>
+        <div className="logo-section">
+          <div className="logo-box">
+            <img src={logo} alt="" className="sidebar-logo" />
+          </div>
+        </div>
 
-        {/* Navigation */}
         <nav className="nav-section">
           <button 
-            className={`nav-item ${!view ? 'active' : ''}`}
-            onClick={() => navigate('/dashboard')}
+            className={`nav-item ${activeTab === 'dashboard' ? 'active' : ''}`}
+            onClick={() => handleNavigation('/dashboard', 'dashboard')}
           >
             <BarChart2 size={16} />
             <span>Dashboard</span>
           </button>
           <button 
-            className="nav-item"
-            onClick={() => navigate('/analytics')}
+            className={`nav-item ${activeTab === 'analytics' ? 'active' : ''}`}
+            onClick={() => handleNavigation('/analytics', 'analytics')}
           >
             <Activity size={16} />
             <span>Analytics</span>
           </button>
           <button 
-            className={`nav-item ${view === 'history' ? 'active' : ''}`}
-            onClick={() => navigate('/dashboard/history')}
+            className={`nav-item ${activeTab === 'history' ? 'active' : ''}`}
+            onClick={() => handleNavigation('/history', 'history')}
           >
             <Clock size={16} />
             <span>History</span>
           </button>
+         
           <button 
-            className={`nav-item ${view === 'settings' ? 'active' : ''}`}
-            onClick={() => navigate('/dashboard/settings')}
+            className={`nav-item ${activeTab === 'notification' ? 'active' : ''}`}
+            onClick={() => handleNavigation('/notification', 'notification')}
           >
-            <Settings size={16} />
-            <span>Settings</span>
+            <Bell size={16} />
+            <span>Notification</span>
           </button>
-          <button className="nav-item">
-            <AlertTriangle size={16} />
-            <span>Alerts</span>
+
+          <button 
+            className={`nav-item ${activeTab === 'profile' ? 'active' : ''}`}
+            onClick={() => handleNavigation('/profile', 'profile')}
+          >
+            <CircleUser size={16} />
+            <span>Profile</span>
           </button>
+          
         </nav>
 
-        {/* Log Out */}
         <button 
           className="nav-item logout"
-          onClick={() => {
-            authService.logout();
-            navigate('/login');
-          }}
+          onClick={handleLogoutClick}
         >
           <LogOut size={16} />
           <span>Log Out</span>
         </button>
       </div>
 
-      {/* Main Content */}
+      {/* Main Content - Single Unified Section */}
       <div className="main-content">
-        {view === 'history' ? (
-          <>
-            {/* Header */}
-            <div className="header">
-              <h1>History</h1>
-              <p>Review past drying sessions and activity.</p>
-            </div>
-            {/* Content Area */}
-            <div className="content-area">
-              <div className="status-cards">
-                <div className="status-card">
-                  <div className="status-content">
-                    <div className="status-label">History placeholder</div>
-                    <div className="status-value">No history yet</div>
+        <div className="unified-dashboard">
+          {/* Header */}
+          <div className="dashboard-header">
+            <h1>Rice Grain Drying System Dashboard</h1>
+            <p>Real-time monitoring and control interface</p>
+          </div>
+
+          {/* All Content in One Container */}
+          <div className="dashboard-content">
+            {/* Status Cards Row */}
+            <div className="status-cards">
+              <div className="status-card">
+                <div className="status-content">
+                  <div className="status-icon">
+                    <CheckCircle size={22} />
                   </div>
+                  <div className="status-label">System Status</div>
+                  <div className="status-value">Drying</div>
                 </div>
-              </div>
-            </div>
-          </>
-        ) : view === 'settings' ? (
-          <>
-            {/* Header */}
-            <div className="header">
-              <h1>Settings</h1>
-              <p>Configure thresholds and preferences.</p>
-            </div>
-            {/* Content Area */}
-            <div className="content-area">
-              <div className="status-cards">
-                <div className="status-card">
-                  <div className="status-content">
-                    <div className="status-label">Settings placeholder</div>
-                    <div className="status-value">PlaceHolder</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </>
-        ) : (
-          <>
-            {/* Header */}
-            <div className="header">
-              <h1>Rice Grain Drying System Dashboard</h1>
-              <p>Real-time monitoring and control interface</p>
+              </div>              
             </div>
 
-            {/* Content Area */}
-            <div className="content-area">
-              {/* Status Cards */}
-              <div className="status-cards">
-                <div className="status-card">
-                  <div className="status-content">
-                    <div className="status-icon">
-                      <CheckCircle size={22} />
+            {/* Sensor Readings and Controls Grid */}
+            <div className="grid-container">
+              {/* Sensor Readings */}
+              <div className="sensor-readings">
+                <h2>Sensor Readings</h2>
+                
+                <div className="sensors-grid">
+                  <div className="sensor-card">
+                    <div className="sensor-icon orange">
+                      <Thermometer size={24} />
                     </div>
-                    <div className="status-label">System Status</div>
-                    <div className="status-value">Drying</div>
+                    <div className="sensor-label">Temperature</div>
+                    <div className="sensor-value">55.6°C</div>
+                    <div className="progress-bar">
+                      <div className="progress-fill orange" style={{ width: '75%' }}></div>
+                    </div>
+                    <div className="sensor-range">Range: 50-60°C</div>
                   </div>
-                </div>
 
-                <div className="status-card">
-                  <div className="status-content">
-                    <div className="status-icon">
-                      <Server size={22} />
+                  <div className="sensor-card">
+                    <div className="sensor-icon cyan">
+                      <Droplets size={24} />
                     </div>
-                    <div className="status-label">Gateway Status</div>
-                    <div className="status-value">Online</div>
+                    <div className="sensor-label">Humidity</div>
+                    <div className="sensor-value">39%</div>
+                    <div className="progress-bar">
+                      <div className="progress-fill cyan" style={{ width: '39%' }}></div>
+                    </div>
+                    <div className="sensor-range">Target: &lt;65%</div>
                   </div>
-                </div>
 
-                <div className="status-card">
-                  <div className="status-content">
-                    <div className="status-icon">
-                      <Activity size={22} />
+                  <div className="sensor-card">
+                    <div className="sensor-icon cyan">
+                      <Waves size={24} />
                     </div>
-                    <div className="status-label">Active Sensors</div>
-                    <div className="status-value">3/3</div>
+                    <div className="sensor-label">Moisture Content</div>
+                    <div className="sensor-value">13.0%</div>
+                    <div className="progress-bar">
+                      <div className="progress-fill cyan" style={{ width: '80%' }}></div>
+                    </div>
+                    <div className="sensor-range">Target: 10-14%</div>
                   </div>
-                </div>
 
-                <div className="status-card">
-                  <div className="status-content">
-                    <div className="status-icon">
-                      <Settings size={22} />
+                  <div className="sensor-card">
+                    <div className="sensor-icon green">
+                      <Weight size={24} />
                     </div>
-                    <div className="status-label">Actuators Online</div>
-                    <div className="status-value">3/3</div>
+                    <div className="sensor-label">Current Weight</div>
+                    <div className="sensor-value">16.4kg</div>
+                    <div className="progress-bar">
+                      <div className="progress-fill green" style={{ width: '66%' }}></div>
+                    </div>
+                    <div className="sensor-range">Initial: 25kg</div>
                   </div>
                 </div>
               </div>
 
-              <div className="grid-container">
-                {/* Sensor Readings */}
-                <div className="sensor-readings">
-                  <h2>Sensor Readings</h2>
-                  
-                  <div className="sensors-grid">
-                    {/* Temperature */}
-                    <div className="sensor-card">
-                      <div className="sensor-icon orange">
-                        <Thermometer size={24} />
-                      </div>
-                      <div className="sensor-label">Temperature</div>
-                      <div className="sensor-value">55.6°C</div>
-                      <div className="progress-bar">
-                        <div className="progress-fill orange" style={{ width: '55%' }}></div>
-                      </div>
-                      <div className="sensor-range">Range: 40-60°C</div>
-                    </div>
-
-                    {/* Humidity */}
-                    <div className="sensor-card">
-                      <div className="sensor-icon cyan">
-                        <Droplets size={24} />
-                      </div>
-                      <div className="sensor-label">Humidity</div>
-                      <div className="sensor-value">39%</div>
-                      <div className="progress-bar">
-                        <div className="progress-fill cyan" style={{ width: '39%' }}></div>
-                      </div>
-                      <div className="sensor-range">Target: &lt;65%</div>
-                    </div>
-
-                    {/* Moisture Content */}
-                    <div className="sensor-card">
-                      <div className="sensor-icon cyan">
-                        <Waves size={24} />
-                      </div>
-                      <div className="sensor-label">Moisture Content</div>
-                      <div className="sensor-value">16.4%</div>
-                      <div className="progress-bar">
-                        <div className="progress-fill cyan" style={{ width: '82%' }}></div>
-                      </div>
-                      <div className="sensor-range">Target: 10-14%</div>
-                    </div>
-
-                    {/* Current Weight */}
-                    <div className="sensor-card">
-                      <div className="sensor-icon green">
-                        <Weight size={24} />
-                      </div>
-                      <div className="sensor-label">Current Weight</div>
-                      <div className="sensor-value">16.4kg</div>
-                      <div className="progress-bar">
-                        <div className="progress-fill green" style={{ width: '66%' }}></div>
-                      </div>
-                      <div className="sensor-range">Initial: 25kg</div>
-                    </div>
-                  </div>
+              {/* System Controls */}
+              <div className="system-controls">
+                <div className="controls-header">
+                  <Settings size={20} />
+                  <h2>System Controls</h2>
                 </div>
 
-                {/* System Controls */}
-                <div className="system-controls">
-                  <div className="controls-header">
-                    <Settings size={20} />
-                    <h2>System Controls</h2>
-                  </div>
-
-                  {/* Target Temperature */}
-                  <div className="control-group">
-                    <label>Target Temperature</label>
-                    <input
-                      type="number"
-                      min="40"
-                      max="60"
-                      value={targetTemp}
-                      onChange={(e) => setTargetTemp(e.target.value)}
-                      className="control-input"
-                      placeholder="Enter temperature"
-                    />
-                  </div>
-
-                  {/* Target Moisture Content */}
-                  <div className="control-group">
-                    <label>Target Moisture Content</label>
-                    <input
-                      type="number"
-                      min="10"
-                      max="14"
-                      value={targetMoisture}
-                      onChange={(e) => setTargetMoisture(e.target.value)}
-                      className="control-input"
-                      placeholder="Enter moisture %"
-                    />
-                  </div>
-
-                  {/* Apply Settings Button */}
-                  <button className="apply-button">
-                    <span>✓</span>
-                    Apply Settings
-                  </button>
+                <div className="control-group">
+                  <label>Target Temperature</label>
+                  <input
+                    type="number"
+                    min="50"
+                    max="60"
+                    value={targetTemp}
+                    onChange={(e) => setTargetTemp(e.target.value)}
+                    className="control-input"
+                    placeholder="Enter temperature (50°C - 60°C)"
+                  />
                 </div>
+
+                <div className="control-group">
+                  <label>Target Moisture Content</label>
+                  <input
+                    type="number"
+                    min="10"
+                    max="14"
+                    value={targetMoisture}
+                    onChange={(e) => setTargetMoisture(e.target.value)}
+                    className="control-input"
+                    placeholder="Enter moisture (10% - 14%)"
+                  />
+                </div>
+
+                <button className="apply-button">
+                  <span>✓</span>
+                  Apply
+                </button>
               </div>
             </div>
-          </>
-        )}
+          </div>
+        </div>
       </div>
     </div>
   );

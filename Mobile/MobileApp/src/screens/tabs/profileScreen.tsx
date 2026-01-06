@@ -117,7 +117,7 @@ const profileScreen: React.FC = () => {
             <View style={styles.menuIcon}>
               <Ionicons name="notifications-outline" size={24} color="#27AE60" />
             </View>
-            <Text style={styles.menuText}>Notifications</Text>
+            <Text style={styles.menuText}>Edit Notification</Text>
               <Ionicons name="chevron-forward" size={20} color="#999" style={{ marginLeft: 'auto' }} />
           </TouchableOpacity>
           <View style={styles.separator} />

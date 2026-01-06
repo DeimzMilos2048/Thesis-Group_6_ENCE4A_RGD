@@ -1,167 +1,194 @@
-import React, { useState } from 'react';
-import { Activity, BarChart2, Clock, Settings, AlertTriangle, LogOut, PieChart, TrendingUp } from 'lucide-react';
-import './Analytics.css';
-import { useNavigate } from 'react-router-dom';
-import authService from '../../api/authService';
-import logo from "../../assets/images/logo2.png";
+  import React, { useState, useEffect } from 'react';
+  import { Activity,AlertTriangle,BarChart2, Bell, CircleUser,Clock, LogOut, Thermometer, Droplets, Waves, Weight, CheckCircle, Server } from 'lucide-react';
+  import './Dashboard.css';
+  import './Analytics.css';
+  import { useNavigate, useLocation } from 'react-router-dom';
+  import authService from '../../api/authService';
+  import logo from "../../assets/images/logo2.png";
 
-export default function Analytics() {
-  const navigate = useNavigate();
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  export default function Analytics({ view }) {
 
-  const handleNavigate = (path) => {
-    // Don't show loading for navigation
-    setLoading(false);
-    
-    // Use replace instead of push to prevent loading flash
-    navigate(path, { replace: true });
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState(null);
+    const [activeTab, setActiveTab] = useState('analytics');
+    const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+    const navigate = useNavigate();
+    const location = useLocation();
+
+    // Update active tab based on current route
+    useEffect(() => {
+      const path = location.pathname;
+      if (path.includes('/analytics')) {
+        setActiveTab('analytics');
+      } else if (path.includes('/history')) {
+        setActiveTab('history');
+      } else if (path.includes('/notification')) {
+        setActiveTab('notification');
+      } else if (path.includes('/profile')) {
+        setActiveTab('profile');
+      } else {
+        setActiveTab('dashboard');
+      }
+    }, [location]);
+
+    useEffect(() => {
+      let isMounted = true;
+      const fetchDashboardData = async () => {
+        try {
+          const loadingTimeout = setTimeout(() => {
+            if (isMounted) setLoading(true);
+          }, 300);
+
+          await authService.getDashboardData();
+          clearTimeout(loadingTimeout);
+          
+          if (isMounted) {
+            setError(null);
+            setLoading(false);
+          }
+        } catch (err) {
+          if (isMounted) {
+            setError(err.message);
+            if (err.message.includes('Not authorized')) {
+              navigate('/login');
+            }
+          }
+        }
+      };
+
+      fetchDashboardData();
+      
+      return () => {
+        isMounted = false;
+      };
+    }, [navigate]);
+
+    const handleNavigation = (path, tab) => {
+      setActiveTab(tab);
+      navigate(path);
+    };
+
+const handleLogoutClick = () => {
+    setShowLogoutConfirm(true);
   };
 
-  return (
-    <div className="dashboard-container">
-      {error && (
-        <div className="error-banner">
-          <AlertTriangle size={20} />
-          <span>{error}</span>
-        </div>
-      )}
-      {loading && (
-        <div className="loading-overlay">
-          <div className="loading-spinner"></div>
-          <p>Loading analytics data...</p>
-        </div>
-      )}
-      {/* Sidebar */}
-      <div className="sidebar">
-        {/* Logo */}
-        <div className="logo-section">
-          <div className="logo-box">
-            <img src={logo} alt="" className="sidebar-logo" />
+  const handleLogoutConfirm = () => {
+    authService.logout();
+    navigate('/login');
+  };
+
+  const handleLogoutCancel = () => {
+    setShowLogoutConfirm(false);
+  };
+
+    return (
+      <div className="dashboard-container">
+        {error && (
+          <div className="error-banner">
+            <AlertTriangle size={20} />
+            <span>{error}</span>
           </div>
-        </div>
+        )}
+        {loading && (
+          <div className="loading-overlay">
+            <div className="loading-spinner"></div>
+            <p>Loading analytics...</p>
+          </div>
+        )}
 
-        {/* Navigation */}
-        <nav className="nav-section">
-          <button 
-            className="nav-item"
-            onClick={() => handleNavigate('/dashboard')}
-          >
-            <BarChart2 size={16} />
-            <span>Dashboard</span>
-          </button>
-          <button 
-            className="nav-item active"
-          >
-            <Activity size={16} />
-            <span>Analytics</span>
-          </button>
-          <button 
-            className="nav-item"
-            onClick={() => handleNavigate('/dashboard/history')}
-          >
-            <Clock size={16} />
-            <span>History</span>
-          </button>
-          <button 
-            className="nav-item"
-            onClick={() => handleNavigate('/dashboard/settings')}
-          >
-            <Settings size={16} />
-            <span>Settings</span>
-          </button>
-          <button className="nav-item">
-            <AlertTriangle size={16} />
-            <span>Alerts</span>
-          </button>
-        </nav>
-
-        {/* Log Out */}
-        <button 
-          className="nav-item logout"
-          onClick={() => {
-            authService.logout();
-            navigate('/login');
-          }}
-        >
-          <LogOut size={16} />
-          <span>Log Out</span>
-        </button>
-      </div>
-
-      {/* Main Content */}
-      <div className="main-content">
-        <div className="analytics-header">
-          <h1>Analytics Dashboard</h1>
-          <p>View your rice drying performance metrics</p>
-        </div>
-
-        {/* Analytics Cards */}
-        <div className="analytics-grid">
-          <div className="analytics-card">
-            <div className="card-header">
-              <h3>Drying Efficiency</h3>
-              <TrendingUp size={20} />
-            </div>
-            <div className="card-content">
-              <h2>85%</h2>
-              <p>Average drying efficiency this month</p>
+        {/* Logout Confirmation Modal */}
+              {showLogoutConfirm && (
+                <div className="modal-overlay" onClick={handleLogoutCancel}>
+                  <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+                    <div className="modal-header">
+                      <LogOut size={24} />
+                      <h3>Confirm Logout</h3>
+                    </div>
+                    <div className="modal-body">
+                      <p>Are you sure you want to log out?</p>
+                    </div>
+                    <div className="modal-footer">
+                      <button className="modal-button cancel" onClick={handleLogoutCancel}>
+                        Cancel
+                      </button>
+                      <button className="modal-button confirm" onClick={handleLogoutConfirm}>
+                        Log Out
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+                      
+        {/* Sidebar */}
+        <div className="sidebar">
+          <div className="logo-section">
+            <div className="logo-box">
+              <img src={logo} alt="" className="sidebar-logo" />
             </div>
           </div>
 
-          <div className="analytics-card">
-            <div className="card-header">
-              <h3>Moisture Distribution</h3>
-              <PieChart size={20} />
-            </div>
-            <div className="card-content">
-              <h2>14%</h2>
-              <p>Average final moisture content</p>
-            </div>
-          </div>
-
-          <div className="analytics-card">
-            <div className="card-header">
-              <h3>Energy Usage</h3>
-              <BarChart2 size={20} />
-            </div>
-            <div className="card-content">
-              <h2>2.4 kWh</h2>
-              <p>Per kg of rice dried</p>
-            </div>
-          </div>
-
-          <div className="analytics-card">
-            <div className="card-header">
-              <h3>Processing Time</h3>
-              <Clock size={20} />
-            </div>
-            <div className="card-content">
-              <h2>4.5 hrs</h2>
-              <p>Average drying cycle duration</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Charts Section */}
-        <div className="charts-section">
-          <div className="chart-container">
-            <h3>Monthly Performance Trends</h3>
-            <div className="chart-placeholder">
-              {/* Add actual chart library implementation here */}
-              <div className="placeholder-text">Performance Chart</div>
-            </div>
-          </div>
+          <nav className="nav-section">
+            <button 
+              className={`nav-item ${activeTab === 'dashboard' ? 'active' : ''}`}
+              onClick={() => handleNavigation('/dashboard', 'dashboard')}
+            >
+              <BarChart2 size={16} />
+              <span>Dashboard</span>
+            </button>
+            <button 
+              className={`nav-item ${activeTab === 'analytics' ? 'active' : ''}`}
+              onClick={() => handleNavigation('/analytics', 'analytics')}
+            >
+              <Activity size={16} />
+              <span>Analytics</span>
+            </button>
+            <button 
+              className={`nav-item ${activeTab === 'history' ? 'active' : ''}`}
+              onClick={() => handleNavigation('/history', 'history')}
+            >
+              <Clock size={16} />
+              <span>History</span>
+            </button>
           
-          <div className="chart-container">
-            <h3>Energy Consumption Analysis</h3>
-            <div className="chart-placeholder">
-              {/* Add actual chart library implementation here */}
-              <div className="placeholder-text">Energy Chart</div>
+            <button 
+              className={`nav-item ${activeTab === 'notification' ? 'active' : ''}`}
+              onClick={() => handleNavigation('/notification', 'notification')}
+            >
+              <Bell size={16} />
+              <span>Notification</span>
+            </button>
+
+             <button 
+              className={`nav-item ${activeTab === 'profile' ? 'active' : ''}`}
+              onClick={() => handleNavigation('/profile', 'profile')}
+              >
+              <CircleUser size={16} />
+              <span>Profile</span>
+              </button>
+
+          </nav>
+
+          <button 
+            className="nav-item logout"
+            onClick={handleLogoutClick}
+          >
+            <LogOut size={16} />
+            <span>Log Out</span>
+          </button>
+        </div>
+
+        {/* Main Content for Analytics*/}
+        <div className="main-content">
+          <div className="unified-dashboard">
+            {/* Header */}
+            <div className="dashboard-header">
+              <h1>Analytics</h1>
+              <p>View your rice drying performance metrics</p>
             </div>
+
+
           </div>
         </div>
       </div>
-    </div>
-  );
-}
+    );
+  }

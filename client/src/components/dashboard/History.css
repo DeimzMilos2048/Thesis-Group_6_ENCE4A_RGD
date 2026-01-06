@@ -1,0 +1,27 @@
+.history-summary{
+    display: flex;
+    gap: 16px;
+    margin-left: 30px;
+}
+
+.history-card {
+  flex: 1;
+  padding: 16px;
+  border-radius: 10px;
+  gap: 12px;
+  align-items: center;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  margin-bottom: 20px;
+  margin-right: 30px;
+}
+
+.history-card h3 {
+    margin: 0;
+    text-align: center;
+}
+
+.history-card p {
+    margin: 0;
+    text-align: center;
+}

@@ -62,8 +62,7 @@ function LoginPage() {
             <div className="login-hero">
                 <div className="login-container">
                     <div className="form-header">
-                        <h1 className="form-title">WELCOME BACK</h1>
-                        <p> Hey! Good to see you again :)</p>
+                        <h1 className="form-title">LOG IN</h1>
                     </div>
 
                     <form onSubmit={handleLogin}>
@@ -106,7 +105,7 @@ function LoginPage() {
 
                         <button type="submit" className="submit-btn">
                             <span className="btn-text">
-                                LOG IN
+                                Log In
                             </span>
                         </button>
                     </form>

@@ -77,6 +77,11 @@ const useAuthStore = create((set) => ({
     });
   },
 
+  update:(updatedUser) => 
+    set((state) => ({
+      user: { ...state.user, ...updatedUser }
+    })),
+
   // Initialize user from token
   initializeAuth: async () => {
     const token = localStorage.getItem("token");
@@ -95,6 +100,7 @@ const useAuthStore = create((set) => ({
       }
     }
   }
+  
 }));
 
 export default useAuthStore;
