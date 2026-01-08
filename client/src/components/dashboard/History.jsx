@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Activity, BarChart2, Bell, CircleUser,Clock, AlertTriangle, LogOut, Thermometer, Droplets, Waves, Weight, CheckCircle, Server } from 'lucide-react';
 import './Dashboard.css';
 import './History.css';
+import * as XLSX from 'xlsx';
 import { useNavigate, useLocation } from 'react-router-dom';
 import authService from '../../api/authService';
 import logo from "../../assets/images/logo2.png";
@@ -80,6 +81,55 @@ export default function History({ view }) {
   const handleLogoutCancel = () => {
     setShowLogoutConfirm(false);
   };
+
+  const historyData = [
+    {
+      id: 1,
+      date: "2026-01-05",
+      time: "10:00 AM",
+      moisture: "14%",
+      temperature: "50°C",
+      humidity: "60 %",
+      weight: "25 kg",
+      status: "Complete",
+    },
+    {
+      id: 2,
+      date: "2026-01-06",
+      time: "12:00 AM",
+      moisture: "13%",
+      temperature: "51°C",
+      humidity: "63 %",
+      weight: "25 kg",
+      status: "Complete",
+    },
+    {
+      id: 3,
+      date: "2026-01-06",
+      time: "1:00 PM",
+      moisture: "9%",
+      temperature: "50°C",
+      humidity: "68 %",
+      weight: "23 kg",
+      status: "Warning",
+    },
+    {
+      id: 4,
+      date: "2026-01-06",
+      time: "4:00 PM",
+      moisture: "3%",
+      temperature: "65°C",
+      humidity: "78 %",
+      weight: "1 kg",
+      status: "Error",
+    },
+  ];
+    const handleDownloadExcel = () => {
+      const worksheet = XLSX.utils.json_to_sheet(historyData);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "History");
+      XLSX.writeFile(workbook, "rice_grain_dryer_data_history.xlsx");
+    };
 
   return (
     <div className="dashboard-container">
@@ -186,29 +236,45 @@ export default function History({ view }) {
             <p>Review past drying sessions and activity.</p>
           </div>
 
-           {/* Summary Cards */}
-              <div className="history-summary">
-                <div className="history-card session">                  
-                  <div>
-                    <h3>3</h3>
-                    <p>Total Sessions</p>
-                  </div>
-                </div>
-          
-                <div className="history-card Completed">
-                  <div>
-                    <h3>3</h3>
-                    <p>Completed</p>
-                  </div>
-                </div>
-          
-                <div className="history-card Avg Temp">
-                  <div>
-                    <h3>54.1 C</h3>
-                    <p>Avg Temp</p>
-                  </div>
-                </div>
-              </div>
+          <div className="history-container">
+              <button className="download-btn" onClick={handleDownloadExcel}>
+                Download Excel
+              </button>
+          </div>
+
+           <div className="table-wrapper">
+        <table className="history-table">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Time</th>
+              <th>Moisture Content</th>
+              <th>Temperature</th>
+              <th>Humidity</th>
+              <th>Weight</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {historyData.map((item) => (
+              <tr key={item.id}>
+                <td>{item.date}</td>
+                <td>{item.time}</td>
+                <td>{item.moisture}</td>
+                <td>{item.temperature}</td>
+                <td>{item.humidity}</td>
+                <td>{item.weight}</td>
+                <td>
+                  <span className={`status ${item.status.toLowerCase()}`}>
+                    {item.status}
+                  </span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
 
         </div>
       </div>

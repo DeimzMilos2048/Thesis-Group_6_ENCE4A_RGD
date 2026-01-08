@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Activity, BarChart2, Bell, CircleUser, Clock, AlertTriangle, LogOut, Thermometer, Droplets, Waves, Weight, CheckCircle, Server, User, Mail, Phone, MapPin, Camera, Save, X, HelpCircle, Settings } from 'lucide-react';
 import './Dashboard.css';
@@ -16,7 +17,6 @@ export default function Profile({ view }) {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Profile state
   const [profileData, setProfileData] = useState({
     username: '',
     name: '',
@@ -24,22 +24,56 @@ export default function Profile({ view }) {
     avatar: null
   });
 
-  // Notification settings state
-  const [notifications, setNotifications] = useState({
-    emailNotifications: true,
-    smsNotifications: false,
+  const defaultNotifications = {
+    webNotifications: true,
+    mobileNotifications: true,
     systemAlerts: true,
     moistureAlerts: true,
+    humidityAlerts: true,
     temperatureAlerts: true,
-    weightAlerts: false
+    weightAlerts: true
+  };
+
+  const [notifications, setNotifications] = useState(() => {
+    try {
+      const saved = localStorage.getItem('notificationSettings');
+      return saved ? JSON.parse(saved) : defaultNotifications;
+    } catch (error) {
+      console.error('Error loading notification settings:', error);
+      return defaultNotifications;
+    }
   });
 
-  // Settings state
-  const [settings, setSettings] = useState({
+  const defaultSettings = {
     autoRefresh: true
+  };
+
+  const [settings, setSettings] = useState(() => {
+    try {
+      const saved = localStorage.getItem('userSettings');
+      return saved ? JSON.parse(saved) : defaultSettings;
+    } catch (error) {
+      console.error('Error loading settings:', error);
+      return defaultSettings;
+    }
   });
 
-  // Update active tab based on current route
+  useEffect(() => {
+    try {
+      localStorage.setItem('notificationSettings', JSON.stringify(notifications));
+    } catch (error) {
+      console.error('Error saving notification settings:', error);
+    }
+  }, [notifications]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('userSettings', JSON.stringify(settings));
+    } catch (error) {
+      console.error('Error saving settings:', error);
+    }
+  }, [settings]);
+
   useEffect(() => {
     const path = location.pathname;
     if (path.includes('/analytics')) {
@@ -366,20 +400,21 @@ export default function Profile({ view }) {
                     <h2>Notification Preferences</h2>
                   </div>
 
+                  {/* Edit Notifications */}
                   <div className="notification-settings">
                     <div className="notification-group">
                       <h3>General Notifications</h3>
                       
                       <div className="notification-item">
                         <div className="notification-info">
-                          <strong>Email Notifications</strong>
-                          <span>Receive notifications via email</span>
+                          <strong>Web Alert Notification</strong>
+                          <span>Receive notifications via web</span>
                         </div>
                         <label className="toggle-switch">
                           <input
-                            type="checkbox"
-                            checked={notifications.emailNotifications}
-                            onChange={() => handleNotificationToggle('emailNotifications')}
+                            type="checkbox" 
+                            checked={notifications.webNotifications}
+                            onChange={() => handleNotificationToggle('webNotifications')}
                           />
                           <span className="toggle-slider"></span>
                         </label>
@@ -387,20 +422,21 @@ export default function Profile({ view }) {
 
                       <div className="notification-item">
                         <div className="notification-info">
-                          <strong>SMS Notifications</strong>
-                          <span>Receive notifications via SMS</span>
+                          <strong>Mobile Alert Notification</strong>
+                          <span>Receive notifications via mobile</span>
                         </div>
                         <label className="toggle-switch">
                           <input
                             type="checkbox"
-                            checked={notifications.smsNotifications}
-                            onChange={() => handleNotificationToggle('smsNotifications')}
+                            checked={notifications.mobileNotifications}
+                            onChange={() => handleNotificationToggle('mobileNotifications')}
                           />
                           <span className="toggle-slider"></span>
                         </label>
                       </div>
                     </div>
 
+                    {/* System Alerts */}
                     <div className="notification-group">
                       <h3>System Alerts</h3>
                       
@@ -429,6 +465,21 @@ export default function Profile({ view }) {
                             type="checkbox"
                             checked={notifications.moistureAlerts}
                             onChange={() => handleNotificationToggle('moistureAlerts')}
+                          />
+                          <span className="toggle-slider"></span>
+                        </label>
+                      </div>
+
+                      <div className="notification-item">
+                        <div className="notification-info">
+                          <strong>Humidity Alerts</strong>
+                          <span>Alerts for humidity changes</span>
+                        </div>
+                        <label className="toggle-switch">
+                          <input
+                            type="checkbox"
+                            checked={notifications.humidityAlerts}
+                            onChange={() => handleNotificationToggle('humidityAlerts')}
                           />
                           <span className="toggle-slider"></span>
                         </label>
@@ -495,8 +546,8 @@ export default function Profile({ view }) {
                       </div>
 
                       <div className="faq-item">
-                        <strong>Can I export analytics data?</strong>
-                        <p>Yes, go to the Analytics page and use the export button to download your data in CSV format.</p>
+                        <strong>Can I export historical data?</strong>
+                        <p>Yes, go to the History page and use the export button to download your data in CSV/XLSX format.</p>
                       </div>
 
                       
@@ -513,23 +564,6 @@ export default function Profile({ view }) {
                   </div>
 
                   <div className="settings-content">
-                    <div className="settings-group">
-                      <h3>General</h3>
-                      
-                      <div className="setting-item">
-                        <label>Language</label>
-                        <select
-                          value={settings.language}
-                          onChange={(e) => handleSettingChange('language', e.target.value)}
-                        >
-                          <option>English</option>
-                          <option>Filipino</option>
-                        </select>
-                      </div>
-
-                     
-                    </div>
-
                     <div className="settings-group">
                       <h3>Dashboard</h3>
                       

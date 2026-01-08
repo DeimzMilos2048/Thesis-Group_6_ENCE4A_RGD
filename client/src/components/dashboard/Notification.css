@@ -57,13 +57,9 @@
 .alert-right {
   margin-left: auto;
   text-align: right;
+  align-items: top;
   font-size: 12px;
   gap: 6px;
-  display: flex;
-}
-
-.status {
-  font-weight: 600;
 }
 
 .modal-overlay {

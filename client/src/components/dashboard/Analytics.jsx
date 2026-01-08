@@ -1,10 +1,12 @@
   import React, { useState, useEffect } from 'react';
   import { Activity,AlertTriangle,BarChart2, Bell, CircleUser,Clock, LogOut, Thermometer, Droplets, Waves, Weight, CheckCircle, Server } from 'lucide-react';
+  import { LineChart,Line,XAxis,YAxis,Tooltip,ResponsiveContainer,CartesianGrid } from 'recharts';
   import './Dashboard.css';
   import './Analytics.css';
   import { useNavigate, useLocation } from 'react-router-dom';
   import authService from '../../api/authService';
   import logo from "../../assets/images/logo2.png";
+
 
   export default function Analytics({ view }) {
 
@@ -14,6 +16,27 @@
     const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
     const navigate = useNavigate();
     const location = useLocation();
+    const [chartData, setChartData] = useState({
+      moisture: [],
+      humidity: [],
+      temperature: [],
+      weight: [],
+    });
+
+    useEffect(() => {
+    const interval = setInterval(() => {
+    const time = new Date().toLocaleTimeString();
+
+    setChartData(prev => ({
+          moisture: [...prev.moisture.slice(-10), { time, value: 10 + Math.random() * (14-10) }],
+          temperature: [...prev.temperature.slice(-10), { time, value: 50 + Math.random() * (60-50) }],
+          humidity: [...prev.humidity.slice(-10), { time, value: Math.random() * 65 }],
+          weight: [...prev.weight.slice(-10), { time, value: Math.random() * 25 }],
+          }));
+        }, 1000);
+
+      return () => clearInterval(interval);
+    }, []);
 
     // Update active tab based on current route
     useEffect(() => {
@@ -68,18 +91,37 @@
       navigate(path);
     };
 
-const handleLogoutClick = () => {
+    const handleLogoutClick = () => {
     setShowLogoutConfirm(true);
-  };
+    };
 
-  const handleLogoutConfirm = () => {
+    const handleLogoutConfirm = () => {
     authService.logout();
     navigate('/login');
-  };
+    };
 
-  const handleLogoutCancel = () => {
+    const handleLogoutCancel = () => {
     setShowLogoutConfirm(false);
-  };
+    };
+
+   const LiveLineGraph = ({ data, color, unit }) => (
+  <ResponsiveContainer width="100%" height="100%">
+    <LineChart data={data} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+      <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+      <XAxis dataKey="time" tick={{ fontSize: 12 }} />
+      <YAxis tick={{ fontSize: 12 }} unit={unit} />
+      <Tooltip />
+      <Line
+        type="monotone"
+        dataKey="value"
+        stroke={color}
+        strokeWidth={2.5}
+        dot={false}
+        activeDot={{ r: 5 }}
+      />
+    </LineChart>
+  </ResponsiveContainer>
+);
 
     return (
       <div className="dashboard-container">
@@ -186,7 +228,44 @@ const handleLogoutClick = () => {
               <p>View your rice drying performance metrics</p>
             </div>
 
+           {/* Analytics Content */}
+          <div className="analytics-content">
+            <div className="analytics-cards">
+              <h3 className="analytics-card-title">
+                <Droplets size={18} /> Moisture Content
+              </h3>
+            <div className="analytics-card-status">
+              <LiveLineGraph data={chartData.moisture} color="#22c55e" unit="%" />
+            </div>
+          </div>
 
+            <div className="analytics-cards">
+              <h3 className="analytics-card-title">
+              <Waves size={18} /> Humidity
+              </h3>
+              <div className="analytics-card-status">
+                <LiveLineGraph data={chartData.humidity} color="#3b82f6" unit="%" />
+              </div>
+            </div>
+
+            <div className="analytics-cards">
+             <h3 className="analytics-card-title">
+               <Thermometer size={18} /> Temperature
+             </h3>
+             <div className="analytics-card-status">
+               <LiveLineGraph data={chartData.temperature} color="#ef4444" unit="°C" />
+              </div>
+            </div>
+
+              <div className="analytics-cards">
+                <h3 className="analytics-card-title">
+                  <Weight size={18} /> Weight
+                </h3>
+              <div className="analytics-card-status">
+                <LiveLineGraph data={chartData.weight} color="#a855f7" unit="kg" />
+              </div>
+            </div>
+          </div>
 
           </div>
         </div>

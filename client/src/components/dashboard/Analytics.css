@@ -1,0 +1,36 @@
+.analytics-content {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 30px;
+  margin-left: 30px;
+  margin-right: 30px;
+}
+
+.analytics-cards {
+  display: flex;
+  flex-direction: column;
+}
+
+.analytics-card-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+.analytics-card-status {
+  height: 260px;
+  background: rgba(255, 255, 255, 0.98);
+  border-radius: 16px;
+  padding: 12px 8px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+}
+
+/* Responsive */
+@media (max-width: 900px) {
+  .analytics-content {
+    grid-template-columns: 1fr;
+  }
+}
