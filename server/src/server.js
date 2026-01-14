@@ -3,6 +3,7 @@ import dotenv from "dotenv";
 import cors from "cors";
 
 import authRoutes from "./routes/authRoutes.js";
+import profileRoutes from "./routes/profileRoutes.js";
 import connectDB from "./config/db.js";
 
 dotenv.config();
@@ -60,6 +61,7 @@ app.use(express.json());
 
 //Routes
 app.use("/api/auth", authRoutes);
+app.use("/api", profileRoutes);
 
 app.get('/', (req, res) => {
   res.json({ status: 'ok', service: 'rgd-backend' });

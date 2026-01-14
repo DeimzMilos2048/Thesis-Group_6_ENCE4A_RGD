@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { type } from "os";
 
 const userSchema = mongoose.Schema(
   {
@@ -18,6 +19,10 @@ const userSchema = mongoose.Schema(
     password: {
       type: String,
       required: [true, "Enter a password"],
+    },
+    avatar:{
+      type: String,
+      default: null,
     },
     role: {
       type: String,

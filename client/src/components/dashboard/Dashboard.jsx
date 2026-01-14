@@ -293,7 +293,6 @@ export default function RiceDryingDashboard({ view }) {
                 </div>
 
                 <button className="apply-button">
-                  <span>✓</span>
                   Apply
                 </button>
               </div>

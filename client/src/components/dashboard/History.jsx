@@ -123,6 +123,16 @@ export default function History({ view }) {
       weight: "1 kg",
       status: "Error",
     },
+    {
+      id: 5,
+      date: "2026-01-13",
+      time: "4:00 PM",
+      moisture: "3%",
+      temperature: "65°C",
+      humidity: "78 %",
+      weight: "1 kg",
+      status: "Error",
+    },
   ];
     const handleDownloadExcel = () => {
       const worksheet = XLSX.utils.json_to_sheet(historyData);

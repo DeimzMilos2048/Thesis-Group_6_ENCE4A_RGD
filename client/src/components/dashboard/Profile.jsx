@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Activity, BarChart2, Bell, CircleUser, Clock, AlertTriangle, LogOut, Thermometer, Droplets, Waves, Weight, CheckCircle, Server, User, Mail, Phone, MapPin, Camera, Save, X, HelpCircle, Settings } from 'lucide-react';
 import './Dashboard.css';
@@ -6,6 +5,7 @@ import './Profile.css';
 import { useNavigate, useLocation } from 'react-router-dom';
 import authService from '../../api/authService';
 import logo from "../../assets/images/logo2.png";
+import { toast } from 'react-toastify';
 
 export default function Profile({ view }) {
   const [loading, setLoading] = useState(false);
@@ -13,16 +13,11 @@ export default function Profile({ view }) {
   const [activeTab, setActiveTab] = useState('profile');
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [activeSection, setActiveSection] = useState('profile');
-  const [isEditing, setIsEditing] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
-  const [profileData, setProfileData] = useState({
-    username: '',
-    name: '',
-    email: '',
-    avatar: null
-  });
+  const [editingUser, setEditingUser] = useState(null);
+  const [isEditing, setIsEditing] = useState(false);
 
   const defaultNotifications = {
     webNotifications: true,
@@ -57,6 +52,23 @@ export default function Profile({ view }) {
       return defaultSettings;
     }
   });
+
+  useEffect(() => {
+  const fetchProfile = async () => {
+    try {
+      setLoading(true);
+      const res = await authService.getProfile();
+      console.log("PROFILE DATA:", res);
+      setEditingUser(res);
+    } catch (err) {
+      setError(err.message || 'Failed to load profile');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  fetchProfile();
+  }, []);
 
   useEffect(() => {
     try {
@@ -139,9 +151,6 @@ export default function Profile({ view }) {
     setShowLogoutConfirm(false);
   };
 
-  const handleProfileChange = (field, value) => {
-    setProfileData(prev => ({ ...prev, [field]: value }));
-  };
 
   const handleNotificationToggle = (field) => {
     setNotifications(prev => ({ ...prev, [field]: !prev[field] }));
@@ -151,18 +160,26 @@ export default function Profile({ view }) {
     setSettings(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleSaveProfile = () => {
+  const handleSaveEditProfile = async () => {
+  try {
+    setLoading(true);
+    const updatedUser = await authService.updateProfile(editingUser);
+    setEditingUser(updatedUser);
     setIsEditing(false);
-    // Add API call here to save profile
-    console.log('Saving profile:', profileData);
-  };
+    toast.success("Profile updated successfully");
+  } catch (err) {
+    toast.error(err.message || "Failed to update profile");
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleAvatarChange = (e) => {
     const file = e.target.files[0];
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
-        setProfileData(prev => ({ ...prev, avatar: reader.result }));
+        // setProfileData(prev => ({ ...prev, avatar: reader.result }));
       };
       reader.readAsDataURL(file);
     }
@@ -309,38 +326,46 @@ export default function Profile({ view }) {
             {/* Main Profile Content */}
             <div className="profile-main">
               {/* Edit Profile Section */}
-              {activeSection === 'profile' && (
+              {activeSection === 'profile' &&  editingUser && (
                 <div className="profile-section">
                   <div className="section-header">
-                    <h2>Edit Profile</h2>
-                    {!isEditing ? (
-                      <button className="edit-btn" onClick={() => setIsEditing(true)}>
-                        Edit
-                      </button>
-                    ) : (
-                      <div className="edit-actions">
-                        <button className="cancel-btn" onClick={() => setIsEditing(false)}>
-                          <X size={16} />
-                          Cancel
-                        </button>
-                        <button className="save-btn" onClick={handleSaveProfile}>
-                          <Save size={16} />
-                          Save
-                        </button>
-                      </div>
-                    )}
+                <h2>Edit Profile</h2>
+
+                {!isEditing ? (
+                <button className="edit-btn" onClick={() => setIsEditing(true)}>
+                  Edit
+                </button>
+                ) : (
+                <div className="edit-actions">
+                  <button
+                    className="cancel-btn"
+                    onClick={() => setIsEditing(false)}
+                >
+                  <X size={16} />
+                  Cancel
+                </button> 
+
+                  <button
+                    className="save-btn"
+                    onClick={handleSaveEditProfile}
+                  >
+                  <Save size={16} />
+                    Save
+                  </button>
+                  </div>
+                )}
                   </div>
 
                   <div className="profile-avatar-section">
                     <div className="avatar-container">
                       <div className="avatar-circle">
-                        {profileData.avatar ? (
+                        {/* {profileData.avatar ? (
                           <img src={profileData.avatar} alt="Profile" />
                         ) : (
                           <User size={48} />
-                        )}
+                        )} */}
                       </div>
-                      {isEditing && (
+                      {(
                         <label className="avatar-upload">
                           <Camera size={16} />
                           <input type="file" accept="image/*" onChange={handleAvatarChange} />
@@ -355,11 +380,13 @@ export default function Profile({ view }) {
                       <div className="input-wrapper">
                         <User size={18} />
                         <input
-                          type="text"
-                          value={profileData.username}
-                          onChange={(e) => handleProfileChange('username', e.target.value)}
-                          disabled={!isEditing}
-                        />
+                         type="text"
+                         value={editingUser?.username || ""}
+                         onChange={(e) =>
+                         setEditingUser({ ...editingUser, username: e.target.value })
+                         }
+                         disabled={!isEditing}
+                         />
                       </div>
                     </div>
 
@@ -369,8 +396,8 @@ export default function Profile({ view }) {
                         <User size={18} />
                         <input
                           type="text"
-                          value={profileData.name}
-                          onChange={(e) => handleProfileChange('name', e.target.value)}
+                          value={editingUser?.fullname || ""}
+                          onChange={(e) => setEditingUser({...editingUser, fullname: e.target.value})}
                           disabled={!isEditing}
                         />
                       </div>
@@ -382,8 +409,8 @@ export default function Profile({ view }) {
                         <Mail size={18} />
                         <input
                           type="email"
-                          value={profileData.email}
-                          onChange={(e) => handleProfileChange('email', e.target.value)}
+                          value={editingUser?.email || ""}
+                          onChange={(e) => setEditingUser({...editingUser, email: e.target.value})}
                           disabled={!isEditing}
                         />
                       </div>

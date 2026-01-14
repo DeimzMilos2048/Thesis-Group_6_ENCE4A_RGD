@@ -6,20 +6,22 @@
 
 .download-btn {
   position: absolute;
-  top: 0;
-  right: 0;
-  background: #10b981;
-  color: #ffffff;
+  top: 0; 
+  right: 30px;
+  background: #ffffff;
+  color: #10b981;
   border: none;
   padding: 8px 14px;
   font-size: 13px;
   border-radius: 6px;
   cursor: pointer;
   transition: background 0.2s ease;
+  
 }
 
 .download-btn:hover {
   background: #10b981;
+  color: #ffffff;
 }
 .table-wrapper {
   background: #ffffff;
@@ -32,7 +34,7 @@
 }
 
 .history-table {
-  width: 100%;
+  width: 100%;  
   border-collapse: collapse;
   font-size: 14px;
 }

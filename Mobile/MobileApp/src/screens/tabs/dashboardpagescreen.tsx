@@ -70,14 +70,7 @@ const DashboardPageScreen: React.FC = () => {
             <Text style={styles.statusTitle}>System Status</Text>
             <Text style={styles.statusValue}>Drying</Text>
           </View>
-          <View style={styles.statusCard}>
-            <Text style={styles.statusTitle}>Status</Text>
-            <Text style={styles.statusValue}>Idle</Text>
-          </View>
-          <View style={styles.statusCard}>
-            <Text style={styles.statusTitle}>Status</Text>
-            <Text style={styles.statusValue}>Complete</Text>
-          </View>
+      
         </View>
 
         {/* System Controls */}
@@ -87,7 +80,8 @@ const DashboardPageScreen: React.FC = () => {
           <TextInput
             style={styles.input}
             keyboardType="numeric"
-            placeholder="Enter target temperature"
+            placeholder="Enter temperature (50°C - 60°C)"
+            placeholderTextColor='#9CA3AF'
             value={targetTemp}
             onChangeText={setTargetTemp}
           />
@@ -96,7 +90,8 @@ const DashboardPageScreen: React.FC = () => {
           <TextInput
             style={styles.input}
             keyboardType="numeric"
-            placeholder="Enter target moisture"
+            placeholder="Enter moisture (10% - 14%)"
+            placeholderTextColor='#9CA3AF'
             value={targetMoisture}
             onChangeText={setTargetMoisture}
           />
@@ -209,7 +204,7 @@ const styles = StyleSheet.create<Styles>({
     paddingHorizontal: 15,
   },
   statusCard: {
-    width: '30%',
+    width: '100%',
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
     padding: 10,
@@ -222,7 +217,7 @@ const styles = StyleSheet.create<Styles>({
     shadowRadius: 2,
   },
   statusTitle: {
-    fontSize: 14,
+    fontSize: 12,
     color: "#6b7280",
     marginBottom: 4,
   },
@@ -234,7 +229,7 @@ const styles = StyleSheet.create<Styles>({
   sectionTitle: {
     fontSize: 18,
     fontWeight: "600",
-    marginVertical: 10,
+    marginVertical: 5,
     color: "#333",
     paddingHorizontal: 15,
   },
