@@ -80,7 +80,7 @@ const DashboardPageScreen: React.FC = () => {
           <TextInput
             style={styles.input}
             keyboardType="numeric"
-            placeholder="Enter temperature (50°C - 60°C)"
+            placeholder="Enter temperature"
             placeholderTextColor='#9CA3AF'
             value={targetTemp}
             onChangeText={setTargetTemp}
@@ -90,7 +90,7 @@ const DashboardPageScreen: React.FC = () => {
           <TextInput
             style={styles.input}
             keyboardType="numeric"
-            placeholder="Enter moisture (10% - 14%)"
+            placeholder="Enter moisture"
             placeholderTextColor='#9CA3AF'
             value={targetMoisture}
             onChangeText={setTargetMoisture}

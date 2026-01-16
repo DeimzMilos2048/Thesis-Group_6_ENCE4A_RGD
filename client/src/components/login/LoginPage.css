@@ -165,6 +165,7 @@
     border-top: 2px solid white;
     border-radius: 50%;
     animation: spin 1s linear infinite;
+    animation-play-state: running;
 }
 
 @keyframes spin {
@@ -181,6 +182,7 @@
     border-left: 4px solid #28a745;
     display: none;
     animation: slideDown 0.5s ease;
+    animation-play-state: running;
 }
 
 @keyframes slideDown {
@@ -222,4 +224,20 @@ transform: translateY(0);
         .form-title {
             font-size: 24px;
         }
+}
+
+.Toastify__toast-container {
+  bottom: 10px;
+  right: 10px;
+  top: auto;
+  left: auto;
+}
+
+.Toastify__toast {
+  border-radius: 10px;
+  font-size: 14px;
+  padding: 20px;
+  width: 400px;
+  font-weight: 500;
+  margin-bottom: 10px;
 }

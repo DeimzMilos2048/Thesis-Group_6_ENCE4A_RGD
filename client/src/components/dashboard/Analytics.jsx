@@ -10,48 +10,16 @@ import logo from "../../assets/images/logo2.png";
 export default function Analytics({ view }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [activeTab, setActiveTab] = useState('analytics');
+  const [activeTab, setActiveTab] = useState('analytics'); 
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   
   const [chartData, setChartData] = useState({
-    moisture: [
-      { time: '0', value: 10 },
-      { time: '1', value: 11 },
-      { time: '2', value: 12 },
-      { time: '3', value: 11 },
-      { time: '4', value: 13 },
-      { time: '5', value: 12 },
-      { time: '6', value: 14 }
-    ],
-    humidity: [
-      { time: '0', value: 40 },
-      { time: '1', value: 42 },
-      { time: '2', value: 45 },
-      { time: '3', value: 43 },
-      { time: '4', value: 44 },
-      { time: '5', value: 46 },
-      { time: '6', value: 47 }
-    ],
-    temperature: [
-      { time: '0', value: 50 },
-      { time: '1', value: 52 },
-      { time: '2', value: 54 },
-      { time: '3', value: 55 },
-      { time: '4', value: 56 },
-      { time: '5', value: 55 },
-      { time: '6', value: 53 }
-    ],
-    weight: [
-      { time: '0', value: 20 },
-      { time: '1', value: 19.5 },
-      { time: '2', value: 19 },
-      { time: '3', value: 18.7 },
-      { time: '4', value: 18.4 },
-      { time: '5', value: 18 },
-      { time: '6', value: 17.8 }
-    ]
+    moisture: [],
+    humidity: [],
+    temperature: [],
+    weight: []
   });
 
   useEffect(() => {
@@ -162,7 +130,7 @@ export default function Analytics({ view }) {
               <h3>Confirm Logout</h3>
             </div>
             <div className="modal-body">
-              <p>Are you sure you want to log out?</p>
+              <p>Are you sure, you want to log out?</p>
             </div>
             <div className="modal-footer">
               <button className="modal-button cancel" onClick={handleLogoutCancel}>

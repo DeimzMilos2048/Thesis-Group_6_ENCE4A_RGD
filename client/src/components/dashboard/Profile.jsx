@@ -209,7 +209,7 @@ export default function Profile({ view }) {
               <h3>Confirm Logout</h3>
             </div>
             <div className="modal-body">
-              <p>Are you sure you want to log out?</p>
+              <p>Are you sure, you want to log out?</p>
             </div>
             <div className="modal-footer">
               <button className="modal-button cancel" onClick={handleLogoutCancel}>
@@ -365,12 +365,6 @@ export default function Profile({ view }) {
                           <User size={48} />
                         )} */}
                       </div>
-                      {(
-                        <label className="avatar-upload">
-                          <Camera size={16} />
-                          <input type="file" accept="image/*" onChange={handleAvatarChange} />
-                        </label>
-                      )}
                     </div>
                   </div>
 

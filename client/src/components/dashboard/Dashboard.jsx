@@ -4,6 +4,7 @@ import './Dashboard.css';
 import { useNavigate, useLocation } from 'react-router-dom';
 import authService from '../../api/authService';
 import logo from "../../assets/images/logo2.png";
+import io from 'socket.io-client';
 
 export default function RiceDryingDashboard({ view }) {
   const [targetTemp, setTargetTemp] = useState("");
@@ -12,6 +13,13 @@ export default function RiceDryingDashboard({ view }) {
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [sensorData, setSensorData] = useState({
+    temperature: 0,
+    humidity: 0,
+    moisture: 0,
+    weight: 0,
+    status: 'Idle'
+  });
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -31,6 +39,45 @@ export default function RiceDryingDashboard({ view }) {
       setActiveTab('dashboard');
     }
   }, [location]);
+
+  // Socket.io setup for real-time sensor data
+  useEffect(() => {
+    const socket = io('http://localhost:5000', {
+      reconnection: true,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
+      reconnectionAttempts: 5
+    });
+
+    socket.on('connect', () => {
+      console.log('Connected to sensor server');
+    });
+
+    // Listen for real-time sensor data updates
+    socket.on('sensorData', (data) => {
+      console.log('Sensor data received:', data);
+      setSensorData({
+        temperature: data.temperature || 0,
+        humidity: data.humidity || 0,
+        moisture: data.moisture || 0,
+        weight: data.weight || 0,
+        status: data.status || 'Idle'
+      });
+    });
+
+    socket.on('disconnect', () => {
+      console.log('Disconnected from sensor server');
+    });
+
+    socket.on('error', (error) => {
+      console.error('Socket error:', error);
+      setError('Real-time connection error');
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -106,7 +153,7 @@ export default function RiceDryingDashboard({ view }) {
               <h3>Confirm Logout</h3>
             </div>
             <div className="modal-body">
-              <p>Are you sure you want to log out?</p>
+              <p>Are you sure, you want to log out?</p>
             </div>
             <div className="modal-footer">
               <button className="modal-button cancel" onClick={handleLogoutCancel}>
@@ -197,7 +244,7 @@ export default function RiceDryingDashboard({ view }) {
                     <CheckCircle size={22} />
                   </div>
                   <div className="status-label">System Status</div>
-                  <div className="status-value">Drying</div>
+                  <div className="status-value">{sensorData.status}</div>
                 </div>
               </div>              
             </div>
@@ -214,9 +261,9 @@ export default function RiceDryingDashboard({ view }) {
                       <Thermometer size={24} />
                     </div>
                     <div className="sensor-label">Temperature</div>
-                    <div className="sensor-value">55.6°C</div>
+                    <div className="sensor-value">{sensorData.temperature.toFixed(1)}°C</div>
                     <div className="progress-bar">
-                      <div className="progress-fill orange" style={{ width: '75%' }}></div>
+                      <div className="progress-fill orange" style={{ width: `${Math.min((sensorData.temperature / 60) * 100, 100)}%` }}></div>
                     </div>
                     <div className="sensor-range">Range: 50-60°C</div>
                   </div>
@@ -226,9 +273,9 @@ export default function RiceDryingDashboard({ view }) {
                       <Droplets size={24} />
                     </div>
                     <div className="sensor-label">Humidity</div>
-                    <div className="sensor-value">39%</div>
+                    <div className="sensor-value">{sensorData.humidity.toFixed(1)}%</div>
                     <div className="progress-bar">
-                      <div className="progress-fill cyan" style={{ width: '39%' }}></div>
+                      <div className="progress-fill cyan" style={{ width: `${sensorData.humidity}%` }}></div>
                     </div>
                     <div className="sensor-range">Target: &lt;65%</div>
                   </div>
@@ -238,9 +285,9 @@ export default function RiceDryingDashboard({ view }) {
                       <Waves size={24} />
                     </div>
                     <div className="sensor-label">Moisture Content</div>
-                    <div className="sensor-value">13.0%</div>
+                    <div className="sensor-value">{sensorData.moisture.toFixed(1)}%</div>
                     <div className="progress-bar">
-                      <div className="progress-fill cyan" style={{ width: '80%' }}></div>
+                      <div className="progress-fill cyan" style={{ width: `${Math.min((sensorData.moisture / 14) * 100, 100)}%` }}></div>
                     </div>
                     <div className="sensor-range">Target: 10-14%</div>
                   </div>
@@ -250,9 +297,9 @@ export default function RiceDryingDashboard({ view }) {
                       <Weight size={24} />
                     </div>
                     <div className="sensor-label">Current Weight</div>
-                    <div className="sensor-value">16.4kg</div>
+                    <div className="sensor-value">{sensorData.weight.toFixed(1)}kg</div>
                     <div className="progress-bar">
-                      <div className="progress-fill green" style={{ width: '66%' }}></div>
+                      <div className="progress-fill green" style={{ width: `${Math.min((sensorData.weight / 25) * 100, 100)}%` }}></div>
                     </div>
                     <div className="sensor-range">Initial: 25kg</div>
                   </div>
@@ -275,7 +322,7 @@ export default function RiceDryingDashboard({ view }) {
                     value={targetTemp}
                     onChange={(e) => setTargetTemp(e.target.value)}
                     className="control-input"
-                    placeholder="Enter temperature (50°C - 60°C)"
+                    placeholder="Enter temperature"
                   />
                 </div>
 
@@ -288,7 +335,7 @@ export default function RiceDryingDashboard({ view }) {
                     value={targetMoisture}
                     onChange={(e) => setTargetMoisture(e.target.value)}
                     className="control-input"
-                    placeholder="Enter moisture (10% - 14%)"
+                    placeholder="Enter moisture"
                   />
                 </div>
 

@@ -165,7 +165,7 @@ export default function History({ view }) {
                             <h3>Confirm Logout</h3>
                           </div>
                           <div className="modal-body">
-                            <p>Are you sure you want to log out?</p>
+                            <p>Are you sure, you want to log out?</p>
                           </div>
                           <div className="modal-footer">
                             <button className="modal-button cancel" onClick={handleLogoutCancel}>

@@ -1,14 +1,26 @@
 import express from "express";
 import dotenv from "dotenv";
 import cors from "cors";
+import http from "http";
+import { Server as SocketIOServer } from "socket.io";
 
 import authRoutes from "./routes/authRoutes.js";
 import profileRoutes from "./routes/profileRoutes.js";
 import connectDB from "./config/db.js";
+import { initializeSocket, startSensorPolling } from "./socketHandler.js";
 
 dotenv.config();
 
 const app = express();
+const server = http.createServer(app);
+const io = new SocketIOServer(server, {
+  cors: {
+    origin: ['http://localhost:3000', 'http://127.0.0.1:3000', 'https://thesis-rice-grain-dryer.onrender.com'],
+    methods: ['GET', 'POST'],
+    credentials: true
+  }
+});
+
 const PORT = process.env.PORT || 5001;
 
 connectDB();
@@ -69,8 +81,15 @@ app.get('/', (req, res) => {
 
 app.get('/healthz', (req, res) => res.send('ok'));
 
-app.listen(PORT, '0.0.0.0', () => {
+// Initialize Socket.io connection handlers
+initializeSocket(io);
+
+// Start real-time sensor data polling (every 5 seconds)
+startSensorPolling(io, 5000);
+
+server.listen(PORT, '0.0.0.0', () => {
   console.log(`Server is running on port ${PORT}`);
+  console.log(`Socket.io is ready for real-time connections`);
   // console.log(`Access locally via: http://localhost:${PORT}`);
   // console.log(`Access via IP: http://YOUR_IP:${PORT}`);
 });

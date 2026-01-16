@@ -1,9 +1,10 @@
 .profile-container {
   display: grid;
-  grid-template-columns: 300px 1fr;
+  grid-template-columns: 200px 1fr;
   gap: 24px;
-  padding: 30px;
-  height: calc(100vh - 120px); 
+  padding-left: 30px;
+  padding-right: 30px;
+  height: calc(100vh - 50px); 
 }
 
 .profile-sidebar {
@@ -16,7 +17,7 @@
   height: fit-content;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   position: sticky;
-  top: 24px;
+
 }
 
 .profile-nav-item {
@@ -187,7 +188,7 @@
   object-fit: cover;
 }
 
-.avatar-upload {
+/* .avatar-upload {
   position: absolute;
   bottom: 0;
   right: 0;
@@ -205,13 +206,13 @@
 }
 
 .avatar-upload:hover {
-  background: #2563eb;
+  background: #10b981;
   transform: scale(1.1);
 }
 
 .avatar-upload input {
   display: none;
-}
+} */
 
 /* Profile Form */
 .profile-form {
@@ -224,7 +225,6 @@
 .form-group {
   display: flex;
   flex-direction: column;
-  gap: 8px;
 }
 
 .form-group label {
