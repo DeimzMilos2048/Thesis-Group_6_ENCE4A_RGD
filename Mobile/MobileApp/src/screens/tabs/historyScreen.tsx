@@ -38,58 +38,58 @@ interface HistoryItem {
   status: 'Complete' | 'Warning' | 'Error';
 }
 
-const historyData: HistoryItem[] = [
-  {
-    id: 1,
-    date: "2026-01-05",
-    time: "10:00 AM",
-    moisture: "14%",
-    temperature: "50°C",
-    humidity: "60%",
-    weight: "25 kg",
-    status: "Complete",
-  },
-  {
-    id: 2,
-    date: "2026-01-06",
-    time: "12:00 AM",
-    moisture: "13%",
-    temperature: "51°C",
-    humidity: "63%",
-    weight: "25 kg",
-    status: "Complete",
-  },
-  {
-    id: 3,
-    date: "2026-01-06",
-    time: "1:00 PM",
-    moisture: "9%",
-    temperature: "50°C",
-    humidity: "68%",
-    weight: "23 kg",
-    status: "Warning",
-  },
-  {
-    id: 4,
-    date: "2026-01-06",
-    time: "4:00 PM",
-    moisture: "3%",
-    temperature: "65°C",
-    humidity: "78%",
-    weight: "1 kg",
-    status: "Error",
-  },
-  {
-    id: 5,
-    date: "2026-01-13",
-    time: "4:00 PM",
-    moisture: "3%",
-    temperature: "65°C",
-    humidity: "78%",
-    weight: "1 kg",
-    status: "Error",
-  },
-];
+// const historyData: HistoryItem[] = [
+//   {
+//     id: 1,
+//     date: "2026-01-05",
+//     time: "10:00 AM",
+//     moisture: "14%",
+//     temperature: "50°C",
+//     humidity: "60%",
+//     weight: "25 kg",
+//     status: "Complete",
+//   },
+//   {
+//     id: 2,
+//     date: "2026-01-06",
+//     time: "12:00 AM",
+//     moisture: "13%",
+//     temperature: "51°C",
+//     humidity: "63%",
+//     weight: "25 kg",
+//     status: "Complete",
+//   },
+//   {
+//     id: 3,
+//     date: "2026-01-06",
+//     time: "1:00 PM",
+//     moisture: "9%",
+//     temperature: "50°C",
+//     humidity: "68%",
+//     weight: "23 kg",
+//     status: "Warning",
+//   },
+//   {
+//     id: 4,
+//     date: "2026-01-06",
+//     time: "4:00 PM",
+//     moisture: "3%",
+//     temperature: "65°C",
+//     humidity: "78%",
+//     weight: "1 kg",
+//     status: "Error",
+//   },
+//   {
+//     id: 5,
+//     date: "2026-01-13",
+//     time: "4:00 PM",
+//     moisture: "3%",
+//     temperature: "65°C",
+//     humidity: "78%",
+//     weight: "1 kg",
+//     status: "Error",
+//   },
+// ];
 
 const historyScreen: React.FC = () => {
   const handleDownloadExcel = () => {
@@ -178,7 +178,7 @@ const historyScreen: React.FC = () => {
 
           {/* History Table Data */}
           <FlatList
-            data={historyData}
+            data={[]}
             renderItem={renderHistoryItem}
             keyExtractor={(item) => item.id.toString()}
             scrollEnabled={false}

@@ -6,6 +6,8 @@ import { Server as SocketIOServer } from "socket.io";
 
 import authRoutes from "./routes/authRoutes.js";
 import profileRoutes from "./routes/profileRoutes.js";
+import notificationRoutes from "./routes/notificationRoutes.js";
+import sensorRoutes from "./routes/sensorRoutes.js";
 import connectDB from "./config/db.js";
 import { initializeSocket, startSensorPolling } from "./socketHandler.js";
 
@@ -74,6 +76,8 @@ app.use(express.json());
 //Routes
 app.use("/api/auth", authRoutes);
 app.use("/api", profileRoutes);
+app.use("/api/notifications", notificationRoutes);
+app.use("/api/sensor", sensorRoutes);
 
 app.get('/', (req, res) => {
   res.json({ status: 'ok', service: 'rgd-backend' });

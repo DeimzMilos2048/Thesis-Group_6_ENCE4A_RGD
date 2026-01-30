@@ -127,7 +127,7 @@ function SignUpPage() {
               </div>
             </div>
 
-          <div className="form-group">
+          {/* <div className="form-group">
             <label className="form-label">Select Role</label>
             <div className="role-container">
               <button
@@ -152,7 +152,7 @@ function SignUpPage() {
                 Admin
               </button>
             </div>
-          </div>
+          </div> */}
 
             <button
               type="submit"

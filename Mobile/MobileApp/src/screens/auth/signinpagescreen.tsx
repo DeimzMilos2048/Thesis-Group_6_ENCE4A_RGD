@@ -23,7 +23,6 @@ const SigninScreen: React.FC<SigninScreenProps> = ({ navigation }) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [role, setRole] = useState("User");
   const { register, loading } = useAuthStore();
   
   const togglePasswordVisibility = () => {
@@ -145,48 +144,6 @@ const SigninScreen: React.FC<SigninScreenProps> = ({ navigation }) => {
           >
             <Text style={styles.toggleButtonText}>
               {showPassword ? "HIDE" : "SHOW"}
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      {/* User Role */}
-      <View style={styles.inputContainer}>
-        <Text style={styles.label}>Select Role</Text>
-        <View style={styles.roleContainer}>
-          <TouchableOpacity
-            style={[
-              styles.roleButton,
-              role === "User" && styles.roleButtonActive,
-            ]}
-            onPress={() => setRole("User")}
-            disabled={loading}
-          >
-            <Text
-              style={[
-                styles.roleText,
-                role === "User" && styles.roleTextActive,
-              ]}
-            >
-              Farmer Operator
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.roleButton,
-              role === "Admin" && styles.roleButtonActive,
-            ]}
-            onPress={() => setRole("Admin")}
-            disabled={loading}
-          >
-            <Text
-              style={[
-                styles.roleText,
-                role === "Admin" && styles.roleTextActive,
-              ]}
-            >
-              System Admin
             </Text>
           </TouchableOpacity>
         </View>

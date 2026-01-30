@@ -1,5 +1,12 @@
 import mongoose from "mongoose";
 import User from "../models/userModel.js";
+import dotenv from "dotenv";
+
+dotenv.config();
+
+const authDB = mongoose.createConnection(process.env.AUTH_URI);
+
+const sensorDB = mongoose.createConnection(process.env.SENSOR_URI);
 
 const initializeDatabase = async () => {
   try {
@@ -36,7 +43,7 @@ const connectDB = async () => {
     };
 
     // Get MongoDB URI from environment or use default
-    const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/ricedryer';
+    const mongoUri = process.env.MONGODB_URI;
 
     // Connect to MongoDB
     const conn = await mongoose.connect(mongoUri, options);
@@ -68,5 +75,11 @@ mongoose.connection.on('disconnected', () => {
 mongoose.connection.on('error', (err) => {
   console.error('MongoDB error:', err);
 });
+
+authDB.on('connected', () => console.log('Auth DB connected'));
+authDB.on('error', (err) => console.error('Auth DB error:', err));
+
+sensorDB.on('connected', () => console.log('Sensor DB connected'));
+sensorDB.on('error', (err) => console.error('Sensor DB error:', err))
 
 export default connectDB;

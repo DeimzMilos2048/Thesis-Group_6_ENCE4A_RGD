@@ -10,9 +10,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import React from 'react';
 import { useNavigation } from '@react-navigation/native';
+import { useMessaging } from '../../../android/app/hooks/firebase/useMessaging';
 
 const NotificationScreen: React.FC = () => {
   const navigation = useNavigation();
+
+  const { fcmToken } = useMessaging();
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>

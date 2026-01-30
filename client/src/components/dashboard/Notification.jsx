@@ -4,6 +4,7 @@ import './Dashboard.css';
 import './Notification.css';
 import { useNavigate, useLocation } from 'react-router-dom';
 import authService from '../../api/authService';
+import axios from '../../utils/axios';
 import logo from "../../assets/images/logo2.png";
 
 export default function Notification({ view }) {
@@ -12,6 +13,9 @@ export default function Notification({ view }) {
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('analytics');
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [selectedAlert, setSelectedAlert] = useState(null);
+  const [filter, setFilter] = useState("all");
+  const [alerts, setAlerts] = useState([]);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -30,6 +34,35 @@ export default function Notification({ view }) {
       setActiveTab('dashboard');
     }
   }, [location]);
+
+  useEffect(() => {
+    let isMounted = true;
+    const fetchNotifications = async () => {
+      try {
+        setLoading(true);
+        const response = await axios.get('/notifications');
+        if (isMounted) {
+          setAlerts(response.data);
+          setError(null);
+        }
+      } catch (err) {
+        if (isMounted) {
+          setError(err.message || 'Failed to fetch notifications');
+          console.error('Error fetching notifications:', err);
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    fetchNotifications();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -81,51 +114,51 @@ export default function Notification({ view }) {
     setShowLogoutConfirm(false);
   };
 
-  const [selectedAlert, setSelectedAlert] = useState(null);
-  const [filter, setFilter] = useState("all");
+  const handleAcknowledge = async () => {
+    if (selectedAlert && selectedAlert._id) {
+      try {
+        await axios.patch(`/notifications/${selectedAlert._id}/read`);
+        setAlerts(alerts.map(a => 
+          a._id === selectedAlert._id ? { ...a, isRead: true } : a
+        ));
+        setSelectedAlert(null);
+      } catch (err) {
+        setError('Failed to acknowledge notification');
+        console.error('Error acknowledging notification:', err);
+      }
+    }
+  };
 
-  const alerts = [
-    {
-      id: 1,
-      type: "critical",
-      title: "High Temperature Detected",
-      message: "Dryer temperature exceeded safe limit.",
-      temp: "63°C",
-      moisture: "18%",
-      humidity: "82%",
-      weight: "24kg",
-      time: "10 min ago",
-      status: "New"
-    },
-    {
-      id: 2,
-      type: "warning",
-      title: "Slow Moisture Reduction",
-      message: "Moisture is not decreasing as expected.",
-      temp: "52°C",
-      moisture: "16%",
-      humidity: "78%",
-      weight: "25kg",
-      time: "15 min ago",
-      status: "Acknowledged"
-    },
-     {
-      id: 3,
-      type: "info",
-      title: "Moisture Detected Stable",
-      message: "Moisture is equal as expected.",
-      temp: "52°C",
-      moisture: "14%",
-      humidity: "90%",
-      weight: "25kg",
-      time: "30 min ago",
-      status: "Acknowledged"
-    },
+  const mapNotificationType = (type) => {
+    if (type === 'CRITICAL') return 'critical';
+    if (type === 'WARNING') return 'warning';
+    return 'info';
+  };
+
+  const formatTime = (createdAt) => {
+    if (!createdAt) return 'Just now';
+    const date = new Date(createdAt);
+    const now = new Date();
+    const diffMs = now - date;
+    const diffMins = Math.floor(diffMs / 60000);
     
-  ];
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins} min ago`;
+    
+    const diffHours = Math.floor(diffMins / 60);
+    if (diffHours < 24) return `${diffHours}h ago`;
+    
+    const diffDays = Math.floor(diffHours / 24);
+    return `${diffDays}d ago`;
+  };
 
-  const filteredAlerts =
-  filter === "all" ? alerts : alerts.filter(a => a.type === filter);
+  const getAlertStatus = (alert) => {
+    return alert.isRead ? 'Acknowledged' : 'New';
+  };
+
+  const filteredAlerts = Array.isArray(alerts) 
+    ? (filter === "all" ? alerts : alerts.filter(a => mapNotificationType(a.type) === filter))
+    : [];
 
   return (
     <div className="dashboard-container">
@@ -240,7 +273,7 @@ export default function Notification({ view }) {
         <AlertTriangle />
         <div>
           <h3>Critical</h3>
-          <p>1 Active</p>
+          <p> Active</p>
         </div>
       </div>
 
@@ -248,7 +281,7 @@ export default function Notification({ view }) {
         <Waves />
         <div>
           <h3>Warning</h3>
-          <p>1 Active</p>
+          <p> Active</p>
         </div>
       </div>
 
@@ -256,7 +289,7 @@ export default function Notification({ view }) {
         <CheckCircle />
         <div>
           <h3>Info</h3>
-          <p>1 Active</p>
+          <p> Active</p>
         </div>
       </div>
     </div>
@@ -270,33 +303,37 @@ export default function Notification({ view }) {
 
     {/* Alert List */}
     <div className="alert-list">
-      {filteredAlerts.map(alert => (
-        <div
-          key={alert.id}
-          className={`alert-card ${alert.type}`}
-          onClick={() => setSelectedAlert(alert)}
-        >
-          <div className="alert-left">
-            {alert.type === "critical" && <AlertTriangle />}
-            {alert.type === "warning" && <Waves />}
-            {alert.type === "info" && <CheckCircle />}
-          </div>
+      {filteredAlerts.length > 0 ? (
+        filteredAlerts.map(alert => (
+          <div
+            key={alert._id || alert.id}
+            className={`alert-card ${mapNotificationType(alert.type)}`}
+            onClick={() => setSelectedAlert(alert)}
+          >
+            <div className="alert-left">
+              {mapNotificationType(alert.type) === "critical" && <AlertTriangle />}
+              {mapNotificationType(alert.type) === "warning" && <Waves />}
+              {mapNotificationType(alert.type) === "info" && <CheckCircle />}
+            </div>
 
-          <div className="alert-center">
-            <h4>{alert.title}</h4>
-            <p>{alert.message}</p>
-            <small>
-              <Thermometer size={14}/> {alert.temp} | 
-              <Droplets size={14}/> {alert.moisture}
-            </small>
-          </div>
+            <div className="alert-center">
+              <h4>{alert.title}</h4>
+              <p>{alert.message}</p>
+              <small>
+                <Thermometer size={14}/> {alert.sensorData?.temperature || 'N/A'}°C | 
+                <Droplets size={14}/> {alert.sensorData?.moistureContent || 'N/A'}%
+              </small>
+            </div>
 
-          <div className="alert-right">
-            <span className="status">{alert.status}</span>
-            <span className="time">{alert.time}</span>
+            <div className="alert-right">
+              <span className="status">{getAlertStatus(alert)}</span>
+              <span className="time">{formatTime(alert.createdAt)}</span>
+            </div>
           </div>
-        </div>
-      ))}
+        ))
+      ) : (
+        <p className="no-alerts">No alerts available</p>
+      )}
     </div>
 
     {/* Alert Modal */}
@@ -307,14 +344,16 @@ export default function Notification({ view }) {
           <p>{selectedAlert.message}</p>
 
           <div className="sensor-grid">
-            <div><Thermometer /> {selectedAlert.temp}</div>
-            <div><Droplets /> {selectedAlert.moisture}</div>
-            <div><Waves /> {selectedAlert.humidity}</div>
-            <div><Weight /> {selectedAlert.weight}</div>
+            <div><Thermometer /> {selectedAlert.sensorData?.temperature || 'N/A'}°C</div>
+            <div><Droplets /> {selectedAlert.sensorData?.moistureContent || 'N/A'}%</div>
+            <div><Waves /> {selectedAlert.sensorData?.humidity || 'N/A'}%</div>
+            <div><Weight /> {selectedAlert.sensorData?.weight || 'N/A'}kg</div>
           </div>
 
           <div className="modal-actions">
-            <button className='acknowledge'>Acknowledge</button>
+            <button className='acknowledge' onClick={handleAcknowledge}>
+              {selectedAlert.isRead ? 'Already Acknowledged' : 'Acknowledge'}
+            </button>
             <button onClick={() => setSelectedAlert(null)}>Close</button>
           </div>
         </div>

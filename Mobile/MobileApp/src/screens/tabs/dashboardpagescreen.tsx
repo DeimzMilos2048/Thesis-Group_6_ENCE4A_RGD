@@ -5,8 +5,6 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
-  Alert,
-  StyleProp,
   ViewStyle,
   TextStyle,
   ImageBackground,
@@ -15,7 +13,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Ionicons from "react-native-vector-icons/Ionicons";
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { io } from 'socket.io-client';
 
 type RootStackParmList = {
   LandingPage: undefined;
@@ -56,6 +55,37 @@ const DashboardPageScreen: React.FC = () => {
   navigation.navigate('NotificationScreen');
 };
 
+  // Real-time sensor states (initialized to previous static values)
+  const [temperature, setTemperature] = useState("0.00 °C");
+  const [humidity, setHumidity] = useState("0.00 %");
+  const [moisture, setMoisture] = useState("0.00 %");
+  const [weight, setWeight] = useState("0.00 kg");
+
+  useEffect(() => {
+    const SOCKET_URL = 'http://localhost:5000'; 
+    const socket = io(SOCKET_URL);
+
+    socket.on('connect', () => {
+      console.log('Connected to sensor server');
+    });
+
+    // Expecting server to emit `sensorData` with { temperature, humidity, moisture, weight }
+    socket.on('sensorData', (data: any) => {
+      if (data?.temperature !== undefined) setTemperature(`${data.temperature} °C`);
+      if (data?.humidity !== undefined) setHumidity(`${data.humidity} %`);
+      if (data?.moisture !== undefined) setMoisture(`${data.moisture} %`);
+      if (data?.weight !== undefined) setWeight(`${data.weight} kg`);
+    });
+
+    socket.on('disconnect', () => {
+      console.log('Socket disconnected');
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, []);
+
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
       {/* <ScrollView
@@ -68,7 +98,7 @@ const DashboardPageScreen: React.FC = () => {
         <View style={styles.statusGrid}>
           <View style={styles.statusCard}>
             <Text style={styles.statusTitle}>System Status</Text>
-            <Text style={styles.statusValue}>Drying</Text>
+            <Text style={styles.statusValue}>Idle</Text>
           </View>
       
         </View>
@@ -108,25 +138,25 @@ const DashboardPageScreen: React.FC = () => {
         <View style={styles.statusGrid}> 
           <View style={styles.card}>
             <Text style={styles.label}>Temperature</Text>
-            <Text style={styles.value}>55.6 °C</Text>
+            <Text style={styles.value}>{temperature}</Text>
             <Text style={styles.sub}>Normal (50–60 °C)</Text>
           </View>
 
           <View style={styles.card}>
             <Text style={styles.label}>Humidity</Text>
-            <Text style={styles.value}>39 %</Text>
+            <Text style={styles.value}>{humidity}</Text>
             <Text style={styles.sub}>Normal (≤ 65%)</Text>
           </View>
 
           <View style={styles.card}>
             <Text style={styles.label}>Moisture Content</Text>
-            <Text style={styles.value}>12.5 %</Text>
+            <Text style={styles.value}>{moisture}</Text>
             <Text style={styles.sub}>Target 10–14%</Text>
           </View>
 
           <View style={styles.card}>
             <Text style={styles.label}>Current Weight</Text>
-            <Text style={styles.value}>16.4 kg</Text>
+            <Text style={styles.value}>{weight}</Text>
             <Text style={styles.sub}>Initial 20 kg</Text>
           </View>
         </View>

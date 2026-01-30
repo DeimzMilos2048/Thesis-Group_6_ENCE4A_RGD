@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1062321446755",
+    "project_id": "mala-mobile-e3c29",
+    "storage_bucket": "mala-mobile-e3c29.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1062321446755:android:dddcce8d6005dafdd67d56",
+        "android_client_info": {
+          "package_name": "com.mobileapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyANfOek-lttUOesy5F9O3puWFwmFYSEqUw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

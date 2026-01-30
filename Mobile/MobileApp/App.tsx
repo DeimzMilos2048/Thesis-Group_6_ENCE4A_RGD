@@ -10,6 +10,7 @@ import FontAwesome5 from "react-native-vector-icons/FontAwesome5";
 import useAuthStore from "./src/store/authStore";
 
 // import LandingScreen from "./src/screens/landingpagescreen";
+import IntroductionUserScreen from "./src/screens/tabs/introductionUserScreen";
 import LoginScreen from "./src/screens/auth/loginpagescreen";
 import SigninScreen from "./src/screens/auth/signinpagescreen"
 import DashboardScreen from "./src/screens/tabs/dashboardpagescreen";
@@ -97,6 +98,11 @@ export default function App() {
     <SafeAreaProvider> 
       <NavigationContainer>
         <Stack.Navigator>
+          <Stack.Screen
+            name="IntroductionUserScreen"
+            component={IntroductionUserScreen}
+            options={{ headerShown: false }}
+          />
           <Stack.Screen
             name="LoginPage"
             component={LoginScreen}
