@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import {notifiDB} from "../config/db.js";
 
 const SensorDataSchema = new mongoose.Schema({
   temperature: Number,
@@ -40,4 +41,4 @@ const NotificationSchema = new mongoose.Schema({
   }
 });
 
-export default mongoose.model("Notification", NotificationSchema);
+export default notifiDB.model("NotificationDB", NotificationSchema,"alert_notification");

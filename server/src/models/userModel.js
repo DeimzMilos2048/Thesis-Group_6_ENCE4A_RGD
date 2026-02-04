@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
+import {authDB} from "../config/db.js";
 
-const userSchema = mongoose.Schema(
+const userSchema = new mongoose.Schema(
   {
     username: {
       type: String,
@@ -28,5 +29,5 @@ const userSchema = mongoose.Schema(
   { timestamps: true }
 );
 
-const User = mongoose.model("User", userSchema,"Users");
+const User = authDB.model("User", userSchema,"Users");
 export default User;

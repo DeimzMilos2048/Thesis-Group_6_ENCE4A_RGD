@@ -1,32 +1,14 @@
 import mongoose from "mongoose";
-import User from "../models/userModel.js";
+// import User from "../models/userModel.js";
 import dotenv from "dotenv";
 
 dotenv.config();
 
-const authDB = mongoose.createConnection(process.env.AUTH_URI);
+export const authDB = mongoose.createConnection(process.env.AUTH_URI);
 
-const sensorDB = mongoose.createConnection(process.env.SENSOR_URI);
+export const sensorDB = mongoose.createConnection(process.env.SENSOR_URI);
 
-const initializeDatabase = async () => {
-  try {
-    // Check if admin user exists
-    const adminExists = await User.findOne({ role: "Admin" });
-    if (!adminExists) {
-      // Create default admin user
-      await User.create({
-        username: "admin",
-        fullname: "System Administrator",
-        email: "admin@ricedryer.com",
-        password: process.env.DEFAULT_ADMIN_PASSWORD || "admin123",
-        role: "Admin"
-      });
-      console.log("Default admin user created");
-    }
-  } catch (error) {
-    console.error("Database initialization error:", error);
-  }
-};
+export const notifiDB = mongoose.createConnection(process.env.NOTIFI_URI);
 
 const connectDB = async () => {
   try {
@@ -51,7 +33,7 @@ const connectDB = async () => {
     console.log(`MongoDB Connected: ${conn.connection.host}`);
     
     // Initialize database with default data
-    await initializeDatabase();
+    // await initializeDatabase();
   } catch (error) {
     console.error("MongoDB connection error:", error);
     
@@ -79,7 +61,11 @@ mongoose.connection.on('error', (err) => {
 authDB.on('connected', () => console.log('Auth DB connected'));
 authDB.on('error', (err) => console.error('Auth DB error:', err));
 
+
 sensorDB.on('connected', () => console.log('Sensor DB connected'));
-sensorDB.on('error', (err) => console.error('Sensor DB error:', err))
+sensorDB.on('error', (err) => console.error('Sensor DB error:', err));
+
+notifiDB.on('connected', () => console.log('Notification DB connected'));
+notifiDB.on('error', (err) => console.error('Notification DB error:', err));
 
 export default connectDB;

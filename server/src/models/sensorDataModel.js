@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { sensorDB } from '../config/db.js';
 
 const sensorDataSchema = new mongoose.Schema(
   {
@@ -51,4 +52,4 @@ const sensorDataSchema = new mongoose.Schema(
 sensorDataSchema.index({ userId: 1, timestamp: -1 });
 sensorDataSchema.index({ timestamp: -1 });
 
-export default mongoose.model('SensorData', sensorDataSchema,"sensor_readings_table");
+export default sensorDB.model('esp32_db', sensorDataSchema,"sensor_readings_table");
