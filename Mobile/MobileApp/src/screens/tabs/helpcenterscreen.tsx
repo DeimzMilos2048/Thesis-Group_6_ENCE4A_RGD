@@ -52,7 +52,7 @@ const helpcenterscreen: React.FC = () => {
                   </Text>
                   <Text style={styles.faqAnswer}>
                     The optimal moisture content for rice drying is between
-                    10-14%. The system will alert you when this range is
+                    10-14%. The system will alert when this range is
                     reached.
                   </Text>
                 </View>
@@ -62,7 +62,7 @@ const helpcenterscreen: React.FC = () => {
                     How do I view historical data?
                   </Text>
                   <Text style={styles.faqAnswer}>
-                    Click on the History tab in the sidebar to view past drying
+                    Click on the History tab in the bottom navigation bar to view past drying
                     sessions and sensor readings.
                   </Text>
                 </View>

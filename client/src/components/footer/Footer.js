@@ -4,7 +4,7 @@ import './Footer.css'
 const Footer = () => {
   return (
     <div className='footer'>
-    <p> © 2025-2026 ECPE405. All rights reserved. || Bautista,Milos,Roquero</p>
+    <p> © 2025-2026 MALA. All rights reserved. || Bautista,Milos,Roquero</p>
     <ul>
         <li>Terms of Service</li>
         <li>Privacy Policy </li>

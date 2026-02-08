@@ -3,6 +3,8 @@ import "./LoginPage.css";
 import { Link } from 'react-router-dom';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
+import VisibilityIcon from '@mui/icons-material/Visibility';
+import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 import AuthStore from '../../utils/authStore';
 
 function LoginPage() {
@@ -98,9 +100,13 @@ function LoginPage() {
                                     onClick={togglePasswordVisibility}
                                     aria-label={showPassword ? "Hide password" : "Show password"}
                                 >
-                                    {showPassword ? 'Hide' : 'Show'}
+                                    {showPassword ? <VisibilityIcon /> : <VisibilityOffIcon />}
                                 </button>
                             </div>
+                        </div>
+
+                        <div className ="forgot-password">              
+                                Forgot Password?
                         </div>
 
                         <button type="submit" className="submit-btn">

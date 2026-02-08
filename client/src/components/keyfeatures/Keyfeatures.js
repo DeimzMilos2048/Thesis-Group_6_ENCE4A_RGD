@@ -16,7 +16,7 @@ function Keyfeatures() {
             <div class="card">
                 <img src={icon1} alt="" className="card-icon"/>
                 <h3>Real-Time Monitoring and Control</h3>
-                <p>IoT sensors continuously track key parameters such as moisture content, temperature, and humidity.</p>
+                <p>IoT sensors continuously track key parameters such as moisture content, temperature & humidity, and weight.</p>
             </div>
 
             <div class="card">

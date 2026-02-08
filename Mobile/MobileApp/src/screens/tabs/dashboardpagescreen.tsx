@@ -53,34 +53,45 @@ const DashboardPageScreen: React.FC = () => {
 
   const handleNotificationPress = () => {
   navigation.navigate('NotificationScreen');
-};
+  };
 
-  // Real-time sensor states (initialized to previous static values)
-  const [temperature, setTemperature] = useState("0.00 °C");
-  const [humidity, setHumidity] = useState("0.00 %");
-  const [moisture, setMoisture] = useState("0.00 %");
-  const [weight, setWeight] = useState("0.00 kg");
+  const [sensorData, setSensorData] = useState({
+    temperature: 0,
+    humidity: 0,
+    moisture: 0,
+    weight: 0,
+    status: 'Idle'
+  });
 
   useEffect(() => {
-    const SOCKET_URL = 'http://localhost:5000'; 
-    const socket = io(SOCKET_URL);
+    const socket = io('http://localhost:5000', {
+      reconnection: true,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
+      reconnectionAttempts: 5
+    });
 
     socket.on('connect', () => {
       console.log('Connected to sensor server');
     });
 
-    // Expecting server to emit `sensorData` with { temperature, humidity, moisture, weight }
-    socket.on('sensorData', (data: any) => {
-      if (data?.temperature !== undefined) setTemperature(`${data.temperature} °C`);
-      if (data?.humidity !== undefined) setHumidity(`${data.humidity} %`);
-      if (data?.moisture !== undefined) setMoisture(`${data.moisture} %`);
-      if (data?.weight !== undefined) setWeight(`${data.weight} kg`);
+    // Expecting server to emit `sensor_readings_table` with { temperature, humidity, moisture, weight }
+     socket.on('sensor_readings_table', (data) => {
+      console.log('Sensor data received:', data);
+      setSensorData({
+        temperature: data.temperature || 0,
+        humidity: data.humidity || 0,
+        moisture: data.moisture || 0,
+        weight: data.weight || 0,
+        status: data.status || 'Idle'
+      });
     });
 
     socket.on('disconnect', () => {
       console.log('Socket disconnected');
     });
 
+  
     return () => {
       socket.disconnect();
     };
@@ -138,26 +149,26 @@ const DashboardPageScreen: React.FC = () => {
         <View style={styles.statusGrid}> 
           <View style={styles.card}>
             <Text style={styles.label}>Temperature</Text>
-            <Text style={styles.value}>{temperature}</Text>
+            <Text style={styles.value}>{sensorData.temperature.toFixed(1)}°C</Text>
             <Text style={styles.sub}>Normal (50–60 °C)</Text>
           </View>
 
           <View style={styles.card}>
             <Text style={styles.label}>Humidity</Text>
-            <Text style={styles.value}>{humidity}</Text>
+            <Text style={styles.value}>{sensorData.humidity.toFixed(1)}%</Text>
             <Text style={styles.sub}>Normal (≤ 65%)</Text>
           </View>
 
           <View style={styles.card}>
             <Text style={styles.label}>Moisture Content</Text>
-            <Text style={styles.value}>{moisture}</Text>
+            <Text style={styles.value}>{sensorData.moisture.toFixed(1)}%</Text>
             <Text style={styles.sub}>Target 10–14%</Text>
           </View>
 
           <View style={styles.card}>
             <Text style={styles.label}>Current Weight</Text>
-            <Text style={styles.value}>{weight}</Text>
-            <Text style={styles.sub}>Initial 20 kg</Text>
+            <Text style={styles.value}>{sensorData.weight.toFixed(1)}kg</Text>
+            <Text style={styles.sub}>Initial 25 kg</Text>
           </View>
         </View>
 

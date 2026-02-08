@@ -54,7 +54,7 @@ export default function RiceDryingDashboard({ view }) {
     });
 
     // Listen for real-time sensor data updates
-    socket.on('sensorData', (data) => {
+    socket.on('sensor_readings_table', (data) => {
       console.log('Sensor data received:', data);
       setSensorData({
         temperature: data.temperature || 0,
@@ -66,7 +66,7 @@ export default function RiceDryingDashboard({ view }) {
     });
 
     socket.on('disconnect', () => {
-      console.log('Disconnected from sensor server');
+      console.log('Socket disconnected');
     });
 
     socket.on('error', (error) => {

@@ -8,13 +8,18 @@ import {
   Image,
   SafeAreaView,
   Alert,
+  Keyboard,
+  ActivityIndicator,
+  Modal,
 } from "react-native";
+import NetInfo from "@react-native-community/netinfo";
 import useAuthStore from "../../store/authStore";
 
 const LoginScreen = ({ navigation }: any) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [isConnected, setIsConnected] = useState<boolean | null>(true);
   const { login, loading } = useAuthStore();
 
   const togglePasswordVisibility = () => {
@@ -22,17 +27,26 @@ const LoginScreen = ({ navigation }: any) => {
   };
 
   const handleLogin = async () => {
+    Keyboard.dismiss();
+    
     if (!email || !password) {
       Alert.alert('Error', 'Please fill in all fields');
       return;
     }
 
+    // Check internet connectivity
+    const netInfoState = await NetInfo.fetch();
+    setIsConnected(netInfoState.isConnected);
+    
+    if (!netInfoState.isConnected) {
+      Alert.alert('No Connection', 'Please check your internet connection and try again.');
+      return;
+    }
+
     try {
       await login(email, password);
-      // If login is successful, navigate immediately
       navigation.navigate('DashboardPage');
     } catch (error: any) {
-      // Handle specific error cases
       let errorMessage = 'Invalid credentials';
       if (error?.response?.data?.message) {
         errorMessage = error.response.data.message;
@@ -41,12 +55,25 @@ const LoginScreen = ({ navigation }: any) => {
       }
       Alert.alert('Error', errorMessage);
     } finally {
-      setPassword(''); // Clear password field for security
+      setPassword(''); 
     }
   };
   
   return (
     <SafeAreaView style={styles.container}>
+      {/* Loading Overlay */}
+      <Modal
+        transparent={true}
+        animationType="fade"
+        visible={loading && isConnected}
+      >
+        <View style={styles.loadingOverlay}>
+          <View style={styles.loadingContent}>
+            <ActivityIndicator size="large" color="#28a745" style={{ marginTop: 20 }} />
+          </View>
+        </View>
+      </Modal>
+
       {/* Logo */}
       <Image
         source={require("../../assets/images/thesis_logo_1024.png")} 
@@ -75,21 +102,26 @@ const LoginScreen = ({ navigation }: any) => {
         <Text style={styles.label}>Password</Text>
         <View style={styles.inputWrapper}>
           <TextInput
+            key={`password-${showPassword}`}
             style={[styles.input, { flex: 1 }]}
             placeholder="Enter your password"
             placeholderTextColor="#999"
             secureTextEntry={!showPassword}
             value={password}
             onChangeText={setPassword}
+            autoComplete="off"
+            textContentType="none"
+            autoCorrect={false}
+            autoCapitalize="none"
           />
-          <TouchableOpacity
+          {/* <TouchableOpacity
             style={styles.toggleButton}
             onPress={togglePasswordVisibility}
           >
             <Text style={styles.toggleButtonText}>
               {showPassword ? 'HIDE' : 'SHOW'}
             </Text>
-          </TouchableOpacity>
+          </TouchableOpacity> */}
         </View>
       </View>
 
@@ -108,7 +140,7 @@ const LoginScreen = ({ navigation }: any) => {
 
       {/* Create Account */}
       <View style={styles.signupRow}>
-        <Text style={styles.signupText}>Don’t have an account?</Text>
+        <Text style={styles.signupText}>Don't have an account?</Text>
         <TouchableOpacity 
            onPress={() => navigation.navigate("SigninPage")}>
           
@@ -204,5 +236,18 @@ const styles = StyleSheet.create({
     color: '#2ce57fff',
     fontSize: 13,
     fontWeight: "bold",
+  },
+  loadingOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingContent: {
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    borderRadius: 15,
+    padding: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

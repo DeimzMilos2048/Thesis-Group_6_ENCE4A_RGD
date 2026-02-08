@@ -4,18 +4,19 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  TextInput,
   Alert,
-  StyleProp,
   ViewStyle,
   TextStyle,
   ImageBackground,
+  ActivityIndicator,
+  Modal,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import React, { useState, useEffect } from 'react';
 import useAuthStore from '../../store/authStore';
 import { useNavigation } from '@react-navigation/native';
+import NetInfo from '@react-native-community/netinfo';
 
 interface HeaderProps {
   username: string;
@@ -42,6 +43,8 @@ const profileScreen: React.FC = () => {
   const { logout, user } = useAuthStore();
   const navigation = useNavigation<any>();
   const [username, setUsername] = useState('User');
+  const [isConnected, setIsConnected] = useState<boolean | null>(true);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   useEffect(() => {
     fetchUserData();
@@ -79,13 +82,25 @@ const profileScreen: React.FC = () => {
           text: 'Log out',
           style: 'destructive',
           onPress: async () => {
+            // Check internet connectivity
+            const netInfoState = await NetInfo.fetch();
+            setIsConnected(netInfoState.isConnected);
+            
+            if (!netInfoState.isConnected) {
+              Alert.alert('No Connection', 'Please check your internet connection and try again.');
+              return;
+            }
+            
+            setIsLoggingOut(true);
             try {
               await logout();
+              setIsLoggingOut(false);
               navigation.reset({
                 index: 0,
                 routes: [{ name: 'LoginPage' }],
               });
             } catch (error) {
+              setIsLoggingOut(false);
               Alert.alert('Error', 'Failed to log out.');
             }
           },
@@ -96,6 +111,19 @@ const profileScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+      {/* Loading Overlay */}
+      <Modal
+        transparent={true}
+        animationType="fade"
+        visible={isLoggingOut && isConnected === true}
+      >
+        <View style={styles.loadingOverlay}>
+          <View style={styles.loadingContent}>
+            <ActivityIndicator size="large" color="#27AE60" style={{ marginTop: 20 }} />
+          </View>
+        </View>
+      </Modal>
+
       <ScrollView
         style={styles.container}
         contentContainerStyle={styles.scrollContent}
@@ -184,6 +212,8 @@ interface Styles {
   avatarContainer: TextStyle;
   usernameText: TextStyle;
   separator: ViewStyle;
+  loadingOverlay: ViewStyle;
+  loadingContent: ViewStyle;
 }
 
 
@@ -379,6 +409,19 @@ const styles = StyleSheet.create<Styles>({
     height: 1,
     backgroundColor: '#E5E5E5',
     marginHorizontal: 20,
+  },
+  loadingOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingContent: {
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    borderRadius: 15,
+    padding: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });
 

@@ -21,13 +21,26 @@ const sensorDataSchema = new mongoose.Schema(
       min: 0,
       max: 65
     },
-    moisture: {
+    moisture1: {
       type: Number,
       required: true,
       min: 10,
       max: 14
     },
-    weight: {
+    moisture2: {
+      type: Number,
+      required: true,
+      min: 10,
+      max: 14
+    },
+    weight1: {
+      type: Number,
+      required: true,
+      default: 0,
+      min: 0,
+      max: 25
+    },
+    weight2: {
       type: Number,
       required: true,
       default: 0,

@@ -1,4 +1,4 @@
-import React,{useEffect} from "react";
+import React,{use, useEffect} from "react";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { SafeAreaProvider } from "react-native-safe-area-context"; 
@@ -22,6 +22,7 @@ import EditProfileScreen from "./src/screens/tabs/editprofilescreen";
 import EditNotificationScreen from "./src/screens/tabs/editnotificationscreen";
 import HelpCenterScreen from "./src/screens/tabs/helpcenterscreen";
 import SettingsScreen from "./src/screens/tabs/settingsscreen";
+import {notificationListener} from "./src/services/notificationServices";
 
 //Profile Screen Page
 
@@ -94,6 +95,11 @@ export default function App() {
   useEffect(() => {
     initializeAuth();
   }, [initializeAuth]);
+
+  useEffect(() => {
+    notificationListener();
+  }, []);
+  
   return (
     <SafeAreaProvider> 
       <NavigationContainer>

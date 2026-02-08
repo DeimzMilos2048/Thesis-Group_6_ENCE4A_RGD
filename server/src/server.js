@@ -10,6 +10,7 @@ import notificationRoutes from "./routes/notificationRoutes.js";
 import sensorRoutes from "./routes/sensorRoutes.js";
 import connectDB from "./config/db.js";
 import { initializeSocket, startSensorPolling } from "./socketHandler.js";
+import SensorData from "./models/sensorDataModel.js";
 
 dotenv.config();
 
@@ -79,6 +80,19 @@ app.use("/api", profileRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/sensor", sensorRoutes);
 
+app.post('/api/sensor/data', async (req, res) => {
+  try {
+    const reading = await SensorData.create(req.body);
+
+    io.emit("sensorUpdate", reading);
+
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json(error);
+  }
+});
+
+
 app.get('/', (req, res) => {
   res.json({ status: 'ok', service: 'rgd-backend' });
 });
@@ -94,6 +108,4 @@ startSensorPolling(io, 5000);
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`Server is running on port ${PORT}`);
   console.log(`Socket.io is ready for real-time connections`);
-  // console.log(`Access locally via: http://localhost:${PORT}`);
-  // console.log(`Access via IP: http://YOUR_IP:${PORT}`);
 });

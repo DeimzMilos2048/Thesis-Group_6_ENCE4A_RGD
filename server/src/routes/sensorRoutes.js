@@ -8,7 +8,8 @@ router.post('/insert', async (req, res) => {
   try {
     const sensorData = new SensorData(req.body);
     const saved = await sensorData.save();
-    res.status(201).json(saved);
+     res.status(201).json(saved);
+     res.json({ success: true });
   } catch (err) {
     res.status(400).json({ error: err.message });
   }

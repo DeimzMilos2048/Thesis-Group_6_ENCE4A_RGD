@@ -2,6 +2,8 @@ import React, { useState } from 'react'
 import "./SignUpPage.css"
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
+import VisibilityIcon from '@mui/icons-material/Visibility';
+import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 import api from '../../utils/axios';
 
 function SignUpPage() {
@@ -10,7 +12,7 @@ function SignUpPage() {
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState('User');
+  const [role] = useState('User');
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -122,37 +124,10 @@ function SignUpPage() {
                   onClick={togglePasswordVisibility}
                   aria-label={showPassword ? 'Hide password' : 'Show password'}
                 >
-                  {showPassword ? 'Hide' : 'Show'}
+                  {showPassword ? <VisibilityIcon /> : <VisibilityOffIcon />}
                 </button>                                                                                                                 
               </div>
             </div>
-
-          {/* <div className="form-group">
-            <label className="form-label">Select Role</label>
-            <div className="role-container">
-              <button
-                type="button"
-                className={`role-button ${role === "User" ? 'active' : ''}`}
-                onClick={(e) => {
-                  e.preventDefault();
-                  setRole("User");
-                }}
-              >
-                User
-              </button>
-
-              <button
-                type="button"
-                className={`role-button ${role === "Admin" ? 'active' : ''}`}
-                onClick={(e) => {
-                  e.preventDefault();
-                  setRole("Admin");
-                }}
-              >
-                Admin
-              </button>
-            </div>
-          </div> */}
 
             <button
               type="submit"

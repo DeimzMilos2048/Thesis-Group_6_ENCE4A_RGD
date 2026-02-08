@@ -7,9 +7,13 @@ import {
   TouchableOpacity,
   Image,
   Alert,
+  Keyboard,
+  ActivityIndicator,
+  Modal,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { NavigationProp } from "@react-navigation/native";
+import NetInfo from "@react-native-community/netinfo";
 import useAuthStore from "../../store/authStore";
 
 interface SigninScreenProps {
@@ -23,6 +27,7 @@ const SigninScreen: React.FC<SigninScreenProps> = ({ navigation }) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [isConnected, setIsConnected] = useState<boolean | null>(true);
   const { register, loading } = useAuthStore();
   
   const togglePasswordVisibility = () => {
@@ -30,8 +35,19 @@ const SigninScreen: React.FC<SigninScreenProps> = ({ navigation }) => {
   };
 
   const handleSignIn= async () => {
+    Keyboard.dismiss();
+
     if (!username || !fullname || !email || !password) {
       Alert.alert('Error', 'Please fill in all fields');
+      return;
+    }
+
+    // Check internet connectivity
+    const netInfoState = await NetInfo.fetch();
+    setIsConnected(netInfoState.isConnected);
+    
+    if (!netInfoState.isConnected) {
+      Alert.alert('No Connection', 'Please check your internet connection and try again.');
       return;
     }
 
@@ -71,6 +87,19 @@ const SigninScreen: React.FC<SigninScreenProps> = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.container}>
+      {/* Loading Overlay */}
+      <Modal
+        transparent={true}
+        animationType="fade"
+        visible={loading && isConnected}
+      >
+        <View style={styles.loadingOverlay}>
+          <View style={styles.loadingContent}>
+            <ActivityIndicator size="large" color="#28a745" style={{ marginTop: 20 }} />
+          </View>
+        </View>
+      </Modal>
+
       {/* Logo */}
       <Image
         source={require("../../assets/images/thesis_logo_1024.png")}
@@ -137,15 +166,19 @@ const SigninScreen: React.FC<SigninScreenProps> = ({ navigation }) => {
             onChangeText={setPassword}
             secureTextEntry={!showPassword}
             editable={!loading}
+            autoComplete="off"
+            textContentType="none"
+            autoCorrect={false}
+            autoCapitalize="none"
           />
-          <TouchableOpacity
+          {/* <TouchableOpacity
             style={styles.toggleButton}
             onPress={togglePasswordVisibility}
           >
             <Text style={styles.toggleButtonText}>
               {showPassword ? "HIDE" : "SHOW"}
             </Text>
-          </TouchableOpacity>
+          </TouchableOpacity> */}
         </View>
       </View>
 
@@ -280,5 +313,18 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "bold",
     color: "#28a745",
+  },
+  loadingOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingContent: {
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    borderRadius: 15,
+    padding: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

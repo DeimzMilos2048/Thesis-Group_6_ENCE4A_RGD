@@ -77,22 +77,41 @@
 }
 
 .password-toggle {
-    position: absolute;
-    right: 15px;
-    top: 50%;
-    transform: translateY(-50%);
-    background: none;
-    border: none;
-    cursor: pointer;
-    color: #666666;
-    font-size: 18px;
-    padding: 5px;
-    border-radius: 4px;
-    transition: color 0.3s ease;
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: #666;
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .password-toggle:hover {
     color: #66ea9d;
+}
+
+.forgot-password {
+    color: #66ea9d;
+    text-align: right;
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 8px;
+    font-size: 14px;
+}
+
+.forgot-password a{
+    text-decoration: none;
+    font-weight: 500;
+    transition: color 0.3s ease;
+}
+
+.forgot-password a:hover {
+    text-decoration: underline;
 }
 
 .error-message {
