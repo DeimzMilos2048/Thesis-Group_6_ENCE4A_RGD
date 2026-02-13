@@ -22,6 +22,7 @@ import EditProfileScreen from "./src/screens/tabs/editprofilescreen";
 import EditNotificationScreen from "./src/screens/tabs/editnotificationscreen";
 import HelpCenterScreen from "./src/screens/tabs/helpcenterscreen";
 import SettingsScreen from "./src/screens/tabs/settingsscreen";
+import LoadingScreen from "./src/screens/tabs/loadingScreen";
 import {notificationListener} from "./src/services/notificationServices";
 
 //Profile Screen Page
@@ -104,6 +105,11 @@ export default function App() {
     <SafeAreaProvider> 
       <NavigationContainer>
         <Stack.Navigator>
+          <Stack.Screen
+            name="LoadingScreen"
+            component={LoadingScreen}
+            options={{ headerShown: false }}
+          />
           <Stack.Screen
             name="IntroductionUserScreen"
             component={IntroductionUserScreen}

@@ -4,8 +4,10 @@ import {notifiDB} from "../config/db.js";
 const SensorDataSchema = new mongoose.Schema({
   temperature: Number,
   humidity: Number,
-  moistureContent: Number,
-  weight: Number
+  moisture1: Number,
+  moisture2: Number,
+  weight1: Number,
+  weight2: Number
 }, { _id: false });
 
 const ThresholdSchema = new mongoose.Schema({
@@ -23,8 +25,14 @@ const NotificationSchema = new mongoose.Schema({
     enum: ["CRITICAL", "WARNING", "STABLE"],
     required: true
   },
-  title: String,
-  message: String,
+  title: {
+    type: String,
+    required: true  
+  },
+  message: {
+    type: String,
+    required: true  
+  },
   system: {
     type: String,
     default: "Rice Grain Dryer"
@@ -37,8 +45,10 @@ const NotificationSchema = new mongoose.Schema({
   },
   createdAt: {
     type: Date,
-    default: Date.now
+    default: Date.now,
   }
 });
+
+NotificationSchema.index({ isRead: 1, createdAt: -1 });
 
 export default notifiDB.model("NotificationDB", NotificationSchema,"alert_notification");

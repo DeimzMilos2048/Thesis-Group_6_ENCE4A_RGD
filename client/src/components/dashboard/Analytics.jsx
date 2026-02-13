@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Activity, AlertTriangle, BarChart2, Bell, CircleUser, Clock, LogOut, Thermometer, Droplets, Waves, Weight } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import './Dashboard.css';
@@ -15,7 +15,7 @@ export default function Analytics({ view }) {
   const navigate = useNavigate();
   const location = useLocation();
   
-  const [chartData, setChartData] = useState({
+  const [chartData] = useState({
     moisture: [],
     humidity: [],
     temperature: [],
@@ -154,6 +154,14 @@ export default function Analytics({ view }) {
 
         <nav className="nav-section">
           <button 
+            className={`nav-item ${activeTab === 'profile' ? 'active' : ''}`}
+            onClick={() => handleNavigation('/profile', 'profile')}
+          >
+            <CircleUser size={16} />
+            <span>Profile</span>
+          </button>
+
+          <button 
             className={`nav-item ${activeTab === 'dashboard' ? 'active' : ''}`}
             onClick={() => handleNavigation('/dashboard', 'dashboard')}
           >
@@ -183,13 +191,6 @@ export default function Analytics({ view }) {
             <span>Notification</span>
           </button>
 
-          <button 
-            className={`nav-item ${activeTab === 'profile' ? 'active' : ''}`}
-            onClick={() => handleNavigation('/profile', 'profile')}
-          >
-            <CircleUser size={16} />
-            <span>Profile</span>
-          </button>
         </nav>
 
         <button 
@@ -214,7 +215,7 @@ export default function Analytics({ view }) {
           <div className="analytics-content">
             <div className="analytics-cards">
               <h3 className="analytics-card-title">
-                <Droplets size={18} /> Moisture Content
+                <Droplets size={24} /> Moisture Content
               </h3>
               <div className="analytics-card-status">
                 <LiveLineGraph data={chartData.moisture} color="#22c55e" unit="%" />
@@ -223,7 +224,7 @@ export default function Analytics({ view }) {
 
             <div className="analytics-cards">
               <h3 className="analytics-card-title">
-                <Waves size={18} /> Humidity
+                <Waves size={24} /> Humidity
               </h3>
               <div className="analytics-card-status">
                 <LiveLineGraph data={chartData.humidity} color="#3b82f6" unit="%" />
@@ -232,7 +233,7 @@ export default function Analytics({ view }) {
 
             <div className="analytics-cards">
               <h3 className="analytics-card-title">
-                <Thermometer size={18} /> Temperature
+                <Thermometer size={24} /> Temperature
               </h3>
               <div className="analytics-card-status">
                 <LiveLineGraph data={chartData.temperature} color="#ef4444" unit="°C" />
@@ -241,7 +242,7 @@ export default function Analytics({ view }) {
 
             <div className="analytics-cards">
               <h3 className="analytics-card-title">
-                <Weight size={18} /> Weight
+                <Weight size={24} /> Weight
               </h3>
               <div className="analytics-card-status">
                 <LiveLineGraph data={chartData.weight} color="#a855f7" unit="kg" />

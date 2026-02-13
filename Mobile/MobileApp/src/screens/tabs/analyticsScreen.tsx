@@ -89,7 +89,7 @@ const analyticsScreen = () => {
 
           <View style={styles.card}>
             <Text style={styles.title}>Temperature</Text>
-            <LiveLineGraph data={chartData.temperature} color="#ef4444" unit="°C" />
+            <LiveLineGraph data={chartData.temperature} color="#efb944ff" unit="°C" />
           </View>
 
           <View style={styles.card}>

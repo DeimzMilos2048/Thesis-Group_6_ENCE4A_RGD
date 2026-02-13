@@ -228,7 +228,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   toggleButtonText: {
-    color: '#28a745',
+    color: '#2ce57fff',
     fontSize: 14,
     fontWeight: '500',
   },

@@ -1,5 +1,6 @@
-import express from "express";
 import dotenv from "dotenv";
+dotenv.config();
+import express from "express";
 import cors from "cors";
 import http from "http";
 import { Server as SocketIOServer } from "socket.io";
@@ -11,28 +12,29 @@ import sensorRoutes from "./routes/sensorRoutes.js";
 import connectDB from "./config/db.js";
 import { initializeSocket, startSensorPolling } from "./socketHandler.js";
 import SensorData from "./models/sensorDataModel.js";
-
-dotenv.config();
+import { checkSensorThresholds } from "./utils/thresholdChecker.js"; // Add this utility
 
 const app = express();
 const server = http.createServer(app);
 const io = new SocketIOServer(server, {
   cors: {
-    origin: ['http://localhost:3000', 'http://127.0.0.1:3000', 'https://thesis-rice-grain-dryer.onrender.com'],
+    origin: "*",
     methods: ['GET', 'POST'],
     credentials: true
   }
 });
 
-const PORT = process.env.PORT || 5001;
+const PORT = process.env.PORT || 5000;
 
+// Connect to databases
 connectDB();
 
-//Middleware
+// Middleware
 const allowedOrigins = [
   'https://thesis-rice-grain-dryer.onrender.com',
   'http://localhost:3000',
-  'http://127.0.0.1:3000'
+  'http://192.168.0.109:3000',
+  'http://10.42.0.1:3000',
 ];
   
 if (process.env.CLIENT_ORIGIN) {
@@ -42,12 +44,9 @@ if (process.env.CLIENT_ORIGIN) {
 app.use(
   cors({
     origin: function(origin, callback) {
-     
       if (!origin) return callback(null, true);
       
-      
       if (allowedOrigins.indexOf(origin) === -1) {
-        
         const originHostname = new URL(origin).hostname;
         if (/^(\d{1,3}\.){3}\d{1,3}$/.test(originHostname)) {
           allowedOrigins.push(origin);
@@ -61,7 +60,7 @@ app.use(
       }
     },
     credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'], // Added PATCH
     allowedHeaders: [
       'Origin',
       'X-Requested-With',
@@ -74,30 +73,84 @@ app.use(
 
 app.use(express.json());
 
-//Routes
+// Routes
 app.use("/api/auth", authRoutes);
 app.use("/api", profileRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/sensor", sensorRoutes);
 
+// ESP32 sensor data endpoint with notification checking
 app.post('/api/sensor/data', async (req, res) => {
   try {
+    // 1. Save sensor reading to database
     const reading = await SensorData.create(req.body);
 
-    io.emit("sensorUpdate", reading);
+    // 2. Calculate averages for emission
+    const avgMoisture = (reading.moisture1 + reading.moisture2) / 2;
+    const avgWeight = (reading.weight1 + reading.weight2) / 2;
 
-    res.json({ success: true });
+    // 3. Emit real-time update via Socket.io with averaged values
+    io.emit("sensor_readings_table", {
+      temperature: reading.temperature,
+      humidity: reading.humidity,
+      moisture: avgMoisture,
+      weight: avgWeight,
+      status: reading.status || 'Idle',
+      timestamp: reading.timestamp
+    });
+
+    // 4. Check thresholds and send notifications if needed
+    await checkSensorThresholds(reading, io);
+
+    res.json({ 
+      success: true,
+      message: "Sensor data received",
+      data: reading
+    });
   } catch (error) {
-    res.status(500).json(error);
+    console.error("Error processing sensor data:", error);
+    res.status(500).json({ 
+      success: false,
+      error: error.message 
+    });
   }
 });
 
-
-app.get('/', (req, res) => {
-  res.json({ status: 'ok', service: 'rgd-backend' });
+app.get('/api/sensor/latest', async (req, res) => {
+  try {
+    const latestReading = await SensorData.findOne()
+      .sort({ timestamp: -1 })
+      .limit(1);
+    
+    res.json({ 
+      success: true,
+      data: latestReading,
+      count: await SensorData.countDocuments()
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
-app.get('/healthz', (req, res) => res.send('ok'));
+// Health check endpoints
+app.get('/', (req, res) => {
+  res.json({ 
+    status: 'ok', 
+    service: 'rgd-backend',
+    timestamp: new Date().toISOString()
+  });
+});
+
+app.get('/healthz', (req, res) => {
+  res.json({ 
+    status: 'ok',
+    uptime: process.uptime(),
+    timestamp: new Date().toISOString()
+  });
+});
+
+// Make io accessible to other modules if needed
+app.set('io', io);
 
 // Initialize Socket.io connection handlers
 initializeSocket(io);
@@ -108,4 +161,7 @@ startSensorPolling(io, 5000);
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`Server is running on port ${PORT}`);
   console.log(`Socket.io is ready for real-time connections`);
+  //console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
 });
+
+export { io }; 

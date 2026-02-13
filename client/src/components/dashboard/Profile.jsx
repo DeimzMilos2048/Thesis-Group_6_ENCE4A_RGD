@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Activity, BarChart2, Bell, CircleUser, Clock, AlertTriangle, LogOut, Thermometer, Droplets, Waves, Weight, CheckCircle, Server, User, Mail, Phone, MapPin, Camera, Save, X, HelpCircle, Settings } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Activity, BarChart2, Bell, CircleUser, Clock, AlertTriangle, LogOut, User, Mail, Save, X, HelpCircle, Settings } from 'lucide-react';
 import './Dashboard.css';
 import './Profile.css';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -174,16 +174,16 @@ export default function Profile({ view }) {
   }
 };
 
-  const handleAvatarChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        // setProfileData(prev => ({ ...prev, avatar: reader.result }));
-      };
-      reader.readAsDataURL(file);
-    }
-  };
+  // const handleAvatarChange = (e) => {
+  //   const file = e.target.files[0];
+  //   if (file) {
+  //     const reader = new FileReader();
+  //     reader.onloadend = () => {
+  //       // setProfileData(prev => ({ ...prev, avatar: reader.result }));
+  //     };
+  //     reader.readAsDataURL(file);
+  //   }
+  // };
 
   return (
     <div className="dashboard-container">
@@ -233,6 +233,14 @@ export default function Profile({ view }) {
 
         <nav className="nav-section">
           <button 
+            className={`nav-item ${activeTab === 'profile' ? 'active' : ''}`}
+            onClick={() => handleNavigation('/profile', 'profile')}
+          >
+            <CircleUser size={16} />
+            <span>Profile</span>
+          </button>
+          
+          <button 
             className={`nav-item ${activeTab === 'dashboard' ? 'active' : ''}`}
             onClick={() => handleNavigation('/dashboard', 'dashboard')}
           >
@@ -262,13 +270,6 @@ export default function Profile({ view }) {
             <span>Notification</span>
           </button>
 
-          <button 
-            className={`nav-item ${activeTab === 'profile' ? 'active' : ''}`}
-            onClick={() => handleNavigation('/profile', 'profile')}
-          >
-            <CircleUser size={16} />
-            <span>Profile</span>
-          </button>
         </nav>
 
         <button 

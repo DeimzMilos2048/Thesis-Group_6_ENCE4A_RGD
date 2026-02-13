@@ -305,14 +305,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   toggleButtonText: {
-    color: '#28a745',
+    color: '#2ce57fff',
     fontSize: 14,
     fontWeight: '500',
   },
   createAccount: {
     fontSize: 13,
     fontWeight: "bold",
-    color: "#28a745",
+    color: "#2ce57fff",
   },
   loadingOverlay: {
     flex: 1,

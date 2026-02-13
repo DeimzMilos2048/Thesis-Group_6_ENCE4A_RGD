@@ -72,7 +72,7 @@
 }
 
 .nav-item.active {
-  background-color: #10b981;
+  background-color: #059669;
   color: white;
   font-weight: 500;
 }
@@ -148,21 +148,21 @@
 /* Dashboard Header - Transparent to show unified background */
 .dashboard-header {
   background: transparent;
-  color: white;
+  color: #1f2933;
   padding: 16px 32px;
   text-align: left;
 }
 
 .dashboard-header h1 {
-  font-size: 28px;
+  font-size: 32px;
   font-weight: bold;
   margin-bottom: 4px;
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 .dashboard-header p {
-  font-size: 13px;
-  color: #ffffff;
+  font-size: 16px;
+  color: #1f2933;
   opacity: 0.95;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
 }

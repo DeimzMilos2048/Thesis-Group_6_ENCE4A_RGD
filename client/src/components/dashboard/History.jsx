@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Activity, BarChart2, Bell, CircleUser,Clock, AlertTriangle, LogOut, Thermometer, Droplets, Waves, Weight, CheckCircle, Server } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Activity, BarChart2, Bell, CircleUser,Clock, AlertTriangle, LogOut} from 'lucide-react';
 import './Dashboard.css';
 import './History.css';
 import * as XLSX from 'xlsx';
@@ -85,52 +85,52 @@ export default function History({ view }) {
   const historyData = [
     {
       id: 1,
-      date: "2026-01-05",
+      date: "01-05-2026",
       time: "10:00 AM",
-      moisture: "14%",
-      temperature: "50°C",
-      humidity: "60 %",
-      weight: "25 kg",
+      moisture: "14",
+      temperature: "50°",
+      humidity: "60",
+      weight: "25",
       status: "Complete",
     },
     {
       id: 2,
-      date: "2026-01-06",
+      date: "01-06-2026",
       time: "12:00 AM",
-      moisture: "13%",
-      temperature: "51°C",
-      humidity: "63 %",
-      weight: "25 kg",
+      moisture: "13",
+      temperature: "51°",
+      humidity: "63",
+      weight: "25",
       status: "Complete",
     },
     {
       id: 3,
-      date: "2026-01-06",
+      date: "01-06-2026",
       time: "1:00 PM",
-      moisture: "9%",
-      temperature: "50°C",
-      humidity: "68 %",
-      weight: "23 kg",
+      moisture: "9",
+      temperature: "50°",
+      humidity: "68",
+      weight: "23",
       status: "Warning",
     },
     {
       id: 4,
-      date: "2026-01-06",
+      date: "01-06-2026",
       time: "4:00 PM",
-      moisture: "3%",
-      temperature: "65°C",
-      humidity: "78 %",
-      weight: "1 kg",
+      moisture: "3",
+      temperature: "65°",
+      humidity: "78",
+      weight: "1",
       status: "Error",
     },
     {
       id: 5,
-      date: "2026-01-13",
+      date: "01-13-2026",
       time: "4:00 PM",
-      moisture: "3%",
-      temperature: "65°C",
-      humidity: "78 %",
-      weight: "1 kg",
+      moisture: "3",
+      temperature: "65°",
+      humidity: "78",
+      weight: "1",
       status: "Error",
     },
   ];
@@ -189,6 +189,14 @@ export default function History({ view }) {
 
         <nav className="nav-section">
           <button 
+            className={`nav-item ${activeTab === 'profile' ? 'active' : ''}`}
+            onClick={() => handleNavigation('/profile', 'profile')}
+          >
+           <CircleUser size={16} />
+           <span>Profile</span>
+           </button>
+
+          <button 
             className={`nav-item ${activeTab === 'dashboard' ? 'active' : ''}`}
             onClick={() => handleNavigation('/dashboard', 'dashboard')}
           >
@@ -217,15 +225,7 @@ export default function History({ view }) {
             <Bell size={16} />
             <span>Notification</span>
           </button>
-
-          <button 
-            className={`nav-item ${activeTab === 'profile' ? 'active' : ''}`}
-            onClick={() => handleNavigation('/profile', 'profile')}
-          >
-           <CircleUser size={16} />
-           <span>Profile</span>
-           </button>
-           
+       
         </nav>
 
         <button 
@@ -248,7 +248,7 @@ export default function History({ view }) {
 
           <div className="history-container">
               <button className="download-btn" onClick={handleDownloadExcel}>
-                Download Excel
+                Export Excel
               </button>
           </div>
 
