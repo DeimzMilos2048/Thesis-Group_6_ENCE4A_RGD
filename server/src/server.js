@@ -60,7 +60,7 @@ app.use(
       }
     },
     credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'], // Added PATCH
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'], 
     allowedHeaders: [
       'Origin',
       'X-Requested-With',
@@ -75,7 +75,7 @@ app.use(express.json());
 
 // Routes
 app.use("/api/auth", authRoutes);
-app.use("/api", profileRoutes);
+app.use("/api/profile", profileRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/sensor", sensorRoutes);
 
@@ -90,14 +90,16 @@ app.post('/api/sensor/data', async (req, res) => {
     const avgWeight = (reading.weight1 + reading.weight2) / 2;
 
     // 3. Emit real-time update via Socket.io with averaged values
-    io.emit("sensor_readings_table", {
-      temperature: reading.temperature,
-      humidity: reading.humidity,
-      moisture: avgMoisture,
-      weight: avgWeight,
-      status: reading.status || 'Idle',
-      timestamp: reading.timestamp
-    });
+    socket.emit('sensor_readings_table', {
+        temperature: latestReading.temperature,
+        humidity: latestReading.humidity,
+        moisture1: latestReading.moisture1,
+        moisture2: latestReading.moisture2,
+        weight1: latestReading.weight1,
+        weight2: latestReading.weight2,
+        status: latestReading.status || 'Idle',
+        timestamp: latestReading.timestamp
+      });
 
     // 4. Check thresholds and send notifications if needed
     await checkSensorThresholds(reading, io);

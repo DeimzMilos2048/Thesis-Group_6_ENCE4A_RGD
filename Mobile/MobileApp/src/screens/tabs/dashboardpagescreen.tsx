@@ -208,7 +208,7 @@ const DashboardPageScreen: React.FC = () => {
 
   useEffect(() => {
 
-    const socket = io('http://124.83.13.156:5000', {
+    const socket = io('http://localhost:5001', {
 
       reconnection: true,
 

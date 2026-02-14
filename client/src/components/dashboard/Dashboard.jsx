@@ -44,7 +44,7 @@ export default function RiceDryingDashboard({ view }) {
   useEffect(() => {
     console.log('Attempting to connect to socket...');
     
-    const socket = io('http://localhost:5000', {
+    const socket = io('http://localhost:5001', {
       reconnection: true,
       reconnectionDelay: 1000,
       reconnectionDelayMax: 5000,
@@ -76,16 +76,16 @@ export default function RiceDryingDashboard({ view }) {
     });
 
     socket.on('disconnect', (reason) => {
-      console.log('Socket disconnected:', reason);
+      //console.log('Socket disconnected:', reason);
     });
 
     socket.on('error', (error) => {
-      console.error('Socket error:', error);
-      setError('Real-time connection error');
+      //console.error('Socket error:', error);
+      //setError('Real-time connection error');
     });
 
     return () => {
-      console.log('Cleaning up socket connection');
+      //console.log('Cleaning up socket connection');
       socket.disconnect();
     };
   }, []);
@@ -316,7 +316,7 @@ export default function RiceDryingDashboard({ view }) {
                     <div className="progress-bar">
                       <div className="progress-fill cyan" style={{ width: `${sensorData.humidity || 0}%` }}></div>
                     </div>
-                    <div className="sensor-range">Target: &lt;65%</div>
+                    <div className="sensor-range">Target: &lt;100%</div>
                   </div>
 
                   <div className="sensor-card">
