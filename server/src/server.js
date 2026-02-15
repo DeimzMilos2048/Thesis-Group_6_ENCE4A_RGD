@@ -21,10 +21,12 @@ const io = new SocketIOServer(server, {
     origin: "*",
     methods: ['GET', 'POST'],
     credentials: true
-  }
+  },
+    transports: ['websocket', 'polling'],
+    allowEIO3: true 
 });
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5001;
 
 // Connect to databases
 connectDB();
@@ -76,7 +78,7 @@ app.use(express.json());
 // Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/profile", profileRoutes);
-app.use("/api/notifications", notificationRoutes);
+app.use("/notifications", notificationRoutes);
 app.use("/api/sensor", sensorRoutes);
 
 // ESP32 sensor data endpoint with notification checking

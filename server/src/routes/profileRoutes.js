@@ -4,11 +4,11 @@ import User from '../models/userModel.js';
 
 const router = express.Router();
 
-router.get('/profile', protect, async (req, res) => {
+router.get('/', protect, async (req, res) => {
   res.json(req.user);
 });
 
-router.put('/profile/update', protect, async (req, res) => {
+router.put('/update', protect, async (req, res) => {
   const user = await User.findById(req.user._id);
 
   if (!user) {

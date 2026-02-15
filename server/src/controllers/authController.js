@@ -166,6 +166,18 @@ const getDashboard = asyncHandler(async (req, res) => {
   });
 });
 
+// @desc    Logout user
+// @route   POST /api/auth/logout
+// @access  Private
+const logoutUser = asyncHandler(async (req, res) => {
+  // For JWT-based auth, logout is typically handled client-side
+  // by removing the token from storage
+  res.status(200).json({ 
+    message: 'Logout successful',
+    success: true 
+  });
+});
+
 export { 
   registerUser, 
   loginUser, 
@@ -173,5 +185,6 @@ export {
   getAdminDashboard, 
   getDashboard,
   updateUser,
-  deleteUser 
+  deleteUser,
+  logoutUser
 };

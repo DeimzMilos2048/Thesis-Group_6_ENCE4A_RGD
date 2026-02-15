@@ -6,7 +6,8 @@ import {
   getAdminDashboard,
   getDashboard,
   updateUser,
-  deleteUser
+  deleteUser,
+  logoutUser
 } from "../controllers/authController.js";
 import { protect, admin } from "../middleware/authMiddleware.js";
 
@@ -19,6 +20,7 @@ router.post("/register", registerUser);
 // Protected routes
 router.get("/me", protect, getMe);
 router.get("/dashboard", protect, getDashboard);
+router.post("/logout", logoutUser);
 
 // Admin routes
 router.get("/admin/dashboard", protect, admin, getAdminDashboard);

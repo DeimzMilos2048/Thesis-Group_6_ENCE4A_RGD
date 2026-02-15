@@ -70,14 +70,14 @@ export const startSensorPolling = (io, intervalMs = 5000) => {
 
       if (latestReading) {
       
-        console.log('Emitting sensor data:', {
-          temperature: latestReading.temperature,
-          humidity: latestReading.humidity,
-          moisture1: latestReading.moisture1,
-          moisture2: latestReading.moisture2,
-          weight1: latestReading.weight1,
-          weight2: latestReading.weight2,
-        });
+        // console.log('Emitting sensor data:', {
+        //   temperature: latestReading.temperature,
+        //   humidity: latestReading.humidity,
+        //   moisture1: latestReading.moisture1,
+        //   moisture2: latestReading.moisture2,
+        //   weight1: latestReading.weight1,
+        //   weight2: latestReading.weight2,
+        // });
         
         io.emit('sensor_readings_table', {
           temperature: latestReading.temperature,

@@ -6,6 +6,7 @@ import './Analytics.css';
 import { useNavigate, useLocation } from 'react-router-dom';
 import authService from '../../api/authService';
 import logo from "../../assets/images/logo2.png";
+import io from 'socket.io-client';
 
 export default function Analytics({ view }) {
   const [loading, setLoading] = useState(false);
@@ -15,7 +16,7 @@ export default function Analytics({ view }) {
   const navigate = useNavigate();
   const location = useLocation();
   
-  const [chartData] = useState({
+  const [chartData, setChartData] = useState({
     moisture: [],
     humidity: [],
     temperature: [],
@@ -36,6 +37,77 @@ export default function Analytics({ view }) {
       setActiveTab('dashboard');
     }
   }, [location]);
+
+  // Socket.io setup for real-time sensor data
+  useEffect(() => {
+    console.log('Analytics: Attempting to connect to socket...');
+    
+    const socket = io('http://localhost:5001', {
+      reconnection: true,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
+      reconnectionAttempts: 5,
+      transports: ['websocket', 'polling']
+    });
+
+    socket.on('connect', () => {
+      console.log('Analytics: Connected:', socket.id);
+    });
+
+    socket.on('connect_error', (error) => {
+      console.error('Analytics: Socket connection error:', error.message);
+      setError('Unable to connect to real-time data');
+    });
+
+    // Listen for real-time sensor data updates
+    socket.on('sensor_readings_table', (data) => {
+      console.log('Analytics: Sensor data received:', data);
+      
+      const timestamp = new Date().toLocaleTimeString('en-US', { 
+        hour: '2-digit', 
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false 
+      });
+
+      // Update chart data with new readings
+      setChartData(prevData => {
+        const maxDataPoints = 20; // Keep last 20 data points
+
+        return {
+          moisture: [
+            ...prevData.moisture,
+            { time: timestamp, value: typeof data.moisture === 'number' ? data.moisture : 0 }
+          ].slice(-maxDataPoints),
+          humidity: [
+            ...prevData.humidity,
+            { time: timestamp, value: typeof data.humidity === 'number' ? data.humidity : 0 }
+          ].slice(-maxDataPoints),
+          temperature: [
+            ...prevData.temperature,
+            { time: timestamp, value: typeof data.temperature === 'number' ? data.temperature : 0 }
+          ].slice(-maxDataPoints),
+          weight: [
+            ...prevData.weight,
+            { time: timestamp, value: typeof data.weight === 'number' ? data.weight : 0 }
+          ].slice(-maxDataPoints)
+        };
+      });
+    });
+
+    socket.on('disconnect', (reason) => {
+      console.log('Analytics: Socket disconnected:', reason);
+    });
+
+    socket.on('error', (error) => {
+      console.error('Analytics: Socket error:', error);
+    });
+
+    return () => {
+      console.log('Analytics: Cleaning up socket connection');
+      socket.disconnect();
+    };
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -87,20 +159,27 @@ export default function Analytics({ view }) {
     setShowLogoutConfirm(false);
   };
 
-  const LiveLineGraph = ({ data, color, unit }) => (
+  const LiveLineGraph = ({ data, color, unit, minValue, maxValue }) => (
     <ResponsiveContainer width="100%" height="100%">
       <LineChart data={data} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
         <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-        <XAxis dataKey="time" tick={{ fontSize: 12 }} />
-        <YAxis tick={{ fontSize: 12 }} unit={unit} />
+        <XAxis 
+          dataKey="time" 
+          tick={{ fontSize: 12 }}
+        />
+        <YAxis 
+          tick={{ fontSize: 12 }} 
+          unit={unit}
+          domain={[minValue, maxValue]}
+        />
         <Tooltip />
         <Line
           type="monotone"
           dataKey="value"
           stroke={color}
           strokeWidth={2.5}
-          dot={false}
-          activeDot={{ r: 5 }}
+          dot={{ r: 3 }}
+          isAnimationActive={false}
         />
       </LineChart>
     </ResponsiveContainer>
@@ -218,7 +297,13 @@ export default function Analytics({ view }) {
                 <Droplets size={24} /> Moisture Content
               </h3>
               <div className="analytics-card-status">
-                <LiveLineGraph data={chartData.moisture} color="#22c55e" unit="%" />
+                <LiveLineGraph 
+                  data={chartData.moisture} 
+                  color="#22c55e" 
+                  unit="%" 
+                  minValue={0}
+                  maxValue={100}
+                />
               </div>
             </div>
 
@@ -227,7 +312,13 @@ export default function Analytics({ view }) {
                 <Waves size={24} /> Humidity
               </h3>
               <div className="analytics-card-status">
-                <LiveLineGraph data={chartData.humidity} color="#3b82f6" unit="%" />
+                <LiveLineGraph 
+                  data={chartData.humidity} 
+                  color="#3b82f6" 
+                  unit="%" 
+                  minValue={0}
+                  maxValue={100}
+                />
               </div>
             </div>
 
@@ -236,7 +327,13 @@ export default function Analytics({ view }) {
                 <Thermometer size={24} /> Temperature
               </h3>
               <div className="analytics-card-status">
-                <LiveLineGraph data={chartData.temperature} color="#ef4444" unit="°C" />
+                <LiveLineGraph 
+                  data={chartData.temperature} 
+                  color="#ef4444" 
+                  unit="°C" 
+                  minValue={0}
+                  maxValue={100}
+                />
               </div>
             </div>
 
@@ -245,7 +342,13 @@ export default function Analytics({ view }) {
                 <Weight size={24} /> Weight
               </h3>
               <div className="analytics-card-status">
-                <LiveLineGraph data={chartData.weight} color="#a855f7" unit="kg" />
+                <LiveLineGraph 
+                  data={chartData.weight} 
+                  color="#a855f7" 
+                  unit="kg" 
+                  minValue={0}
+                  maxValue={50}
+                />
               </div>
             </div>
           </div>

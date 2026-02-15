@@ -22,7 +22,7 @@
 }
 
 .sidebar-logo {
-  width: 95px;
+  width: 150px;
   height: auto;
   object-fit: contain;
   margin-bottom: 5px;
@@ -37,7 +37,7 @@
 }
 
 .logo-box {
-  background-color: #fffbeb;
+  background-color: #FFFFFF;
   border: 3px;
   border-radius: 10px;
   padding: 6px 4px;
