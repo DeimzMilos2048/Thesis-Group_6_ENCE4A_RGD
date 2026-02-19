@@ -32,11 +32,11 @@ const PORT = process.env.PORT || 5001;
 connectDB();
 
 // Middleware
-const allowedOrigins = ['*'
-  // 'https://mala-4y1a.onrender.com',
-  // 'http://localhost:3000',
-  // 'http://192.168.0.109:3000',
-  // 'http://10.42.0.1:3000',
+const allowedOrigins = [
+  'https://mala-4y1a.onrender.com',
+  'http://localhost:3000',
+  'http://192.168.0.109:3000',
+  'http://10.42.0.1:3000',
 ];
   
 if (process.env.CLIENT_ORIGIN) {
