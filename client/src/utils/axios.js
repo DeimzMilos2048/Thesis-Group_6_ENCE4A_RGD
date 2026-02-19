@@ -4,6 +4,8 @@ import API_CONFIG from "../config/api.config";
 const createAxiosInstance = () => {
   const currentURL = API_CONFIG.baseURLs[API_CONFIG.currentURLIndex];
   console.log('Using base URL:', currentURL); // Debug which URL is being used
+  console.log('Available URLs:', API_CONFIG.baseURLs); // Show all available URLs
+  console.log('Current URL Index:', API_CONFIG.currentURLIndex); // Show current index
   
   const instance = axios.create({
     baseURL: currentURL,

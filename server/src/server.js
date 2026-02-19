@@ -18,15 +18,20 @@ const app = express();
 const server = http.createServer(app);
 const io = new SocketIOServer(server, {
   cors: {
-    origin: "*",
+    origin: [
+      'https://mala-luin.onrender.com',
+      'http://localhost:3000',
+      'http://192.168.0.109:3000',
+      'http://10.42.0.1:3000'
+    ],
     methods: ['GET', 'POST'],
     credentials: true
   },
-    transports: ['websocket', 'polling'],
-    allowEIO3: true 
+  transports: ['websocket', 'polling'],
+  allowEIO3: true 
 });
 
-const PORT = process.env.PORT || 5001;
+const PORT = process.env.PORT || 5000;
 
 // Connect to databases
 connectDB();
