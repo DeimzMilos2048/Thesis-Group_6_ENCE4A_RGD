@@ -33,7 +33,7 @@ connectDB();
 
 // Middleware
 const allowedOrigins = [
-  'https://mala-4y1a.onrender.com',
+  'https://mala-luin.onrender.com',
   'http://localhost:3000',
   'http://192.168.0.109:3000',
   'http://10.42.0.1:3000',
