@@ -31,7 +31,7 @@ function LoginPage() {
             setError("");
             const result = await login(email, password);
             
-            // Get the user data from localStorage
+            // Get user data from localStorage
             const userData = JSON.parse(localStorage.getItem('user'));
             console.log('User data after login:', userData); 
 

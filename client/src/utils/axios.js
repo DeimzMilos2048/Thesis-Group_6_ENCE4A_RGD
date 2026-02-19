@@ -11,7 +11,7 @@ const createAxiosInstance = () => {
     baseURL: currentURL,
     timeout: API_CONFIG.timeout,
     headers: API_CONFIG.headers,
-    withCredentials: API_CONFIG.withCredentials,
+    withCredentials: false, // Disable CORS credentials for login/register
     validateStatus: function (status) {
       return status >= 200 && status < 500;
     }
@@ -44,36 +44,9 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
-    const originalRequest = error.config;
-
-    // If the error is a connection error and we haven't tried all URLs
-    if (error.code === 'ERR_NETWORK' && !originalRequest._retry) {
-      originalRequest._retry = true;
-      
-      // Try next URL in the list
-      API_CONFIG.currentURLIndex = (API_CONFIG.currentURLIndex + 1) % API_CONFIG.baseURLs.length;
-      const newBaseURL = API_CONFIG.baseURLs[API_CONFIG.currentURLIndex];
-      
-      // Create new instance with next URL
-      const newInstance = createAxiosInstance();
-      originalRequest.baseURL = newBaseURL;
-
-      try {
-        return await newInstance(originalRequest);
-      } catch (retryError) {
-        // If we've tried all URLs, show error
-        if (API_CONFIG.currentURLIndex === 0) {
-          console.error('All connection attempts failed');
-          return Promise.reject(new Error('Server is unavailable. Please try again later.'));
-        }
-        return Promise.reject(retryError);
-      }
-    }
-
     if (error.response) {
       // The request was made and the server responded with a status code
       // that falls out of the range of 2xx
-      const originalRequest = error.config;
       const status = error.response.status;
 
       // Handle 401 Unauthorized
@@ -87,18 +60,7 @@ api.interceptors.response.use(
       return Promise.reject(error);
     } else if (error.request) {
       // The request was made but no response was received
-      // Try alternative URL in development only if it's a network error
-      if (error.code === 'ERR_NETWORK' && process.env.NODE_ENV !== 'production') {
-        const alternateURL = 'http://localhost:5001';
-        try {
-          const originalRequest = error.config;
-          originalRequest.baseURL = alternateURL;
-          return await axios(originalRequest);
-        } catch (retryError) {
-          return Promise.reject(retryError);
-        }
-      }
-      return Promise.reject(error);
+      return Promise.reject(new Error('Network error. Please check your connection.'));
     } else {
       // Something happened in setting up the request that triggered an Error
       return Promise.reject(error);

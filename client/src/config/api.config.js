@@ -12,17 +12,8 @@ const getBaseURL = () => {
     return ['https://mala-luin.onrender.com'];
   }
 
-  // In development, try localhost/host+ports
-  const hostname = window.location.hostname;
-  const ports = ['5001', '5000', '3001'];
-
-  const urls = [
-    'http://localhost:5001',
-    'http://127.0.0.1:5001',
-    ...ports.map(port => `http://${hostname}:${port}`)
-  ];
-
-  return urls;
+  // In development, try localhost first
+  return ['http://localhost:5000', 'http://localhost:5001', 'http://127.0.0.1:5000', 'http://127.0.0.1:5001'];
 };
 
 const API_CONFIG = {
@@ -31,8 +22,7 @@ const API_CONFIG = {
   timeout: 5000, // Reduced timeout for faster fallback
   headers: {
     'Content-Type': 'application/json'
-  },
-  withCredentials: true
+  }
 };
 
 export default API_CONFIG;

@@ -4,7 +4,6 @@ import express from "express";
 import cors from "cors";
 import http from "http";
 import { Server as SocketIOServer } from "socket.io";
-import path from "path";
 
 import authRoutes from "./routes/authRoutes.js";
 import profileRoutes from "./routes/profileRoutes.js";
@@ -13,7 +12,7 @@ import sensorRoutes from "./routes/sensorRoutes.js";
 import connectDB from "./config/db.js";
 import { initializeSocket, startSensorPolling } from "./socketHandler.js";
 import SensorData from "./models/sensorDataModel.js";
-import { checkSensorThresholds } from "./utils/thresholdChecker.js"; // Add this utility
+import { checkSensorThresholds } from "./utils/thresholdChecker.js"; 
 
 const app = express();
 const server = http.createServer(app);
@@ -76,18 +75,13 @@ app.use(
 
 app.use(express.json());
 
-// Serve static files from React app in production
-if (process.env.NODE_ENV === 'production') {
-  app.use(express.static(path.join(__dirname, '..', 'client', 'build')));
-}
-
 // Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/profile", profileRoutes);
 app.use("/notifications", notificationRoutes);
 app.use("/api/sensor", sensorRoutes);
 
-// ESP32 sensor data endpoint wFith notification checking
+// ESP32 sensor data endpoint with notification checking
 app.post('/api/sensor/data', async (req, res) => {
   try {
     const reading = await SensorData.create(req.body);
@@ -164,15 +158,6 @@ initializeSocket(io);
 
 // Start real-time sensor data polling (every 5 seconds)
 startSensorPolling(io, 5000);
-
-// Fallback route for client-side routing in production (must be last)
-app.get('/{*splat}', (req, res, next) => {
-  if (process.env.NODE_ENV === 'production') {
-    res.sendFile(path.join(__dirname, '..', 'client', 'build', 'index.html'));
-  } else {
-    next();
-  }
-});
 
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`Server is running on port ${PORT}`);
