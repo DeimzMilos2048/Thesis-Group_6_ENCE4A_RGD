@@ -45,79 +45,25 @@ const Header: React.FC<{ onNotificationPress: () => void }> = ({ onNotificationP
 };
 
 const DashboardPageScreen: React.FC = () => {
-
   const navigation = useNavigation<NavigationProp>();
-
-  const [targetTemp, setTargetTemp] = useState("");
-
-  const [targetMoisture, setTargetMoisture] = useState("");
-
-
-
-  const handleApply = () => {
-    // Validate inputs are not empty
-    if (!targetTemp || !targetMoisture) {
-      Alert.alert(
-        "Input Required",
-        "Please enter both target temperature and moisture values.",
-        [{ text: "OK" }]
-      );
-      return;
-    }
-
-    const temp = parseFloat(targetTemp);
-    const moisture = parseFloat(targetMoisture);
-
-    if (isNaN(temp) || temp < 50 || temp > 60) {
-      Alert.alert(
-        "Invalid Temperature",
-        "Target temperature must be between 50°C and 60°C.",
-        [{ text: "OK" }]
-      );
-      return;
-    }
-
-    if (isNaN(moisture) || moisture < 10 || moisture > 14) {
-      Alert.alert(
-        "Invalid Moisture",
-        "Target moisture must be between 10% and 14%.",
-        [{ text: "OK" }]
-      );
-      return;
-    }
-
-    console.log("Applied:", { targetTemp: temp, targetMoisture: moisture });
-    
-    Alert.alert(
-      "Settings Applied",
-      `Target Temperature: ${temp}°C\nTarget Moisture: ${moisture}%`,
-      [{ text: "OK" }]
-    );
-    
-    // Here you can add your logic to send these values to your backend/socket
-  };
-
-
 
   const handleNotificationPress = () => {
     navigation.navigate('NotificationScreen');
   };
 
-
-
   const [sensorData, setSensorData] = useState({
     temperature: 0,
     humidity: 0,
-    moisture: 0,
-    weight: 0,
+    moisture1: 0,
+    moisture2: 0,
+    weight1: 0,
+    weight2: 0,
     status: 'Idle'
   });
 
-
-
   useEffect(() => {
-    const socket = io('http://192.168.0.109:5001', {
-      transports: ['polling'],
+    const socket = io('http://192.168.86.135:5001',{
+      transports: ['websocket'],
       reconnection: true,
       reconnectionDelay: 1000,
       reconnectionAttempts: Infinity,
@@ -139,8 +85,10 @@ const DashboardPageScreen: React.FC = () => {
       setSensorData({
         temperature: typeof data.temperature === 'number' ? data.temperature :  0,
         humidity: typeof data.humidity === 'number' ? data.humidity : 0,
-        moisture: typeof data.moisture === 'number' ? data.moisture : 0,
-        weight: typeof data.weight === 'number' ? data.weight : 0,
+        moisture1: typeof data.moisture1 === 'number' ? data.moisture1 : 0,
+        moisture2: typeof data.moisture2 === 'number' ? data.moisture2 : 0,
+        weight1: typeof data.weight1 === 'number' ? data.weight1 : 0,
+        weight2: typeof data.weight2 === 'number' ? data.weight2 : 0,
         status: data.status || 'Idle'
       });
     });
@@ -164,52 +112,55 @@ const DashboardPageScreen: React.FC = () => {
           <Text style={styles.statusValue}>{sensorData.status || 'Idle'}</Text>
         </View>
       </View>
-      <Text style={styles.sectionTitle}>System Controls</Text>
-      <View style={styles.controls}>
-        <Text style={styles.label}>Target Temperature (°C)</Text>
-        <TextInput
-          style={styles.input}
-          keyboardType="numeric"
-          placeholder="Enter temperature"
-          placeholderTextColor='#9CA3AF'
-          value={targetTemp}
-          onChangeText={setTargetTemp}
-        />
-        <Text style={styles.label}>Target Moisture (%)</Text>
-        <TextInput
-          style={styles.input}
-          keyboardType="numeric"
-          placeholder="Enter moisture"
-          placeholderTextColor='#9CA3AF'
-          value={targetMoisture}
-          onChangeText={setTargetMoisture}
-        />
-        <View style={styles.buttonRow}>
-          <TouchableOpacity style={styles.applyBtn} onPress={handleApply}>
-            <Text style={styles.btnText}>Apply</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
+      
       <Text style={styles.sectionTitle}>Sensor Readings</Text>
       <View style={styles.statusGrid}> 
         <View style={styles.card}>
+          <View style={[styles.iconContainer, styles.iconOrange]}>
+            <Ionicons name="thermometer-outline" size={28} color="#FFFFFF" />
+          </View>
           <Text style={styles.label}>Temperature</Text>
           <Text style={styles.value}>{(sensorData.temperature || 0).toFixed(1)}°C</Text>
           <Text style={styles.sub}>Normal (50–60 °C)</Text>
         </View>
         <View style={styles.card}>
+          <View style={[styles.iconContainer, styles.iconCyan]}>
+            <Ionicons name="water-outline" size={28} color="#FFFFFF" />
+          </View>
           <Text style={styles.label}>Humidity</Text>
           <Text style={styles.value}>{(sensorData.humidity || 0).toFixed(1)}%</Text>
           <Text style={styles.sub}>Normal (≤ 100%)</Text>
         </View>
         <View style={styles.card}>
-          <Text style={styles.label}>Moisture Content</Text>
-          <Text style={styles.value}>{(sensorData.moisture || 0).toFixed(1)}%</Text>
+          <View style={[styles.iconContainer, styles.iconCyan]}>
+            <Ionicons name="water-outline" size={28} color="#FFFFFF" />
+          </View>
+          <Text style={styles.label}>Moisture Content 1</Text>
+          <Text style={styles.value}>{(sensorData.moisture1 || 0).toFixed(1)}%</Text>
           <Text style={styles.sub}>Target 10–14%</Text>
         </View>
         <View style={styles.card}>
-          <Text style={styles.label}>Current Weight</Text>
-          <Text style={styles.value}>{(sensorData.weight || 0).toFixed(1)}kg</Text>
+          <View style={[styles.iconContainer, styles.iconCyan]}>
+            <Ionicons name="water-outline" size={28} color="#FFFFFF" />
+          </View>
+          <Text style={styles.label}>Moisture Content 2</Text>
+          <Text style={styles.value}>{(sensorData.moisture2 || 0).toFixed(1)}%</Text>
+          <Text style={styles.sub}>Target 10–14%</Text>
+        </View>
+        <View style={styles.card}>
+          <View style={[styles.iconContainer, styles.iconGreen]}>
+            <Ionicons name="scale-outline" size={28} color="#FFFFFF" />
+          </View>
+          <Text style={styles.label}>Current Weight 1</Text>
+          <Text style={styles.value}>{(sensorData.weight1 || 0).toFixed(1)}kg</Text>
+          <Text style={styles.sub}>Initial 25 kg</Text>
+        </View>
+        <View style={styles.card}>
+          <View style={[styles.iconContainer, styles.iconGreen]}>
+            <Ionicons name="scale-outline" size={28} color="#FFFFFF" />
+          </View>
+          <Text style={styles.label}>Current Weight 2</Text>
+          <Text style={styles.value}>{(sensorData.weight2 || 0).toFixed(1)}kg</Text>
           <Text style={styles.sub}>Initial 25 kg</Text>
         </View>
       </View>
@@ -255,16 +206,15 @@ interface Styles {
   label: TextStyle;
   value: TextStyle;
   sub: TextStyle;
-  controls: ViewStyle;
-  input: ViewStyle;
-  buttonRow: ViewStyle;
-  applyBtn: ViewStyle;
-  btnText: TextStyle;
   header: ViewStyle;
   headerImage: ViewStyle;
   headerOverlay: ViewStyle;
   headerText: TextStyle;
   notificationButton: ViewStyle;
+  iconContainer: ViewStyle;
+  iconOrange: ViewStyle;
+  iconCyan: ViewStyle;
+  iconGreen: ViewStyle;
 }
 
 
@@ -370,41 +320,6 @@ const styles = StyleSheet.create<Styles>({
     fontSize: 12,
     color: "#6b7280",
   },
-  controls: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 12,
-    padding: 15,
-    marginVertical: 6,
-    marginHorizontal: 15,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 6,
-    padding: 10,
-    marginVertical: 5,
-    backgroundColor: "#fff",
-  },
-  buttonRow: {
-    marginTop: 15,
-  },
-  applyBtn: {
-    backgroundColor: "#27AE60",
-    padding: 12,
-    borderRadius: 6,
-    alignItems: "center",
-    elevation: 2,
-  },
-  btnText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "600",
-  },
   notificationButton: {
     width: 44,
     height: 44,
@@ -417,6 +332,23 @@ const styles = StyleSheet.create<Styles>({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.15,
     shadowRadius: 3,
+  },
+  iconContainer: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  iconOrange: {
+    backgroundColor: '#FF6B35',
+  },
+  iconCyan: {
+    backgroundColor: '#06B6D4',
+  },
+  iconGreen: {
+    backgroundColor: '#27AE60',
   },
 });
 

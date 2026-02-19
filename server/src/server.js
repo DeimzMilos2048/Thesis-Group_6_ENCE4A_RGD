@@ -33,7 +33,7 @@ connectDB();
 
 // Middleware
 const allowedOrigins = [
-  'https://thesis-rice-grain-dryer.onrender.com',
+  'https://mala-4y1a.onrender.com',
   'http://localhost:3000',
   'http://192.168.0.109:3000',
   'http://10.42.0.1:3000',
@@ -84,14 +84,8 @@ app.use("/api/sensor", sensorRoutes);
 // ESP32 sensor data endpoint with notification checking
 app.post('/api/sensor/data', async (req, res) => {
   try {
-    // 1. Save sensor reading to database
     const reading = await SensorData.create(req.body);
 
-    // 2. Calculate averages for emission
-    const avgMoisture = (reading.moisture1 + reading.moisture2) / 2;
-    const avgWeight = (reading.weight1 + reading.weight2) / 2;
-
-    // 3. Emit real-time update via Socket.io with averaged values
     socket.emit('sensor_readings_table', {
         temperature: latestReading.temperature,
         humidity: latestReading.humidity,
@@ -103,7 +97,6 @@ app.post('/api/sensor/data', async (req, res) => {
         timestamp: latestReading.timestamp
       });
 
-    // 4. Check thresholds and send notifications if needed
     await checkSensorThresholds(reading, io);
 
     res.json({ 

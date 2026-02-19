@@ -56,7 +56,7 @@ export default function Analytics({ view }) {
 
     socket.on('connect_error', (error) => {
       console.error('Analytics: Socket connection error:', error.message);
-      setError('Unable to connect to real-time data');
+      setError('Unable to connect');
     });
 
     // Listen for real-time sensor data updates

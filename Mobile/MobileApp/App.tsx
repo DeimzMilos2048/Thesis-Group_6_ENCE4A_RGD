@@ -6,7 +6,7 @@ import { createBottomTabNavigator} from '@react-navigation/bottom-tabs';
 import MaterialDesignIcons from "react-native-vector-icons/MaterialCommunityIcons";
 import Entypo from "react-native-vector-icons/Entypo";
 import Ionicons from "react-native-vector-icons/Ionicons";
-import FontAwesome5 from "react-native-vector-icons/FontAwesome5";
+//import FontAwesome5 from "react-native-vector-icons/FontAwesome5";
 import useAuthStore from "./src/store/authStore";
 
 // import LandingScreen from "./src/screens/landingpagescreen";
@@ -15,7 +15,7 @@ import LoginScreen from "./src/screens/auth/loginpagescreen";
 import SigninScreen from "./src/screens/auth/signinpagescreen"
 import DashboardScreen from "./src/screens/tabs/dashboardpagescreen";
 import AnalyticsScreen from "./src/screens/tabs/analyticsScreen";
-import HistoryScreen from "./src/screens/tabs/historyScreen";
+//import HistoryScreen from "./src/screens/tabs/historyScreen";
 import ProfileScreen from "./src/screens/tabs/profileScreen";
 import NotificationScreen from "./src/screens/tabs/notificationScreen";
 import EditProfileScreen from "./src/screens/tabs/editprofilescreen";
@@ -65,15 +65,6 @@ const TabNavigator = () => {
            options={{
             tabBarIcon: ({size,color,focused}) => {
               return <Ionicons name="analytics" size={size} color={color} />
-            },
-          }}
-          />
-      <Tab.Screen 
-          name = "History" 
-          component={HistoryScreen} 
-          options={{
-            tabBarIcon: ({size,color,focused}) => {
-              return <FontAwesome5 name="history" size={size} color={color} />
             },
           }}
           />

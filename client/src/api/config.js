@@ -1,4 +1,4 @@
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://rgd-backend.onrender.com';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://mala-backend-q03k.onrender.com';
 
 export const API_ENDPOINTS = {
   AUTH: {

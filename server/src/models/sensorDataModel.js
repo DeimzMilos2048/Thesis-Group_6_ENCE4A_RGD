@@ -49,7 +49,7 @@ const sensorDataSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['Idle', 'Drying', 'Completed', 'Error','Warning'],
+      enum: ['Idle', 'Drying', 'Finished', 'Error', 'Warning'],
       default: 'Idle'
     },
     timestamp: {

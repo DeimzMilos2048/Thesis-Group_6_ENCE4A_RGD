@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Activity,BarChart2, Bell, CircleUser,Clock, Settings,AlertTriangle, LogOut, Thermometer, Droplets, Waves, Weight, CheckCircle} from 'lucide-react';
+import { Activity,BarChart2, Bell, CircleUser,Clock, Settings,AlertTriangle, LogOut, Thermometer, Droplets, Waves, Weight, CheckCircle, StopCircle} from 'lucide-react';
 import './Dashboard.css';
 import { useNavigate, useLocation } from 'react-router-dom';
 import authService from '../../api/authService';
@@ -13,11 +13,14 @@ export default function RiceDryingDashboard({ view }) {
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
   const [sensorData, setSensorData] = useState({
     temperature: 0,
     humidity: 0,
-    moisture: 0,
-    weight: 0,
+    moisture1: 0,
+    moisture2: 0,
+    weight1: 0,
+    weight2: 0,
     status: 'Idle'
   });
   const navigate = useNavigate();
@@ -69,8 +72,10 @@ export default function RiceDryingDashboard({ view }) {
       setSensorData({
         temperature: typeof data.temperature === 'number' ? data.temperature : 0,
         humidity: typeof data.humidity === 'number' ? data.humidity : 0,
-        moisture: typeof data.moisture === 'number' ? data.moisture : 0,
-        weight: typeof data.weight === 'number' ? data.weight : 0,
+        moisture1: typeof data.moisture1 === 'number' ? data.moisture1 : 0,
+        moisture2: typeof data.moisture2 === 'number' ? data.moisture2 : 0,
+        weight1: typeof data.weight1 === 'number' ? data.weight1 : 0,
+        weight2: typeof data.weight2 === 'number' ? data.weight2 : 0,
         status: data.status || 'Idle'
       });
     });
@@ -162,10 +167,38 @@ export default function RiceDryingDashboard({ view }) {
 
     // If all validations pass, process the values
     console.log("Applied:", { targetTemp: temp, targetMoisture: moisture });
-    
+    setIsProcessing(true);
     alert(`Settings Applied\nTarget Temperature: ${temp}°C\nTarget Moisture: ${moisture}%`);
     
     // Here you can add your logic to send these values to your backend/socket
+  };
+
+  const handleStop = () => {
+    // Validate inputs are not empty
+    if (!targetTemp || !targetMoisture) {
+      alert("Please enter both target temperature and moisture values.");
+      return;
+    }
+
+    const temp = parseFloat(targetTemp);
+    const moisture = parseFloat(targetMoisture);
+
+    if (isNaN(temp) || temp < 50 || temp > 60) {
+      alert("Invalid Temperature: Target temperature must be between 50°C and 60°C.");
+      return;
+    }
+
+    if (isNaN(moisture) || moisture < 10 || moisture > 14) {
+      alert("Invalid Moisture: Target moisture must be between 10% and 14%.");
+      return;
+    }
+
+    // If all validations pass, stop the process
+    console.log("Stop command triggered");
+    setIsProcessing(false);
+    setTargetTemp("");
+    setTargetMoisture("");
+    alert("Drying process stopped.");
   };
 
   return (
@@ -324,9 +357,21 @@ export default function RiceDryingDashboard({ view }) {
                       <Waves size={24} />
                     </div>
                     <div className="sensor-label">Moisture Content</div>
-                    <div className="sensor-value">{(sensorData.moisture || 0).toFixed(1)}%</div>
-                    <div className="progress-bar">
-                      <div className="progress-fill cyan" style={{ width: `${Math.min(((sensorData.moisture || 0) / 14) * 100, 100)}%` }}></div>
+                    <div className="dual-sensor-container">
+                      <div className="dual-sensor-item">
+                        <div className="sensor-sublabel">Sensor 1</div>
+                        <div className="sensor-value">{(sensorData.moisture1 || 0).toFixed(1)}%</div>
+                        <div className="progress-bar">
+                          <div className="progress-fill cyan" style={{ width: `${Math.min(((sensorData.moisture1 || 0) / 14) * 100, 100)}%` }}></div>
+                        </div>
+                      </div>
+                      <div className="dual-sensor-item">
+                        <div className="sensor-sublabel">Sensor 2</div>
+                        <div className="sensor-value">{(sensorData.moisture2 || 0).toFixed(1)}%</div>
+                        <div className="progress-bar">
+                          <div className="progress-fill cyan" style={{ width: `${Math.min(((sensorData.moisture2 || 0) / 14) * 100, 100)}%` }}></div>
+                        </div>
+                      </div>
                     </div>
                     <div className="sensor-range">Target: 10-14%</div>
                   </div>
@@ -336,9 +381,21 @@ export default function RiceDryingDashboard({ view }) {
                       <Weight size={24} />
                     </div>
                     <div className="sensor-label">Current Weight</div>
-                    <div className="sensor-value">{(sensorData.weight || 0).toFixed(1)}kg</div>
-                    <div className="progress-bar">
-                      <div className="progress-fill green" style={{ width: `${Math.min(((sensorData.weight || 0) / 25) * 100, 100)}%` }}></div>
+                    <div className="dual-sensor-container">
+                      <div className="dual-sensor-item">
+                        <div className="sensor-sublabel">Sensor 1</div>
+                        <div className="sensor-value">{(sensorData.weight1 || 0).toFixed(1)}kg</div>
+                        <div className="progress-bar">
+                          <div className="progress-fill green" style={{ width: `${Math.min(((sensorData.weight1 || 0) / 25) * 100, 100)}%` }}></div>
+                        </div>
+                      </div>
+                      <div className="dual-sensor-item">
+                        <div className="sensor-sublabel">Sensor 2</div>
+                        <div className="sensor-value">{(sensorData.weight2 || 0).toFixed(1)}kg</div>
+                        <div className="progress-bar">
+                          <div className="progress-fill green" style={{ width: `${Math.min(((sensorData.weight2 || 0) / 25) * 100, 100)}%` }}></div>
+                        </div>
+                      </div>
                     </div>
                     <div className="sensor-range">Initial: 25kg</div>
                   </div>
@@ -378,9 +435,22 @@ export default function RiceDryingDashboard({ view }) {
                   />
                 </div>
 
-                <button className="apply-button" onClick={handleApply}>
-                  Apply
-                </button>
+                <div className="control-buttons">
+                  <button className={`apply-button ${isProcessing ? 'processing' : ''}`} onClick={handleApply} disabled={isProcessing}>
+                    {isProcessing ? (
+                      <>
+                        <span className="processing-dot"></span>
+                        Processing...
+                      </>
+                    ) : (
+                      'Apply'
+                    )}
+                  </button>
+                  <button className="stop-button" onClick={handleStop}>
+                    <StopCircle size={16} />
+                    Stop
+                  </button>
+                </div>
               </div>
             </div>
           </div>
