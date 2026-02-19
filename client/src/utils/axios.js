@@ -2,8 +2,11 @@ import axios from "axios";
 import API_CONFIG from "../config/api.config";
 
 const createAxiosInstance = () => {
+  const currentURL = API_CONFIG.baseURLs[API_CONFIG.currentURLIndex];
+  console.log('Using base URL:', currentURL); // Debug which URL is being used
+  
   const instance = axios.create({
-    baseURL: API_CONFIG.baseURLs[API_CONFIG.currentURLIndex],
+    baseURL: currentURL,
     timeout: API_CONFIG.timeout,
     headers: API_CONFIG.headers,
     withCredentials: API_CONFIG.withCredentials,
