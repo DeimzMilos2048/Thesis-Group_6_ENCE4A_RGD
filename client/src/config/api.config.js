@@ -9,7 +9,7 @@ const getBaseURL = () => {
 
   // In production without env var, use a secure default backend URL
   if (isProd) {
-    return ['https://mala-backend-q03k.onrender.com'];
+    return ['https://mala-luin.onrender.com'];
   }
 
   // In development, try localhost/host+ports
