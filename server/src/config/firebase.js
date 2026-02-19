@@ -1,3 +1,4 @@
+import fs from 'fs';
 import admin from "firebase-admin";
 import dotenv from "dotenv";
 
@@ -8,7 +9,7 @@ const initializeFirebase = () => {
   try {
     // Option 1: Using service account JSON file
     if (process.env.FIREBASE_SERVICE_ACCOUNT_PATH) {
-      const serviceAccount = require(process.env.FIREBASE_SERVICE_ACCOUNT_PATH);
+      const serviceAccount = JSON.parse(fs.readFileSync(process.env.FIREBASE_SERVICE_ACCOUNT_PATH, 'utf8'));
       
       admin.initializeApp({
         credential: admin.credential.cert(serviceAccount),

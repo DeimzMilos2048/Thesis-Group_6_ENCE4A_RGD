@@ -4,6 +4,7 @@ import express from "express";
 import cors from "cors";
 import http from "http";
 import { Server as SocketIOServer } from "socket.io";
+import path from "path";
 
 import authRoutes from "./routes/authRoutes.js";
 import profileRoutes from "./routes/profileRoutes.js";
@@ -18,20 +19,15 @@ const app = express();
 const server = http.createServer(app);
 const io = new SocketIOServer(server, {
   cors: {
-    origin: [
-      'https://mala-luin.onrender.com',
-      'http://localhost:3000',
-      'http://192.168.0.109:3000',
-      'http://10.42.0.1:3000'
-    ],
+    origin: "*",
     methods: ['GET', 'POST'],
     credentials: true
   },
-  transports: ['websocket', 'polling'],
-  allowEIO3: true 
+    transports: ['websocket', 'polling'],
+    allowEIO3: true 
 });
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5001;
 
 // Connect to databases
 connectDB();
@@ -80,13 +76,18 @@ app.use(
 
 app.use(express.json());
 
+// Serve static files from React app in production
+if (process.env.NODE_ENV === 'production') {
+  app.use(express.static(path.join(__dirname, '..', 'client', 'build')));
+}
+
 // Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/profile", profileRoutes);
 app.use("/notifications", notificationRoutes);
 app.use("/api/sensor", sensorRoutes);
 
-// ESP32 sensor data endpoint with notification checking
+// ESP32 sensor data endpoint wFith notification checking
 app.post('/api/sensor/data', async (req, res) => {
   try {
     const reading = await SensorData.create(req.body);
@@ -136,11 +137,15 @@ app.get('/api/sensor/latest', async (req, res) => {
 
 // Health check endpoints
 app.get('/', (req, res) => {
-  res.json({ 
-    status: 'ok', 
-    service: 'rgd-backend',
-    timestamp: new Date().toISOString()
-  });
+  if (process.env.NODE_ENV === 'production') {
+    res.sendFile(path.join(__dirname, '..', 'client', 'build', 'index.html'));
+  } else {
+    res.json({ 
+      status: 'ok', 
+      service: 'rgd-backend',
+      timestamp: new Date().toISOString()
+    });
+  }
 });
 
 app.get('/healthz', (req, res) => {
@@ -159,6 +164,15 @@ initializeSocket(io);
 
 // Start real-time sensor data polling (every 5 seconds)
 startSensorPolling(io, 5000);
+
+// Fallback route for client-side routing in production (must be last)
+app.get('/{*splat}', (req, res, next) => {
+  if (process.env.NODE_ENV === 'production') {
+    res.sendFile(path.join(__dirname, '..', 'client', 'build', 'index.html'));
+  } else {
+    next();
+  }
+});
 
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`Server is running on port ${PORT}`);
