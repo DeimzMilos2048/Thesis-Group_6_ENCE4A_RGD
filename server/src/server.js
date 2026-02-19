@@ -12,7 +12,7 @@ import sensorRoutes from "./routes/sensorRoutes.js";
 import connectDB from "./config/db.js";
 import { initializeSocket, startSensorPolling } from "./socketHandler.js";
 import SensorData from "./models/sensorDataModel.js";
-import { checkSensorThresholds } from "./utils/thresholdChecker.js"; 
+import { checkSensorThresholds } from "./utils/thresholdChecker.js"; // Add this utility
 
 const app = express();
 const server = http.createServer(app);
@@ -84,8 +84,14 @@ app.use("/api/sensor", sensorRoutes);
 // ESP32 sensor data endpoint with notification checking
 app.post('/api/sensor/data', async (req, res) => {
   try {
+    // 1. Save sensor reading to database
     const reading = await SensorData.create(req.body);
 
+    // 2. Calculate averages for emission
+    const avgMoisture = (reading.moisture1 + reading.moisture2) / 2;
+    const avgWeight = (reading.weight1 + reading.weight2) / 2;
+
+    // 3. Emit real-time update via Socket.io with averaged values
     socket.emit('sensor_readings_table', {
         temperature: latestReading.temperature,
         humidity: latestReading.humidity,
@@ -97,6 +103,7 @@ app.post('/api/sensor/data', async (req, res) => {
         timestamp: latestReading.timestamp
       });
 
+    // 4. Check thresholds and send notifications if needed
     await checkSensorThresholds(reading, io);
 
     res.json({ 
@@ -131,15 +138,11 @@ app.get('/api/sensor/latest', async (req, res) => {
 
 // Health check endpoints
 app.get('/', (req, res) => {
-  if (process.env.NODE_ENV === 'production') {
-    res.sendFile(path.join(__dirname, '..', 'client', 'build', 'index.html'));
-  } else {
-    res.json({ 
-      status: 'ok', 
-      service: 'rgd-backend',
-      timestamp: new Date().toISOString()
-    });
-  }
+  res.json({ 
+    status: 'ok', 
+    service: 'rgd-backend',
+    timestamp: new Date().toISOString()
+  });
 });
 
 app.get('/healthz', (req, res) => {

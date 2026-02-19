@@ -13,7 +13,7 @@ const getBaseURL = () => {
   }
 
   // In development, try localhost first
-  return ['http://localhost:5000', 'http://localhost:5001', 'http://127.0.0.1:5000', 'http://127.0.0.1:5001'];
+  return ['http://localhost:5001', 'http://localhost:5000', 'http://127.0.0.1:5001', 'http://127.0.0.1:5000'];
 };
 
 const API_CONFIG = {
