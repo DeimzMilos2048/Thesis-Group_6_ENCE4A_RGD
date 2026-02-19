@@ -7,7 +7,7 @@ export const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5
 // export const API_BASE_URL = 'http://192.168.1.100:5001/api'; // Replace with your computer's IP
 
 // For production
-// export const API_BASE_URL = 'https://mala-backend-5hyt.onrender.com/api';
+// export const API_BASE_URL = 'https://mala-backend-q03k.onrender.com/api';
 
 export default {
   API_BASE_URL,

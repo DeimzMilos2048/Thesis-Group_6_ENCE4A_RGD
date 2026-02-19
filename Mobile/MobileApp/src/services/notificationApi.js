@@ -4,7 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const USE_LOCAL = false;
 const BASE_URL = USE_LOCAL
   ? 'http://192.168.1.5:5001'
-  : 'https://mala-backend-5hyt.onrender.com';
+  : 'https://mala-backend-q03k.onrender.com';
 
 const notificationApi = axios.create({
   baseURL: BASE_URL,
