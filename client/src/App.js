@@ -5,6 +5,7 @@ import { ToastContainer } from "react-toastify";
 import 'react-toastify/dist/ReactToastify.css';
 import useAuthStore from "./utils/authStore.js";
 import {AdminRoute, UserRoute } from './utils/ProtectedRoute.js';
+import { SocketProvider } from './contexts/SocketContext.js';
 
 // Page Components
 import Home from "./LandingPage/Home";
@@ -43,9 +44,11 @@ export default function App(){
             <Route
               path="/dashboard"
               element={
-                <UserRoute>
-                  <Dashboard />
-                </UserRoute>
+                <SocketProvider>
+                  <UserRoute>
+                    <Dashboard />
+                  </UserRoute>
+                </SocketProvider>
               }
             />
           
@@ -53,17 +56,21 @@ export default function App(){
             <Route
               path="/admindashboard"
               element={
-                <AdminRoute>
-                  <AdminDashboard />
-                </AdminRoute>
+                <SocketProvider>
+                  <AdminRoute>
+                    <AdminDashboard />
+                  </AdminRoute>
+                </SocketProvider>
               }
             />
             <Route
               path="/admindashboard/settings"
               element={
-                <AdminRoute>
-                  <AdminDashboard view="settings" />
-                </AdminRoute>
+                <SocketProvider>
+                  <AdminRoute>
+                    <AdminDashboard view="settings" />
+                  </AdminRoute>
+                </SocketProvider>
               }
             />
 
@@ -71,9 +78,11 @@ export default function App(){
             <Route
               path="/analytics"
               element={
-                <UserRoute>
-                  <Analytics />
-                </UserRoute>
+                <SocketProvider>
+                  <UserRoute>
+                    <Analytics />
+                  </UserRoute>
+                </SocketProvider>
               }
             />
 
@@ -81,18 +90,22 @@ export default function App(){
             <Route 
               path="/history"
               element={
-                <UserRoute>
-                  <History />
-                </UserRoute>
+                <SocketProvider>
+                  <UserRoute>
+                    <History />
+                  </UserRoute>
+                </SocketProvider>
               }
             />
 
            {/* Profile Route */}
            <Route path ="/profile"
             element ={
-                <UserRoute>
-                  <Profile />
-                </UserRoute>
+                <SocketProvider>
+                  <UserRoute>
+                    <Profile />
+                  </UserRoute>
+                </SocketProvider>
             }
             />
 
@@ -100,9 +113,11 @@ export default function App(){
             <Route
               path="/notification"
               element={
-                <UserRoute>
-                  <Notification />
-                </UserRoute>
+                <SocketProvider>
+                  <UserRoute>
+                    <Notification />
+                  </UserRoute>
+                </SocketProvider>
               }
             />
 

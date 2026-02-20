@@ -125,7 +125,7 @@ const DashboardPageScreen: React.FC = () => {
           </View>
           <Text style={styles.label}>Temperature</Text>
           <Text style={styles.value}>{(sensorData.temperature || 0).toFixed(1)}°C</Text>
-          <Text style={styles.sub}>Normal (50–60 °C)</Text>
+          <Text style={styles.sub}>Normal (40–50 °C)</Text>
         </View>
         <View style={styles.card}>
           <View style={[styles.iconContainer, styles.iconCyan]}>
@@ -133,7 +133,7 @@ const DashboardPageScreen: React.FC = () => {
           </View>
           <Text style={styles.label}>Humidity</Text>
           <Text style={styles.value}>{(sensorData.humidity || 0).toFixed(1)}%</Text>
-          <Text style={styles.sub}>Normal (≤ 100%)</Text>
+          <Text style={styles.sub}>Target (≤ 100%)</Text>
         </View>
         <View style={styles.card}>
           <View style={[styles.iconContainer, styles.iconGreen]}>
@@ -141,7 +141,7 @@ const DashboardPageScreen: React.FC = () => {
           </View>
           <Text style={styles.label}>Moisture Content 1</Text>
           <Text style={styles.value}>{(sensorData.moisture1 || 0).toFixed(1)}%</Text>
-          <Text style={styles.sub}>Target 10–14%</Text>
+          <Text style={styles.sub}>Target 13–14%</Text>
         </View>
         <View style={styles.card}>
           <View style={[styles.iconContainer, styles.iconGreen]}>
@@ -149,7 +149,7 @@ const DashboardPageScreen: React.FC = () => {
           </View>
           <Text style={styles.label}>Moisture Content 2</Text>
           <Text style={styles.value}>{(sensorData.moisture2 || 0).toFixed(1)}%</Text>
-          <Text style={styles.sub}>Target 10–14%</Text>
+          <Text style={styles.sub}>Target 13–14%</Text>
         </View>
         <View style={styles.card}>
          <View style={[styles.iconContainer, styles.iconGray]}>
@@ -157,7 +157,7 @@ const DashboardPageScreen: React.FC = () => {
           </View>
           <Text style={styles.label}>Current Weight 1</Text>
           <Text style={styles.value}>{(sensorData.weight1 || 0).toFixed(1)}kg</Text>
-          <Text style={styles.sub}>Initial 25 kg</Text>
+          <Text style={styles.sub}>Initial 5 kg</Text>
         </View>
         <View style={styles.card}>
           <View style={[styles.iconContainer, styles.iconGray]}>
@@ -165,7 +165,7 @@ const DashboardPageScreen: React.FC = () => {
           </View>
           <Text style={styles.label}>Current Weight 2</Text>
           <Text style={styles.value}>{(sensorData.weight2 || 0).toFixed(1)}kg</Text>
-          <Text style={styles.sub}>Initial 25 kg</Text>
+          <Text style={styles.sub}>Initial 5 kg</Text>
         </View>
       </View>
 

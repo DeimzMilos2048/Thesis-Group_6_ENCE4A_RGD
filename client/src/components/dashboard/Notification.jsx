@@ -371,7 +371,7 @@ export default function Notification({ view }) {
     )}
 
     {/* Alert List */}
-    <div className="alert-list">
+    <div className="alert-list" style={{ maxHeight: '420px', overflowY: 'auto', paddingRight: '6px' }}>
       {filteredAlerts.length > 0 ? (
         filteredAlerts.map(alert => (
           <div

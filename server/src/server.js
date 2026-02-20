@@ -85,6 +85,7 @@ app.use("/api/profile", profileRoutes);
 app.use("/notifications", notificationRoutes);
 app.use("/api/sensor", sensorRoutes);
 
+
 // ESP32 sensor data endpoint with notification checking
 app.post('/api/sensor/data', async (req, res) => {
   try {
@@ -122,6 +123,19 @@ app.post('/api/sensor/data', async (req, res) => {
       error: error.message 
     });
   }
+
+  const history = new History({
+
+   temperature:req.body.temperature,
+   humidity:req.body.humidity,
+   moisture:req.body.moisture,
+   weight:req.body.weight,
+   status:req.body.status
+  });
+
+  await history.save();
+
+  res.json("Saved");
 });
 
 app.get('/api/sensor/latest', async (req, res) => {
@@ -155,6 +169,13 @@ app.get('/healthz', (req, res) => {
     uptime: process.uptime(),
     timestamp: new Date().toISOString()
   });
+});
+
+app.get('/history', async (req, res) => {
+  const data = await History
+ .find()
+ .sort({timestamp:-1});
+ res.json(data);
 });
 
 // Make io accessible to other modules if needed

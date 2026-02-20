@@ -11,9 +11,10 @@ export default function History({ view }) {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [activeTab, setActiveTab] = useState('analytics');
+  const [activeTab, setActiveTab] = useState('history');
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
+  const [historyData, setHistoryData] = useState([]);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -35,33 +36,144 @@ export default function History({ view }) {
 
   useEffect(() => {
     let isMounted = true;
-    const fetchDashboardData = async () => {
+    const fetchHistoryData = async () => {
       try {
         const loadingTimeout = setTimeout(() => {
           if (isMounted) setLoading(true);
         }, 300);
 
-        await authService.getDashboardData();
-        clearTimeout(loadingTimeout);
+        // Get auth token
+        const token = localStorage.getItem('token');
+        if (!token) {
+          setError('Authentication required. Please login to access history.');
+          setLoading(false);
+          return;
+        }
+
+        // Validate token
+        try {
+          const tokenPayload = JSON.parse(atob(token.split('.')[1]));
+          if (!tokenPayload || tokenPayload.exp < Date.now() / 1000) {
+            setError('Invalid or expired token. Please login again.');
+            setLoading(false);
+            return;
+          }
+        } catch (err) {
+          setError('Invalid token format. Please login again.');
+          setLoading(false);
+          return;
+        }
+
+        // Fetch sensor history data from backend API with auth
+        const response = await fetch('http://localhost:5001/api/sensor/history', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        // Debug: Check response type and status
+        console.log('Response status:', response.status);
+        console.log('Response headers:', response.headers.get('content-type'));
+        
+        if (!response.ok) {
+          // If response is HTML (error page), provide better error message
+          const contentType = response.headers.get('content-type');
+          if (contentType && contentType.includes('text/html')) {
+            throw new Error('Server is not running or API endpoint not found. Please start the backend server.');
+          }
+          
+          // Handle specific HTTP errors
+          if (response.status === 404) {
+            throw new Error('API endpoint not found. Please ensure the backend server is running on port 5001 and the /api/sensor/history route exists.');
+          } else if (response.status === 401) {
+            throw new Error('Authentication failed. Please login again.');
+          } else if (response.status === 500) {
+            throw new Error('Server error. Please check the backend server logs.');
+          } else {
+            throw new Error(`HTTP ${response.status}: Failed to fetch history data`);
+          }
+        }
+        
+        // Check if response is JSON
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+          const text = await response.text();
+          console.error('Non-JSON response:', text.substring(0, 200));
+          throw new Error('Server returned non-JSON response. Backend server may not be running correctly.');
+        }
+        
+        const result = await response.json();
         
         if (isMounted) {
+          console.log('History API Response:', result);
+          
+          // Handle different response structures
+          let sensorData = [];
+          if (result.success && result.data) {
+            sensorData = result.data;
+          } else if (Array.isArray(result)) {
+            sensorData = result;
+          } else if (result.data) {
+            sensorData = result.data;
+          } else {
+            console.warn('Unexpected response structure:', result);
+            sensorData = [];
+          }
+          
+          // Validate data is an array
+          if (!Array.isArray(sensorData)) {
+            console.error('History API: Expected array but got:', typeof sensorData, sensorData);
+            setError('Invalid data format received from server');
+            setLoading(false);
+            return;
+          }
+          
+          // Transform database data to match table format
+          const formattedData = sensorData.map((item, index) => ({
+            id: item._id || item.id || index + 1,
+            date: item.timestamp ? new Date(item.timestamp).toLocaleDateString('en-US', { 
+              month: '2-digit', 
+              day: '2-digit', 
+              year: 'numeric' 
+            }) : 'N/A',
+            time: item.timestamp ? new Date(item.timestamp).toLocaleTimeString('en-US', { 
+              hour: '2-digit', 
+              minute: '2-digit',
+              hour12: true 
+            }) : 'N/A',
+            moisture: item.moisture1 !== undefined ? item.moisture1.toString() : 
+                     item.moisture !== undefined ? item.moisture.toString() : '0',
+            temperature: item.temperature !== undefined ? `${item.temperature}°` : '0°',
+            humidity: item.humidity !== undefined ? item.humidity.toString() : '0',
+            weight: item.weight1 !== undefined ? item.weight1.toString() : 
+                   item.weight !== undefined ? item.weight.toString() : '0',
+            status: item.status || 'Idle'
+          }));
+          
+          console.log('Formatted History Data:', formattedData);
+          setHistoryData(formattedData);
           setError(null);
           setLoading(false);
         }
       } catch (err) {
         if (isMounted) {
-          setError(err.message);
-          if (err.message.includes('Not authorized')) {
-            navigate('/login');
-          }
+          console.error('History fetch error:', err);
+          setError(`Failed to load history: ${err.message}`);
+          setLoading(false);
         }
       }
     };
 
-    fetchDashboardData();
+    // Initial fetch
+    fetchHistoryData();
+    
+    // Set up polling interval: 1 hour and 30 minutes = 90 minutes = 5,400,000 milliseconds
+    const pollingInterval = setInterval(fetchHistoryData, 90 * 60 * 1000); // 90 minutes
     
     return () => {
       isMounted = false;
+      clearInterval(pollingInterval); // Clean up interval on unmount
     };
   }, [navigate]);
 
@@ -83,64 +195,12 @@ export default function History({ view }) {
     setShowLogoutConfirm(false);
   };
 
-  const historyData = [
-    {
-      id: 1,
-      date: "01-05-2026",
-      time: "10:00 AM",
-      moisture: "14",
-      temperature: "50°",
-      humidity: "60",
-      weight: "25",
-      status: "Complete",
-    },
-    {
-      id: 2,
-      date: "01-06-2026",
-      time: "12:00 AM",
-      moisture: "13",
-      temperature: "51°",
-      humidity: "63",
-      weight: "25",
-      status: "Complete",
-    },
-    {
-      id: 3,
-      date: "01-06-2026",
-      time: "1:00 PM",
-      moisture: "9",
-      temperature: "50°",
-      humidity: "68",
-      weight: "23",
-      status: "Warning",
-    },
-    {
-      id: 4,
-      date: "01-06-2026",
-      time: "4:00 PM",
-      moisture: "3",
-      temperature: "65°",
-      humidity: "78",
-      weight: "1",
-      status: "Error",
-    },
-    {
-      id: 5,
-      date: "01-13-2026",
-      time: "4:00 PM",
-      moisture: "3",
-      temperature: "65°",
-      humidity: "78",
-      weight: "1",
-      status: "Error",
-    },
-  ];
-    const handleDownloadExcel = () => {
-      const worksheet = XLSX.utils.json_to_sheet(historyData);
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, "History");
-      XLSX.writeFile(workbook, "rice_grain_dryer_data_history.xlsx");
-    };
+  const handleDownloadExcel = () => {
+    const worksheet = XLSX.utils.json_to_sheet(historyData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "History");
+    XLSX.writeFile(workbook, "MALA_data_history.xlsx");
+  };
 
   return (
     <div className="dashboard-container">

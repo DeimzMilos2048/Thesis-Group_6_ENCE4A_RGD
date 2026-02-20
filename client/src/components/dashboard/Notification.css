@@ -94,6 +94,25 @@
   gap: 12px;
   margin-left: 30px;
   margin-right: 30px;
+  scrollbar-width: thin;
+  scrollbar-color: #10b981 #f0f0f0;
+}
+.alert-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.alert-list::-webkit-scrollbar-track {
+  background: #f0f0f0;
+  border-radius: 10px;
+}
+
+.alert-list::-webkit-scrollbar-thumb {
+  background: #10b981;
+  border-radius: 10px;
+}
+
+.alert-list::-webkit-scrollbar-thumb:hover {
+  background: #059669;
 }
 
 .no-alerts {

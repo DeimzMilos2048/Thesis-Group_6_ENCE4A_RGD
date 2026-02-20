@@ -6,7 +6,7 @@ import './Analytics.css';
 import { useNavigate, useLocation } from 'react-router-dom';
 import authService from '../../api/authService';
 import logo from "../../assets/images/logo2.png";
-import io from 'socket.io-client';
+import { useSocket } from '../../contexts/SocketContext.js';
 
 export default function Analytics({ view }) {
   const [loading, setLoading] = useState(false);
@@ -17,19 +17,20 @@ export default function Analytics({ view }) {
   const navigate = useNavigate();
   const location = useLocation();
   
-  const [chartData, setChartData] = useState({
-    moisture: [],     
-    humidity: [],     
-    temperature: [],  
-    weight: [],       
-  });
-
   const [latestValues, setLatestValues] = useState({
     moisture1: null, moisture2: null,
     humidity: null,
     temperature: null,
     weight1: null, weight2: null,
   });
+
+  const { 
+  socket, 
+  sensorData, 
+  chartData: chartDataFromSocket, 
+  latestValues: latestValuesFromSocket, 
+  isConnected 
+} = useSocket();
 
   useEffect(() => {
     const path = location.pathname;
@@ -45,81 +46,6 @@ export default function Analytics({ view }) {
       setActiveTab('dashboard');
     }
   }, [location]);
-
-  useEffect(() => {
-    console.log('Analytics: Attempting to connect to socket...');
-    
-    const SOCKET_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001';
-    const socket = io(SOCKET_URL, {
-      reconnection: true,
-      reconnectionDelay: 1000,
-      reconnectionDelayMax: 5000,
-      reconnectionAttempts: 5,
-      transports: ['websocket', 'polling']
-    });
-
-    socket.on('connect', () => {
-      console.log('Analytics: Connected:', socket.id);
-    });
-
-    socket.on('connect_error', (error) => {
-      console.error('Analytics: Socket connection error:', error.message);
-      setError('Unable to connect');
-    });
-
-    socket.on('sensor_readings_table', (data) => {
-      console.log('Analytics: Sensor data received:', data);
-      
-      const timestamp = new Date().toLocaleTimeString('en-US', { 
-        hour: '2-digit', 
-        minute: '2-digit',
-        second: '2-digit',
-        hour12: false 
-      });
-
-      const maxDataPoints = 20;
-      const s = (key) => typeof data[key] === 'number' ? data[key] : 0;
-
-      setChartData(prevData => ({
-        moisture: [
-          ...prevData.moisture,
-          { time: timestamp, sensor1: s('moisture1'), sensor2: s('moisture2') }
-        ].slice(-maxDataPoints),
-        humidity: [
-          ...prevData.humidity,
-          { time: timestamp, value: s('humidity') }
-        ].slice(-maxDataPoints),
-        temperature: [
-          ...prevData.temperature,
-          { time: timestamp, value: s('temperature') }
-        ].slice(-maxDataPoints),
-        weight: [
-          ...prevData.weight,
-          { time: timestamp, sensor1: s('weight1'), sensor2: s('weight2') }
-        ].slice(-maxDataPoints),
-      }));
-
-      setLatestValues({
-        moisture1: s('moisture1'), moisture2: s('moisture2'),
-        humidity: s('humidity'),
-        temperature: s('temperature'),
-        weight1: s('weight1'), weight2: s('weight2'),
-      });
-    });
-
-    socket.on('disconnect', (reason) => {
-      console.log('Analytics: Socket disconnected:', reason);
-    });
-
-    socket.on('error', (error) => {
-      console.error('Analytics: Socket error:', error);
-    });
-
-    return () => {
-      console.log('Analytics: Cleaning up socket connection');
-      socket.disconnect();
-    };
-  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -198,6 +124,19 @@ export default function Analytics({ view }) {
       </LineChart>
     </ResponsiveContainer>
   );
+
+  const combineDualData = (arr1 = [], arr2 = []) => {
+
+  if (!Array.isArray(arr1)) arr1 = [];
+  if (!Array.isArray(arr2)) arr2 = [];
+
+  return arr1.map((item, index) => ({
+    time: item?.time ?? '',
+    sensor1: item?.value ?? null,
+    sensor2: arr2[index]?.value ?? null
+  }));
+
+};
 
   return (
     <div className="dashboard-container">
@@ -340,22 +279,25 @@ export default function Analytics({ view }) {
                 </div>
                 <div className="sensor-badges">
                   <span className="sensor-badge" style={{ color: '#22c55e', backgroundColor: 'white' }}>
-                    S1: {fmt(latestValues.moisture1, '%')}
+                    S1: {fmt(latestValuesFromSocket.moisture1, '%')}
                   </span>
                   <span className="sensor-badge" style={{ color: '#16a34a', backgroundColor: 'white' }}>
-                    S2: {fmt(latestValues.moisture2, '%')}
+                    S2: {fmt(latestValuesFromSocket.moisture2, '%')}
                   </span>
                 </div>
               </h3>
               <div className="analytics-card-status">
                 <DualLineGraph
-                  data={chartData.moisture}
+                  data={combineDualData(
+                    chartDataFromSocket.moisture1,
+                    chartDataFromSocket.moisture2
+                  )}
                   color1="#22c55e"
                   color2="#16a34a"
                   unit="%"
                   minValue={0}
                   maxValue={100}
-                />
+                />  
               </div>
             </div>
 
@@ -367,13 +309,15 @@ export default function Analytics({ view }) {
                 </div>
                 <div className="sensor-badges">
                   <span className="sensor-badge" style={{ color: '#3b82f6', backgroundColor: 'white' }}>
-                    {fmt(latestValues.humidity, '%')}
+                    {fmt(latestValuesFromSocket.humidity, '%')}
                   </span>
                 </div>
               </h3>
               <div className="analytics-card-status">
                 <SingleLineGraph
-                  data={chartData.humidity}
+                  data={Array.isArray(chartDataFromSocket.humidity)
+                  ? chartDataFromSocket.humidity
+                  : []}
                   color="#3b82f6"
                   unit="%"
                   minValue={0}
@@ -390,13 +334,15 @@ export default function Analytics({ view }) {
                 </div>
                 <div className="sensor-badges">
                   <span className="sensor-badge" style={{ color: '#efb944ff', backgroundColor: 'white' }}>
-                    {fmt(latestValues.temperature, '°C')}
+                    {fmt(latestValuesFromSocket.temperature, '°C')}
                   </span>
                 </div>
               </h3>
               <div className="analytics-card-status">
                 <SingleLineGraph
-                  data={chartData.temperature}
+                  data={Array.isArray(chartDataFromSocket.temperature)
+                    ? chartDataFromSocket.temperature
+                    : []}
                   color="#efb944ff"
                   unit="°C"
                   minValue={0}
@@ -413,16 +359,19 @@ export default function Analytics({ view }) {
                 </div>
                 <div className="sensor-badges">
                   <span className="sensor-badge" style={{ color: '#9E9E9E', backgroundColor: 'white' }}>
-                    S1: {fmt(latestValues.weight1, 'kg')}
+                    S1: {fmt(latestValuesFromSocket.weight1, 'kg')}
                   </span>
                   <span className="sensor-badge" style={{ color: '#9E9E9EAD', backgroundColor: 'white' }}>
-                    S2: {fmt(latestValues.weight2, 'kg')}
+                    S2: {fmt(latestValuesFromSocket.weight2, 'kg')}
                   </span>
                 </div>
               </h3>
               <div className="analytics-card-status">
                 <DualLineGraph
-                  data={chartData.weight}
+                  data={combineDualData(
+                    chartDataFromSocket.weight1,
+                    chartDataFromSocket.weight2
+                  )}
                   color1="#9E9E9E"
                   color2="#9E9E9EAD"
                   unit="kg"

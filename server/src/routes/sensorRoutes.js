@@ -15,4 +15,23 @@ router.post('/insert', async (req, res) => {
   }
 });
 
+// GET /api/sensor/history
+router.get('/history', async (req, res) => {
+  try {
+    const history = await SensorData.find()
+      .sort({ timestamp: -1 })
+      .limit(100); // Get last 100 records
+    
+    res.json({
+      success: true,
+      data: history
+    });
+  } catch (err) {
+    res.status(500).json({ 
+      success: false, 
+      error: err.message 
+    });
+  }
+});
+
 export default router;

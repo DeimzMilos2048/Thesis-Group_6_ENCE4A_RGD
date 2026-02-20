@@ -34,9 +34,7 @@ interface LiveLineGraphProps {
   maxValue: number;
 }
 
-const LiveLineGraph: FC<LiveLineGraphProps> = ({ data, color, unit, minValue, maxValue }) => {
-  // Ensure we have at least 2 data points to avoid chart errors
-  // Include minValue and maxValue in the dataset to set the y-axis range
+  const LiveLineGraph: FC<LiveLineGraphProps> = ({ data, color, unit, minValue, maxValue }) => {
   const safeData = Array.isArray(data) ? data : [];
   const chartData = safeData.length >= 2 ? safeData : [minValue, minValue];
   
@@ -79,7 +77,6 @@ const LiveLineGraph: FC<LiveLineGraphProps> = ({ data, color, unit, minValue, ma
   );
 };
 
-// Helper: get the latest value from an array, formatted with unit
 const latestValue = (arr: number[], unit: string): string => {
   if (!Array.isArray(arr) || arr.length === 0) return 'N/A';
   return `${arr[arr.length - 1].toFixed(1)}${unit}`;
@@ -95,7 +92,6 @@ const AnalyticsScreen = () => {
     weight2: [] as number[],
   });
 
-  // Socket.io setup for real-time sensor data
   useEffect(() => {
     console.log('Analytics: Attempting to connect to socket...');
 
@@ -121,13 +117,11 @@ const AnalyticsScreen = () => {
       console.error('Analytics: Connection error:', err);
     });
 
-    // Listen for real-time sensor data updates
     socket.on('sensor_readings_table', (data) => {
       console.log('Analytics: Sensor data received:', data);
       
-      // Update chart data with new readings
       setChartData(prevData => {
-        const maxDataPoints = 20; // Keep last 20 data points
+        const maxDataPoints = 20; 
 
         return {
           moisture1: [

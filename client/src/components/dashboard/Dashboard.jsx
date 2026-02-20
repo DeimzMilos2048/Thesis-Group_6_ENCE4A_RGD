@@ -4,7 +4,7 @@ import './Dashboard.css';
 import { useNavigate, useLocation } from 'react-router-dom';
 import authService from '../../api/authService';
 import logo from "../../assets/images/logo2.png";
-import io from 'socket.io-client';
+import { useSocket } from '../../contexts/SocketContext.js';
 
 export default function RiceDryingDashboard({ view }) {
   const [targetTemp, setTargetTemp] = useState("");
@@ -27,6 +27,8 @@ export default function RiceDryingDashboard({ view }) {
   const navigate = useNavigate();
   const location = useLocation();
 
+  const { socket, sensorData: socketSensorData, chartData, isConnected } = useSocket();
+  
   // Update active tab based on current route
   useEffect(() => {
     const path = location.pathname;
@@ -38,65 +40,17 @@ export default function RiceDryingDashboard({ view }) {
       setActiveTab('notification');
     } else if (path.includes('/profile')) {
       setActiveTab('profile');
-    }
-      else {
+    } else {
       setActiveTab('dashboard');
     }
   }, [location]);
 
-  // Socket.io setup for real-time sensor data
+  // Set initial sensor data from context
   useEffect(() => {
-    console.log('Attempting to connect to socket...');
-    
-    const SOCKET_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001';
-
-    const socket = io(SOCKET_URL, {
-      reconnection: true,
-      reconnectionDelay: 1000,
-      reconnectionDelayMax: 5000,
-      reconnectionAttempts: 5,
-      transports: ['websocket', 'polling']
-    });
-
-    socket.on('connect', () => {
-      console.log('Connected:', socket.id);
-    });
-
-    socket.on('connect_error', (error) => {
-      console.error('Socket connection error:', error.message);
-      setError('Unable to connect');
-    });
-
-    // Listen for real-time sensor data updates
-    socket.on('sensor_readings_table', (data) => {
-      console.log('Sensor data received:', data);
-      
-      // Use safe defaults if data is missing
-      setSensorData({
-        temperature: typeof data.temperature === 'number' ? data.temperature : 0,
-        humidity: typeof data.humidity === 'number' ? data.humidity : 0,
-        moisture1: typeof data.moisture1 === 'number' ? data.moisture1 : 0,
-        moisture2: typeof data.moisture2 === 'number' ? data.moisture2 : 0,
-        weight1: typeof data.weight1 === 'number' ? data.weight1 : 0,
-        weight2: typeof data.weight2 === 'number' ? data.weight2 : 0,
-        status: data.status || 'Idle'
-      });
-    });
-
-    socket.on('disconnect', (reason) => {
-      console.log('Socket disconnected:', reason);
-    });
-
-    socket.on('error', (error) => {
-      console.error('Socket error:', error);
-      setError('Real-time connection error');
-    });
-
-    return () => {
-      console.log('Cleaning up socket connection');
-      socket.disconnect();
-    };
-  }, []);
+    if (socketSensorData) {
+      setSensorData(socketSensorData);
+    }
+  }, [socketSensorData]);
 
   useEffect(() => {
     let isMounted = true;
@@ -158,13 +112,13 @@ export default function RiceDryingDashboard({ view }) {
     const temp = parseFloat(targetTemp);
     const moisture = parseFloat(targetMoisture);
 
-    if (isNaN(temp) || temp < 50 || temp > 60) {
-      alert("Invalid Temperature: Target temperature must be between 50°C and 60°C.");
+    if (isNaN(temp) || temp < 40 || temp > 50) {
+      alert("Invalid Temperature: Target temperature must be between 40°C and 50°C.");
       return;
     }
 
-    if (isNaN(moisture) || moisture < 10 || moisture > 14) {
-      alert("Invalid Moisture: Target moisture must be between 10% and 14%.");
+    if (isNaN(moisture) || moisture < 13 || moisture > 14) {
+      alert("Invalid Moisture: Target moisture must be between 13% and 14%.");
       return;
     }
 
@@ -184,13 +138,13 @@ export default function RiceDryingDashboard({ view }) {
     const temp = parseFloat(targetTemp);
     const moisture = parseFloat(targetMoisture);
 
-    if (isNaN(temp) || temp < 50 || temp > 60) {
-      alert("Invalid Temperature: Target temperature must be between 50°C and 60°C.");
+    if (isNaN(temp) || temp < 40 || temp > 50) {
+      alert("Invalid Temperature: Target temperature must be between 40°C and 50°C.");
       return;
     }
 
-    if (isNaN(moisture) || moisture < 10 || moisture > 14) {
-      alert("Invalid Moisture: Target moisture must be between 10% and 14%.");
+    if (isNaN(moisture) || moisture < 13 || moisture > 14) {
+      alert("Invalid Moisture: Target moisture must be between 13% and 14%.");
       return;
     }
     
@@ -365,7 +319,7 @@ export default function RiceDryingDashboard({ view }) {
                     <div className="progress-bar">
                       <div className="progress-fill orange" style={{ width: `${Math.min(((sensorData.temperature || 0) / 60) * 100, 100)}%` }}></div>
                     </div>
-                    <div className="sensor-range">Range: 50-60°C</div>
+                    <div className="sensor-range">Range: 40-50°C</div>
                   </div>
 
                   <div className="sensor-card">
@@ -401,7 +355,7 @@ export default function RiceDryingDashboard({ view }) {
                         </div>
                       </div>
                     </div>
-                    <div className="sensor-range">Target: 10-14%</div>
+                    <div className="sensor-range">Target: 13-14%</div>
                   </div>
 
                   <div className="sensor-card">
@@ -425,7 +379,7 @@ export default function RiceDryingDashboard({ view }) {
                         </div>
                       </div>
                     </div>
-                    <div className="sensor-range">Initial: 25kg</div>
+                    <div className="sensor-range">Initial: 5kg</div>
                   </div>
                 </div>
               </div>
@@ -433,7 +387,6 @@ export default function RiceDryingDashboard({ view }) {
               {/* System Controls */}
               <div className="system-controls">
                 <div className="controls-header">
-                  <Settings size={20} />
                   <h2>System Controls</h2>
                 </div>
 
@@ -441,8 +394,8 @@ export default function RiceDryingDashboard({ view }) {
                   <label>Target Temperature</label>
                   <input
                     type="number"
-                    min="50"
-                    max="60"
+                    min="40"
+                    max="50"
                     value={targetTemp}
                     onChange={(e) => setTargetTemp(e.target.value)}
                     className="control-input"
@@ -455,7 +408,7 @@ export default function RiceDryingDashboard({ view }) {
                   <label>Target Moisture Content</label>
                   <input
                     type="number"
-                    min="10"
+                    min="13"
                     max="14"
                     value={targetMoisture}
                     onChange={(e) => setTargetMoisture(e.target.value)}

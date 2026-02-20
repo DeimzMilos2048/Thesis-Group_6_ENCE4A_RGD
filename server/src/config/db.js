@@ -9,6 +9,8 @@ export const sensorDB = mongoose.createConnection(process.env.SENSOR_URI);
 
 export const notifiDB = mongoose.createConnection(process.env.NOTIFI_URI);
 
+export const HistoryDB = mongoose.createConnection(process.env.HISTORY_URI);
+
 const connectDB = async () => {
   try {
     // Configure Mongoose
@@ -66,5 +68,8 @@ sensorDB.on('error', (err) => console.error('Sensor DB error:', err));
 
 notifiDB.on('connected', () => console.log('Notification DB connected'));
 notifiDB.on('error', (err) => console.error('Notification DB error:', err));
+
+HistoryDB.on('connected', () => console.log('History DB connected'));
+HistoryDB.on('error', (err) => console.error('History DB error:', err));
 
 export default connectDB;

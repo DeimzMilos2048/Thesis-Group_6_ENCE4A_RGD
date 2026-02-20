@@ -12,7 +12,7 @@ const SensorDataSchema = new mongoose.Schema({
 
 const ThresholdSchema = new mongoose.Schema({
   temperatureMax: Number,
-  temperatureMin: Number,
+  temperatureMin: Number, 
   humidityMax: Number,
   humidityMin: Number,
   moistureTarget: Number,
@@ -25,6 +25,26 @@ const NotificationSchema = new mongoose.Schema({
     enum: ["CRITICAL", "WARNING", "STABLE"],
     required: true
   },
+  event: {
+    type: String,
+    enum: [
+      "SENSOR_ALERT",
+      "POWER_LOSS",
+      "DEVICE_OFFLINE",
+      "DEVICE_ONLINE",
+      "SYSTEM"
+    ],
+    default: "SENSOR_ALERT"
+  },
+  source: {
+    type: String,
+    enum: ["DEVICE", "SYSTEM", "SENSOR"],
+    default: "SYSTEM"
+  },
+  deviceId: {
+    type: String,
+    default: "ESP32_001"
+  },
   title: {
     type: String,
     required: true  
@@ -35,7 +55,7 @@ const NotificationSchema = new mongoose.Schema({
   },
   system: {
     type: String,
-    default: "Rice Grain Dryer"
+    default: "MALA"
   },
   sensorData: SensorDataSchema,
   thresholds: ThresholdSchema,
@@ -50,5 +70,6 @@ const NotificationSchema = new mongoose.Schema({
 });
 
 NotificationSchema.index({ isRead: 1, createdAt: -1 });
+NotificationSchema.index({ deviceId: 1, createdAt: -1 });
 
 export default notifiDB.model("NotificationDB", NotificationSchema,"alert_notification");
