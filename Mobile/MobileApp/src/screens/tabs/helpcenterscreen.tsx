@@ -41,7 +41,7 @@ const helpcenterscreen: React.FC = () => {
                     How do I set target temperature?
                   </Text>
                   <Text style={styles.faqAnswer}>
-                    Navigate to the Dashboard and use the System Controls panel
+                    Navigate to the Dashboard and use the System Controls panel in Web Browser
                     to set your desired target temperature between 50°C - 60°C.
                   </Text>
                 </View>
@@ -62,7 +62,7 @@ const helpcenterscreen: React.FC = () => {
                     How do I view historical data?
                   </Text>
                   <Text style={styles.faqAnswer}>
-                    Click on the History tab in the bottom navigation bar to view past drying
+                    Click on the History tab in Web Browser to view past drying
                     sessions and sensor readings.
                   </Text>
                 </View>
@@ -72,7 +72,7 @@ const helpcenterscreen: React.FC = () => {
                     Can I export historical data?
                   </Text>
                   <Text style={styles.faqAnswer}>
-                    Yes, go to the History page and use the export button to
+                    Yes, go to the History page in Web Browser and use the export button to
                     download your data in CSV/XLSX format.
                   </Text>
                 </View>

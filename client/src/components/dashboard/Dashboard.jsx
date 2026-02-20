@@ -47,7 +47,9 @@ export default function RiceDryingDashboard({ view }) {
   useEffect(() => {
     console.log('Attempting to connect to socket...');
     
-    const socket = io('http://localhost:5001', {
+    const SOCKET_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001';
+
+    const socket = io(SOCKET_URL, {
       reconnection: true,
       reconnectionDelay: 1000,
       reconnectionDelayMax: 5000,
@@ -419,6 +421,7 @@ export default function RiceDryingDashboard({ view }) {
                     onChange={(e) => setTargetTemp(e.target.value)}
                     className="control-input"
                     placeholder="Enter temperature"
+                    disabled={isProcessing}
                   />
                 </div>
 
@@ -432,6 +435,7 @@ export default function RiceDryingDashboard({ view }) {
                     onChange={(e) => setTargetMoisture(e.target.value)}
                     className="control-input"
                     placeholder="Enter moisture"
+                    disabled={isProcessing}
                   />
                 </div>
 

@@ -13,6 +13,7 @@ import connectDB from "./config/db.js";
 import { initializeSocket, startSensorPolling } from "./socketHandler.js";
 import SensorData from "./models/sensorDataModel.js";
 import { checkSensorThresholds } from "./utils/thresholdChecker.js"; // Add this utility
+import createDefaultAdmin from "./scripts/createDefaultAdmin.js";
 
 const app = express();
 const server = http.createServer(app);
@@ -28,8 +29,8 @@ const io = new SocketIOServer(server, {
 
 const PORT = process.env.PORT || 5001;
 
-// Connect to databases
 connectDB();
+createDefaultAdmin();
 
 // Middleware
 const allowedOrigins = [
@@ -37,6 +38,9 @@ const allowedOrigins = [
   'http://localhost:3000',
   'http://192.168.0.109:3000',
   'http://10.42.0.1:3000',
+  'http://localhost:3001', // Added new URL
+  'http://192.168.0.109:3001', // Added new URL
+  'http://10.42.0.1:3001', // Added new URL
 ];
   
 if (process.env.CLIENT_ORIGIN) {

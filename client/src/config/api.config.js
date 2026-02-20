@@ -4,6 +4,9 @@ const getBaseURL = () => {
 
   // If explicitly provided, always use the env URL
   if (envUrl && envUrl.trim()) {
+    if (!envUrl.trim().startsWith('http') && !envUrl.trim().startsWith('https')) {
+      return [`https://${envUrl.trim()}`];
+    }
     return [envUrl.trim()];
   }
 

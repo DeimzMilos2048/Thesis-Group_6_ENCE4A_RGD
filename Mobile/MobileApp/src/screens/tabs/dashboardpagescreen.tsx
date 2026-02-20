@@ -62,7 +62,11 @@ const DashboardPageScreen: React.FC = () => {
   });
 
   useEffect(() => {
-    const socket = io('http://192.168.86.135:5001',{
+     const SOCKET_URL = __DEV__ 
+      ? 'http://192.168.86.144:5001'        
+       : 'https://mala-backend-q03k.onrender.com'; 
+
+    const socket = io(SOCKET_URL,{
       transports: ['websocket'],
       reconnection: true,
       reconnectionDelay: 1000,
@@ -132,23 +136,23 @@ const DashboardPageScreen: React.FC = () => {
           <Text style={styles.sub}>Normal (≤ 100%)</Text>
         </View>
         <View style={styles.card}>
-          <View style={[styles.iconContainer, styles.iconCyan]}>
-            <Ionicons name="water-outline" size={28} color="#FFFFFF" />
+          <View style={[styles.iconContainer, styles.iconGreen]}>
+            <Ionicons name="leaf-outline" size={28} color="#FFFFFF" />
           </View>
           <Text style={styles.label}>Moisture Content 1</Text>
           <Text style={styles.value}>{(sensorData.moisture1 || 0).toFixed(1)}%</Text>
           <Text style={styles.sub}>Target 10–14%</Text>
         </View>
         <View style={styles.card}>
-          <View style={[styles.iconContainer, styles.iconCyan]}>
-            <Ionicons name="water-outline" size={28} color="#FFFFFF" />
+          <View style={[styles.iconContainer, styles.iconGreen]}>
+            <Ionicons name="leaf-outline" size={28} color="#FFFFFF" />
           </View>
           <Text style={styles.label}>Moisture Content 2</Text>
           <Text style={styles.value}>{(sensorData.moisture2 || 0).toFixed(1)}%</Text>
           <Text style={styles.sub}>Target 10–14%</Text>
         </View>
         <View style={styles.card}>
-          <View style={[styles.iconContainer, styles.iconGreen]}>
+         <View style={[styles.iconContainer, styles.iconGray]}>
             <Ionicons name="scale-outline" size={28} color="#FFFFFF" />
           </View>
           <Text style={styles.label}>Current Weight 1</Text>
@@ -156,7 +160,7 @@ const DashboardPageScreen: React.FC = () => {
           <Text style={styles.sub}>Initial 25 kg</Text>
         </View>
         <View style={styles.card}>
-          <View style={[styles.iconContainer, styles.iconGreen]}>
+          <View style={[styles.iconContainer, styles.iconGray]}>
             <Ionicons name="scale-outline" size={28} color="#FFFFFF" />
           </View>
           <Text style={styles.label}>Current Weight 2</Text>
@@ -215,6 +219,7 @@ interface Styles {
   iconOrange: ViewStyle;
   iconCyan: ViewStyle;
   iconGreen: ViewStyle;
+  iconGray: ViewStyle;
 }
 
 
@@ -349,6 +354,9 @@ const styles = StyleSheet.create<Styles>({
   },
   iconGreen: {
     backgroundColor: '#27AE60',
+  },
+  iconGray: {
+    backgroundColor: '#9CA3AF',
   },
 });
 

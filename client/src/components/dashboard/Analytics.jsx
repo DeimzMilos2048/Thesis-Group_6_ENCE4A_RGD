@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Activity, AlertTriangle, BarChart2, Bell, CircleUser, Clock, LogOut, Thermometer, Droplets, Waves, Weight } from 'lucide-react';
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from 'recharts';
 import './Dashboard.css';
 import './Analytics.css';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -17,10 +17,18 @@ export default function Analytics({ view }) {
   const location = useLocation();
   
   const [chartData, setChartData] = useState({
-    moisture: [],
-    humidity: [],
-    temperature: [],
-    weight: []
+    moisture: [],     // [{ time, sensor1, sensor2 }]
+    humidity: [],     // [{ time, value }]
+    temperature: [],  // [{ time, value }]
+    weight: [],       // [{ time, sensor1, sensor2 }]
+  });
+
+  // Latest values for display badges
+  const [latestValues, setLatestValues] = useState({
+    moisture1: null, moisture2: null,
+    humidity: null,
+    temperature: null,
+    weight1: null, weight2: null,
   });
 
   useEffect(() => {
@@ -70,28 +78,33 @@ export default function Analytics({ view }) {
         hour12: false 
       });
 
-      // Update chart data with new readings
-      setChartData(prevData => {
-        const maxDataPoints = 20; // Keep last 20 data points
+      const maxDataPoints = 20;
+      const s = (key) => typeof data[key] === 'number' ? data[key] : 0;
 
-        return {
-          moisture: [
-            ...prevData.moisture,
-            { time: timestamp, value: typeof data.moisture === 'number' ? data.moisture : 0 }
-          ].slice(-maxDataPoints),
-          humidity: [
-            ...prevData.humidity,
-            { time: timestamp, value: typeof data.humidity === 'number' ? data.humidity : 0 }
-          ].slice(-maxDataPoints),
-          temperature: [
-            ...prevData.temperature,
-            { time: timestamp, value: typeof data.temperature === 'number' ? data.temperature : 0 }
-          ].slice(-maxDataPoints),
-          weight: [
-            ...prevData.weight,
-            { time: timestamp, value: typeof data.weight === 'number' ? data.weight : 0 }
-          ].slice(-maxDataPoints)
-        };
+      setChartData(prevData => ({
+        moisture: [
+          ...prevData.moisture,
+          { time: timestamp, sensor1: s('moisture1'), sensor2: s('moisture2') }
+        ].slice(-maxDataPoints),
+        humidity: [
+          ...prevData.humidity,
+          { time: timestamp, value: s('humidity') }
+        ].slice(-maxDataPoints),
+        temperature: [
+          ...prevData.temperature,
+          { time: timestamp, value: s('temperature') }
+        ].slice(-maxDataPoints),
+        weight: [
+          ...prevData.weight,
+          { time: timestamp, sensor1: s('weight1'), sensor2: s('weight2') }
+        ].slice(-maxDataPoints),
+      }));
+
+      setLatestValues({
+        moisture1: s('moisture1'), moisture2: s('moisture2'),
+        humidity: s('humidity'),
+        temperature: s('temperature'),
+        weight1: s('weight1'), weight2: s('weight2'),
       });
     });
 
@@ -159,28 +172,32 @@ export default function Analytics({ view }) {
     setShowLogoutConfirm(false);
   };
 
-  const LiveLineGraph = ({ data, color, unit, minValue, maxValue }) => (
+  const fmt = (val, unit) => val === null ? 'N/A' : `${Number(val).toFixed(1)}${unit}`;
+
+  // Dual-line chart (moisture, weight)
+  const DualLineGraph = ({ data, color1, color2, unit, minValue, maxValue }) => (
     <ResponsiveContainer width="100%" height="100%">
       <LineChart data={data} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
         <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-        <XAxis 
-          dataKey="time" 
-          tick={{ fontSize: 12 }}
-        />
-        <YAxis 
-          tick={{ fontSize: 12 }} 
-          unit={unit}
-          domain={[minValue, maxValue]}
-        />
+        <XAxis dataKey="time" tick={{ fontSize: 12 }} />
+        <YAxis tick={{ fontSize: 12 }} unit={unit} domain={[minValue, maxValue]} />
         <Tooltip />
-        <Line
-          type="monotone"
-          dataKey="value"
-          stroke={color}
-          strokeWidth={2.5}
-          dot={{ r: 3 }}
-          isAnimationActive={false}
-        />
+        <Legend />
+        <Line type="monotone" dataKey="sensor1" name="Sensor 1" stroke={color1} strokeWidth={2.5} dot={{ r: 3 }} isAnimationActive={false} />
+        <Line type="monotone" dataKey="sensor2" name="Sensor 2" stroke={color2} strokeWidth={2.5} dot={{ r: 3 }} isAnimationActive={false} />
+      </LineChart>
+    </ResponsiveContainer>
+  );
+
+  // Single-line chart (humidity, temperature)
+  const SingleLineGraph = ({ data, color, unit, minValue, maxValue }) => (
+    <ResponsiveContainer width="100%" height="100%">
+      <LineChart data={data} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+        <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+        <XAxis dataKey="time" tick={{ fontSize: 12 }} />
+        <YAxis tick={{ fontSize: 12 }} unit={unit} domain={[minValue, maxValue]} />
+        <Tooltip />
+        <Line type="monotone" dataKey="value" name="Sensor 1" stroke={color} strokeWidth={2.5} dot={{ r: 3 }} isAnimationActive={false} />
       </LineChart>
     </ResponsiveContainer>
   );
@@ -269,7 +286,6 @@ export default function Analytics({ view }) {
             <Bell size={16} />
             <span>Notification</span>
           </button>
-
         </nav>
 
         <button 
@@ -281,76 +297,108 @@ export default function Analytics({ view }) {
         </button>
       </div>
 
-      {/* Main Content for Analytics*/}
+      {/* Main Content for Analytics */}
       <div className="main-content">
         <div className="unified-dashboard">
-          {/* Header */}
           <div className="dashboard-header">
             <h1>Analytics</h1>
             <p>View your rice drying performance metrics</p>
           </div>
 
-          {/* Analytics Content */}
           <div className="analytics-content">
+
+            {/* ── Moisture (2 sensors) ───────────────────────────────── */}
             <div className="analytics-cards">
               <h3 className="analytics-card-title">
                 <Droplets size={24} /> Moisture Content
               </h3>
+              <div className="sensor-badges">
+                <span className="sensor-badge" style={{ color: '#22c55e' }}>
+                  S1: {fmt(latestValues.moisture1, '%')}
+                </span>
+                <span className="sensor-badge" style={{ color: '#16a34a' }}>
+                  S2: {fmt(latestValues.moisture2, '%')}
+                </span>
+              </div>
               <div className="analytics-card-status">
-                <LiveLineGraph 
-                  data={chartData.moisture} 
-                  color="#22c55e" 
-                  unit="%" 
+                <DualLineGraph
+                  data={chartData.moisture}
+                  color1="#22c55e"
+                  color2="#16a34a"
+                  unit="%"
                   minValue={0}
                   maxValue={100}
                 />
               </div>
             </div>
 
+            {/* ── Humidity (1 sensor) ────────────────────────────────── */}
             <div className="analytics-cards">
               <h3 className="analytics-card-title">
                 <Waves size={24} /> Humidity
               </h3>
+              <div className="sensor-badges">
+                <span className="sensor-badge" style={{ color: '#3b82f6' }}>
+                  {fmt(latestValues.humidity, '%')}
+                </span>
+              </div>
               <div className="analytics-card-status">
-                <LiveLineGraph 
-                  data={chartData.humidity} 
-                  color="#3b82f6" 
-                  unit="%" 
+                <SingleLineGraph
+                  data={chartData.humidity}
+                  color="#3b82f6"
+                  unit="%"
                   minValue={0}
                   maxValue={100}
                 />
               </div>
             </div>
 
+            {/* ── Temperature (1 sensor) ─────────────────────────────── */}
             <div className="analytics-cards">
               <h3 className="analytics-card-title">
                 <Thermometer size={24} /> Temperature
               </h3>
+              <div className="sensor-badges">
+                <span className="sensor-badge" style={{ color: '#efb944ff' }}>
+                  {fmt(latestValues.temperature, '°C')}
+                </span>
+              </div>
               <div className="analytics-card-status">
-                <LiveLineGraph 
-                  data={chartData.temperature} 
-                  color="#ef4444" 
-                  unit="°C" 
+                <SingleLineGraph
+                  data={chartData.temperature}
+                  color="#efb944ff"
+                  unit="°C"
                   minValue={0}
                   maxValue={100}
                 />
               </div>
             </div>
 
+            {/* ── Weight (2 sensors) ─────────────────────────────────── */}
             <div className="analytics-cards">
               <h3 className="analytics-card-title">
                 <Weight size={24} /> Weight
               </h3>
+              <div className="sensor-badges">
+                <span className="sensor-badge" style={{ color: '#a855f7' }}>
+                  S1: {fmt(latestValues.weight1, 'kg')}
+                </span>
+                <span className="sensor-badge" style={{ color: '#7c3aed' }}>
+                  S2: {fmt(latestValues.weight2, 'kg')}
+                </span>
+              </div>
               <div className="analytics-card-status">
-                <LiveLineGraph 
-                  data={chartData.weight} 
-                  color="#a855f7" 
-                  unit="kg" 
+                <DualLineGraph
+                  data={chartData.weight}
+                  color1="#a855f7"
+                  color2="#7c3aed"
+                  unit="kg"
                   minValue={0}
                   maxValue={50}
                 />
               </div>
             </div>
+
           </div>
         </div>
       </div>

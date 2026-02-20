@@ -50,3 +50,33 @@
     grid-template-columns: 1fr;
   }
 }
+.sensor-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  margin: 10px 0 4px 0;
+}
+
+.sensor-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: #6b7280;
+}
+
+.sensor-value {
+  font-size: 14px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.sensor-badges {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 8px;
+}
+
+.sensor-badge {
+  font-size: 14px;
+  font-weight: 700;
+}

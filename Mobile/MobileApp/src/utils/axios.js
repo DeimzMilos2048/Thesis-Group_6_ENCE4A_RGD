@@ -1,11 +1,11 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// For Android Emulator, use 10.0.2.2 instead of localhost https://mala-luin.onrender.com/api
+// For Android Emulator, use 10.0.2.2 instead of localhost https://mala-luin.onrender.com
 const USE_LOCAL = false;
 const BASE_URL = USE_LOCAL
-  ? 'http://10.0.2.2:5001/api/auth'
-  : 'https://mala-luin.onrender.com/api/auth';
+  ? 'http://10.0.2.2:5001'
+  : 'https://mala-luin.onrender.com';
 
 const api = axios.create({
   baseURL: BASE_URL,

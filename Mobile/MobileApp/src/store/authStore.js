@@ -13,13 +13,18 @@ const useAuthStore = create((set, get) => ({
   login: async (email, password) => {
     set({ loading: true });
     try {
-      const res = await api.post('/login', { email, password });
+      const res = await api.post('/api/auth/login', { email, password });
       const { token, _id, username, role } = res.data;
       const userData = { _id, username, email, role };
 
-      // Store auth data
-      await AsyncStorage.setItem('token', token);
-      await AsyncStorage.setItem('user', JSON.stringify(userData));
+      // Store auth data (only if values are valid)
+      if (token && token !== undefined && token !== null) {
+        await AsyncStorage.setItem('token', token);
+      }
+      
+      if (userData && userData !== undefined && userData !== null) {
+        await AsyncStorage.setItem('user', JSON.stringify(userData));
+      }
 
       set({
         token,
@@ -44,7 +49,7 @@ const useAuthStore = create((set, get) => ({
   register: async (username, fullname, email, password, role = 'User') => {
     set({ loading: true });
     try {
-      const res = await api.post('/register', {
+      const res = await api.post('/api/auth/register', {
         username,
         fullname,
         email,
@@ -52,27 +57,27 @@ const useAuthStore = create((set, get) => ({
         role
       });
       
-      if (!res.data || !res.data.token) {
-        throw new Error('Invalid response from server');
+      const { token, user } = res.data;
+
+      // Store auth data (only if values are valid)
+      if (token && token !== undefined && token !== null) {
+        await AsyncStorage.setItem('token', token);
       }
       
-      const { token, _id } = res.data;
+      if (user && user !== undefined && user !== null) {
+        await AsyncStorage.setItem('user', JSON.stringify(user));
+      }
 
-      const userData = { _id, username, fullname, email, role };
-      
-      // Store auth data
-      await AsyncStorage.setItem('token', token);
-      await AsyncStorage.setItem('user', JSON.stringify(userData));
-      
       set({
         token,
-        user: userData,
+        user,
         loading: false,
       });
-      return true;
     } catch (err) {
-      console.error('Register error:', err);
+      console.error('Registration error:', err);
       set({ loading: false });
+      
+      // Format error message
       if (err.response?.data?.message) {
         throw new Error(err.response.data.message);
       }
@@ -82,6 +87,7 @@ const useAuthStore = create((set, get) => ({
 
   logout: async () => {
     await AsyncStorage.removeItem('token');
+    await AsyncStorage.removeItem('user');
     set({
       token: null,
       user: null,
@@ -93,7 +99,7 @@ const useAuthStore = create((set, get) => ({
     try {
       const token = await AsyncStorage.getItem('token');
       if (token) {
-        const res = await api.get('/me');
+        const res = await api.get('/api/auth/me');
         const me = res.data;
         const userData = { _id: me.id || me._id, username: me.username, email: me.email, role: me.role };
         set({
@@ -107,6 +113,7 @@ const useAuthStore = create((set, get) => ({
     } catch (err) {
       console.error('Initialize auth error:', err);
       await AsyncStorage.removeItem('token');
+      await AsyncStorage.removeItem('user');
       set({
         user: null,
         token: null,

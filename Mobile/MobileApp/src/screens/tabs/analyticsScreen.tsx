@@ -37,7 +37,8 @@ interface LiveLineGraphProps {
 const LiveLineGraph: FC<LiveLineGraphProps> = ({ data, color, unit, minValue, maxValue }) => {
   // Ensure we have at least 2 data points to avoid chart errors
   // Include minValue and maxValue in the dataset to set the y-axis range
-  const chartData = data.length >= 2 ? data : [minValue, minValue];
+  const safeData = Array.isArray(data) ? data : [];
+  const chartData = safeData.length >= 2 ? safeData : [minValue, minValue];
   
   return (
     <LineChart
@@ -78,19 +79,31 @@ const LiveLineGraph: FC<LiveLineGraphProps> = ({ data, color, unit, minValue, ma
   );
 };
 
+// Helper: get the latest value from an array, formatted with unit
+const latestValue = (arr: number[], unit: string): string => {
+  if (!Array.isArray(arr) || arr.length === 0) return 'N/A';
+  return `${arr[arr.length - 1].toFixed(1)}${unit}`;
+};
+
 const AnalyticsScreen = () => {
   const [chartData, setChartData] = useState({
-    moisture: [] as number[],
+    moisture1: [] as number[],
+    moisture2: [] as number[],
     humidity: [] as number[],
     temperature: [] as number[],
-    weight: [] as number[],
+    weight1: [] as number[],
+    weight2: [] as number[],
   });
 
   // Socket.io setup for real-time sensor data
   useEffect(() => {
     console.log('Analytics: Attempting to connect to socket...');
+
+     const SOCKET_URL = __DEV__ 
+      ? 'http://192.168.86.144:5001'        
+       : 'https://mala-backend-q03k.onrender.com'; 
     
-    const socket = io('http://192.168.0.109:5001', {
+    const socket = io(SOCKET_URL, {
       transports: ['polling'],
       reconnection: true,
       reconnectionDelay: 1000,
@@ -117,9 +130,13 @@ const AnalyticsScreen = () => {
         const maxDataPoints = 20; // Keep last 20 data points
 
         return {
-          moisture: [
-            ...prevData.moisture,
-            typeof data.moisture === 'number' ? data.moisture : 0
+          moisture1: [
+            ...prevData.moisture1,
+            typeof data.moisture1 === 'number' ? data.moisture1 : 0
+          ].slice(-maxDataPoints),
+          moisture2: [
+            ...prevData.moisture2,
+            typeof data.moisture2 === 'number' ? data.moisture2 : 0
           ].slice(-maxDataPoints),
           humidity: [
             ...prevData.humidity,
@@ -129,9 +146,13 @@ const AnalyticsScreen = () => {
             ...prevData.temperature,
             typeof data.temperature === 'number' ? data.temperature : 0
           ].slice(-maxDataPoints),
-          weight: [
-            ...prevData.weight,
-            typeof data.weight === 'number' ? data.weight : 0
+          weight1: [
+            ...prevData.weight1,
+            typeof data.weight1 === 'number' ? data.weight1 : 0
+          ].slice(-maxDataPoints),
+          weight2: [
+            ...prevData.weight2,
+            typeof data.weight2 === 'number' ? data.weight2 : 0
           ].slice(-maxDataPoints),
         };
       });
@@ -157,12 +178,30 @@ const AnalyticsScreen = () => {
         <Header />
 
         <View style={styles.grid}>
+
           <View style={styles.card}>
             <Text style={styles.title}>Moisture Content</Text>
-            <LiveLineGraph 
-              data={chartData.moisture} 
-              color="#22c55e" 
-              unit="%" 
+
+            <View style={styles.sensorRow}>
+              <Text style={styles.sensorLabel}>Sensor 1</Text>
+              <Text style={styles.sensorValue}>{latestValue(chartData.moisture1, '%')}</Text>
+            </View>
+            <LiveLineGraph
+              data={chartData.moisture1}
+              color="#22c55e"
+              unit="%"
+              minValue={0}
+              maxValue={100}
+            />
+
+            <View style={styles.sensorRow}>
+              <Text style={styles.sensorLabel}>Sensor 2</Text>
+              <Text style={styles.sensorValue}>{latestValue(chartData.moisture2, '%')}</Text>
+            </View>
+            <LiveLineGraph
+              data={chartData.moisture2}
+              color="#16a34a"
+              unit="%"
               minValue={0}
               maxValue={100}
             />
@@ -170,6 +209,10 @@ const AnalyticsScreen = () => {
 
           <View style={styles.card}>
             <Text style={styles.title}>Humidity</Text>
+            <View style={styles.sensorRow}>
+              <Text style={styles.sensorLabel}>Sensor 1</Text>
+              <Text style={styles.sensorValue}>{latestValue(chartData.humidity, '%')}</Text>
+            </View>
             <LiveLineGraph 
               data={chartData.humidity} 
               color="#3b82f6" 
@@ -181,6 +224,10 @@ const AnalyticsScreen = () => {
 
           <View style={styles.card}>
             <Text style={styles.title}>Temperature</Text>
+             <View style={styles.sensorRow}>
+              <Text style={styles.sensorLabel}>Sensor 1</Text>
+              <Text style={styles.sensorValue}>{latestValue(chartData.temperature, '°C')}</Text>
+            </View>
             <LiveLineGraph 
               data={chartData.temperature} 
               color="#efb944ff" 
@@ -192,14 +239,32 @@ const AnalyticsScreen = () => {
 
           <View style={styles.card}>
             <Text style={styles.title}>Weight</Text>
-            <LiveLineGraph 
-              data={chartData.weight} 
-              color="#a855f7" 
-              unit="kg" 
+
+            <View style={styles.sensorRow}>
+              <Text style={styles.sensorLabel}>Sensor 1</Text>
+              <Text style={styles.sensorValue}>{latestValue(chartData.weight1, 'kg')}</Text>
+            </View>
+            <LiveLineGraph
+              data={chartData.weight1}
+              color="#9E9E9E"
+              unit="kg"
+              minValue={0}
+              maxValue={50}
+            />
+
+            <View style={styles.sensorRow}>
+              <Text style={styles.sensorLabel}>Sensor 2</Text>
+              <Text style={styles.sensorValue}>{latestValue(chartData.weight2, 'kg')}</Text>
+            </View>
+            <LiveLineGraph
+              data={chartData.weight2}
+              color="#9E9E9E"
+              unit="kg"
               minValue={0}
               maxValue={50}
             />
           </View>
+
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -247,5 +312,24 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
     marginBottom: 6,
+  },
+  sensorRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    alignSelf: "stretch",
+    marginTop: 8,
+    marginBottom: 4,
+    marginHorizontal: 4,
+  },
+  sensorLabel: {
+    fontSize: 12,
+    fontWeight: "500",
+    color: "#6b7280",
+  },
+  sensorValue: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#111827",
   },
 });
