@@ -258,7 +258,7 @@ const AnalyticsScreen = () => {
             </View>
             <LiveLineGraph
               data={chartData.weight2}
-              color="#9E9E9E"
+              color="#9e9e9ead"
               unit="kg"
               minValue={0}
               maxValue={50}

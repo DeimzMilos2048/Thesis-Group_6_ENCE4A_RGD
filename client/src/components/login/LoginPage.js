@@ -75,7 +75,7 @@ function LoginPage() {
                                 type="email" 
                                 autoComplete="off"
                                 className="form-input" 
-                                placeholder="Enter Email"
+                                placeholder="Enter your email address"
                                 value={email}
                                 onChange={(e)=> setEmail(e.target.value)}
                                 required
@@ -89,7 +89,7 @@ function LoginPage() {
                                     type={showPassword ? "text" : "password"} 
                                     autoComplete="off"
                                     className="form-input" 
-                                    placeholder="Enter Password"
+                                    placeholder="Enter your Password"
                                     value={password}
                                     onChange={(e)=> setPassword(e.target.value)}
                                     required
@@ -111,14 +111,14 @@ function LoginPage() {
 
                         <button type="submit" className="submit-btn">
                             <span className="btn-text">
-                                Log In
+                                Login
                             </span>
                         </button>
                     </form>
 
                     <div className="login-link">
                         Don't have an account?
-                        <br></br><Link to="/signup">Sign Up</Link>
+                        <Link to="/signup"> Create Account</Link>
                     </div>
                 </div>
             </div>

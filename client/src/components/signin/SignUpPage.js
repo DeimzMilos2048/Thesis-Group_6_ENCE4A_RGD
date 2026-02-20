@@ -142,7 +142,7 @@ function SignUpPage() {
 
           <div className="signin-link">
             Already have an account? 
-            <br /><Link to="/login">Log in</Link>
+            <Link to="/login"> Log in</Link>
           </div>
         </div>
       </div>

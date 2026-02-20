@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Activity,BarChart2, Bell, CircleUser,Clock, Settings,AlertTriangle, LogOut, Thermometer, Droplets, Waves, Weight, CheckCircle, StopCircle} from 'lucide-react';
+import { Activity,BarChart2, Bell, CircleUser,Clock, Settings,AlertTriangle, LogOut, Thermometer, Droplets, Waves, Weight, CheckCircle, StopCircle, ChevronDown, ChevronUp, User, HelpCircle} from 'lucide-react';
 import './Dashboard.css';
 import { useNavigate, useLocation } from 'react-router-dom';
 import authService from '../../api/authService';
@@ -14,6 +14,7 @@ export default function RiceDryingDashboard({ view }) {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const [sensorData, setSensorData] = useState({
     temperature: 0,
     humidity: 0,
@@ -83,16 +84,16 @@ export default function RiceDryingDashboard({ view }) {
     });
 
     socket.on('disconnect', (reason) => {
-      //console.log('Socket disconnected:', reason);
+      console.log('Socket disconnected:', reason);
     });
 
     socket.on('error', (error) => {
-      //console.error('Socket error:', error);
-      //setError('Real-time connection error');
+      console.error('Socket error:', error);
+      setError('Real-time connection error');
     });
 
     return () => {
-      //console.log('Cleaning up socket connection');
+      console.log('Cleaning up socket connection');
       socket.disconnect();
     };
   }, []);
@@ -172,11 +173,9 @@ export default function RiceDryingDashboard({ view }) {
     setIsProcessing(true);
     alert(`Settings Applied\nTarget Temperature: ${temp}°C\nTarget Moisture: ${moisture}%`);
     
-    // Here you can add your logic to send these values to your backend/socket
   };
 
   const handleStop = () => {
-    // Validate inputs are not empty
     if (!targetTemp || !targetMoisture) {
       alert("Please enter both target temperature and moisture values.");
       return;
@@ -194,8 +193,7 @@ export default function RiceDryingDashboard({ view }) {
       alert("Invalid Moisture: Target moisture must be between 10% and 14%.");
       return;
     }
-
-    // If all validations pass, stop the process
+    
     console.log("Stop command triggered");
     setIsProcessing(false);
     setTargetTemp("");
@@ -250,13 +248,41 @@ export default function RiceDryingDashboard({ view }) {
         </div>
 
         <nav className="nav-section">
-          <button 
-            className={`nav-item ${activeTab === 'profile' ? 'active' : ''}`}
-            onClick={() => handleNavigation('/profile', 'profile')}
-          >
-            <CircleUser size={16} />
-            <span>Profile</span>
-          </button>
+          {/* Profile with dropdown */}
+          <div className="nav-item-dropdown">
+            <button
+              className={`nav-item ${activeTab === 'profile' ? 'active' : ''}`}
+              onClick={() => {
+                handleNavigation('/profile', 'profile');
+                setProfileDropdownOpen(prev => !prev);
+              }}
+            >
+              <CircleUser size={16} />
+              <span>Profile</span>
+              {profileDropdownOpen ? <ChevronUp size={14} style={{ marginLeft: 'auto' }} /> : <ChevronDown size={14} style={{ marginLeft: 'auto' }} />}
+            </button>
+
+            {profileDropdownOpen && (
+              <div className="nav-submenu">
+                <button className="nav-subitem" onClick={() => handleNavigation('/profile', 'profile')}>
+                  <User size={14} />
+                  <span>Edit Profile</span>
+                </button>
+                <button className="nav-subitem" onClick={() => handleNavigation('/profile', 'profile')}>
+                  <Bell size={14} />
+                  <span>Edit Notification</span>
+                </button>
+                <button className="nav-subitem" onClick={() => handleNavigation('/profile', 'profile')}>
+                  <HelpCircle size={14} />
+                  <span>Help Center</span>
+                </button>
+                <button className="nav-subitem" onClick={() => handleNavigation('/profile', 'profile')}>
+                  <Settings size={14} />
+                  <span>Settings</span>
+                </button>
+              </div>
+            )}
+          </div>
           
           <button 
             className={`nav-item ${activeTab === 'dashboard' ? 'active' : ''}`}

@@ -637,3 +637,45 @@
   color: #888;
   margin-bottom: 0.2rem;
 }
+
+/* ── Profile Dropdown Submenu ─────────────────────────── */
+.nav-item-dropdown {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.nav-submenu {
+  display: flex;
+  flex-direction: column;
+  padding-left: 12px;
+  margin-top: 2px;
+  gap: 2px;
+}
+
+.nav-subitem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  color: #6b7280;
+  text-align: left;
+  width: 100%;
+  transition: background 0.15s, color 0.15s;
+}
+
+.nav-subitem:hover {
+  background-color: #f0fdf4;
+  color: #059669;
+}
+
+.nav-subitem.active {
+  background-color: #d1fae5;
+  color: #059669;
+  font-weight: 600;
+}

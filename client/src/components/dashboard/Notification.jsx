@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Activity, BarChart2, Bell, CircleUser,Clock, AlertTriangle, LogOut, Thermometer, Droplets, Waves, Weight, CheckCircle } from 'lucide-react';
+import { Activity, BarChart2, Bell, CircleUser, Clock, AlertTriangle, LogOut, Thermometer, Droplets, Waves, Weight, CheckCircle, ChevronDown, ChevronUp, User, HelpCircle, Settings } from 'lucide-react';
 import './Dashboard.css';
 import './Notification.css';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -15,11 +15,11 @@ export default function Notification({ view }) {
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [selectedAlert, setSelectedAlert] = useState(null);
   const [filter, setFilter] = useState("all");
-  const [alerts, setAlerts] = useState([]); // Initialize as empty array
+  const [alerts, setAlerts] = useState([]); 
+  const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Update active tab based on current route
   useEffect(() => {
     const path = location.pathname;
     if (path.includes('/analytics')) {
@@ -42,7 +42,6 @@ export default function Notification({ view }) {
         setLoading(true);
         const response = await axios.get('/notifications');
         if (isMounted) {
-          // Ensure response.data is an array
           const notificationsData = Array.isArray(response.data) ? response.data : [];
           setAlerts(notificationsData);
           setError(null);
@@ -51,7 +50,6 @@ export default function Notification({ view }) {
         if (isMounted) {
           setError(err.message || 'Failed to fetch notifications');
           console.error('Error fetching notifications:', err);
-          // Set alerts to empty array on error
           setAlerts([]);
         }
       } finally {
@@ -232,13 +230,41 @@ export default function Notification({ view }) {
         </div>
 
         <nav className="nav-section">
-          <button 
-            className={`nav-item ${activeTab === 'profile' ? 'active' : ''}`}
-            onClick={() => handleNavigation('/profile', 'profile')}
-          >
-           <CircleUser size={16} />
-           <span>Profile</span>
-           </button>
+          {/* Profile with dropdown */}
+          <div className="nav-item-dropdown">
+            <button
+              className={`nav-item ${activeTab === 'profile' ? 'active' : ''}`}
+              onClick={() => {
+                handleNavigation('/profile', 'profile');
+                setProfileDropdownOpen(prev => !prev);
+              }}
+            >
+              <CircleUser size={16} />
+              <span>Profile</span>
+              {profileDropdownOpen ? <ChevronUp size={14} style={{ marginLeft: 'auto' }} /> : <ChevronDown size={14} style={{ marginLeft: 'auto' }} />}
+            </button>
+
+            {profileDropdownOpen && (
+              <div className="nav-submenu">
+                <button className="nav-subitem" onClick={() => handleNavigation('/profile', 'profile')}>
+                  <User size={14} />
+                  <span>Edit Profile</span>
+                </button>
+                <button className="nav-subitem" onClick={() => handleNavigation('/profile', 'profile')}>
+                  <Bell size={14} />
+                  <span>Edit Notification</span>
+                </button>
+                <button className="nav-subitem" onClick={() => handleNavigation('/profile', 'profile')}>
+                  <HelpCircle size={14} />
+                  <span>Help Center</span>
+                </button>
+                <button className="nav-subitem" onClick={() => handleNavigation('/profile', 'profile')}>
+                  <Settings size={14} />
+                  <span>Settings</span>
+                </button>
+              </div>
+            )}
+          </div>
            
           <button 
             className={`nav-item ${activeTab === 'dashboard' ? 'active' : ''}`}

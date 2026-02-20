@@ -189,7 +189,7 @@ const SigninScreen: React.FC<SigninScreenProps> = ({ navigation }) => {
         disabled={loading}
       >
         <Text style={styles.signInText}>
-          {loading ? "Creating..." : "Create an Account"}
+          {loading ? "Creating..." : "Create Account"}
         </Text>
       </TouchableOpacity>
 

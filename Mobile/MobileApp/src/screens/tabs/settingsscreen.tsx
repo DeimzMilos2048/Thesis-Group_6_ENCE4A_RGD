@@ -152,7 +152,7 @@ const settingsscreen: React.FC = () => {
               </View>
 
               {/* Danger Zone */}
-              <View style={styles.settingsGroup}>
+              {/* <View style={styles.settingsGroup}>
                 <View style={styles.dangerZone}>
                   <Text style={styles.dangerZoneTitle}>Danger Zone</Text>
 
@@ -172,7 +172,7 @@ const settingsscreen: React.FC = () => {
                     <Text style={styles.dangerBtnText}>Delete Account</Text>
                   </TouchableOpacity>
                 </View>
-              </View>
+              </View> */}
             </View>
           </View>
         </ScrollView>

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Activity, BarChart2, Bell, CircleUser, Clock, AlertTriangle, LogOut, User, Mail, Save, X, HelpCircle, Settings } from 'lucide-react';
+import { Activity, BarChart2, Bell, CircleUser, Clock, AlertTriangle, LogOut, User, Mail, Save, X, HelpCircle, Settings, ChevronDown, ChevronUp } from 'lucide-react';
 import './Dashboard.css';
 import './Profile.css';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -13,6 +13,7 @@ export default function Profile({ view }) {
   const [activeTab, setActiveTab] = useState('profile');
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [activeSection, setActiveSection] = useState('profile');
+  const [profileDropdownOpen, setProfileDropdownOpen] = useState(true);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -232,13 +233,53 @@ export default function Profile({ view }) {
         </div>
 
         <nav className="nav-section">
-          <button 
-            className={`nav-item ${activeTab === 'profile' ? 'active' : ''}`}
-            onClick={() => handleNavigation('/profile', 'profile')}
-          >
-            <CircleUser size={16} />
-            <span>Profile</span>
-          </button>
+          {/* Profile with dropdown */}
+          <div className="nav-item-dropdown">
+            <button
+              className={`nav-item ${activeTab === 'profile' ? 'active' : ''}`}
+              onClick={() => {
+                handleNavigation('/profile', 'profile');
+                setProfileDropdownOpen(prev => !prev);
+              }}
+            >
+              <CircleUser size={16} />
+              <span>Profile</span>
+              {profileDropdownOpen ? <ChevronUp size={14} style={{ marginLeft: 'auto' }} /> : <ChevronDown size={14} style={{ marginLeft: 'auto' }} />}
+            </button>
+
+            {profileDropdownOpen && (
+              <div className="nav-submenu">
+                <button
+                  className={`nav-subitem ${activeSection === 'profile' ? 'active' : ''}`}
+                  onClick={() => setActiveSection('profile')}
+                >
+                  <User size={14} />
+                  <span>Edit Profile</span>
+                </button>
+                <button
+                  className={`nav-subitem ${activeSection === 'notifications' ? 'active' : ''}`}
+                  onClick={() => setActiveSection('notifications')}
+                >
+                  <Bell size={14} />
+                  <span>Edit Notification</span>
+                </button>
+                <button
+                  className={`nav-subitem ${activeSection === 'help' ? 'active' : ''}`}
+                  onClick={() => setActiveSection('help')}
+                >
+                  <HelpCircle size={14} />
+                  <span>Help Center</span>
+                </button>
+                <button
+                  className={`nav-subitem ${activeSection === 'settings' ? 'active' : ''}`}
+                  onClick={() => setActiveSection('settings')}
+                >
+                  <Settings size={14} />
+                  <span>Settings</span>
+                </button>
+              </div>
+            )}
+          </div>
           
           <button 
             className={`nav-item ${activeTab === 'dashboard' ? 'active' : ''}`}
@@ -292,39 +333,8 @@ export default function Profile({ view }) {
 
           {/* Profile Content */}
           <div className="profile-container">
-            {/* Sidebar Navigation */}
-            <div className="profile-sidebar">
-              <button
-                className={`profile-nav-item ${activeSection === 'profile' ? 'active' : ''}`}
-                onClick={() => setActiveSection('profile')}
-              >
-                <User size={20} />
-                <span>Edit Profile</span>
-              </button>
-              <button
-                className={`profile-nav-item ${activeSection === 'notifications' ? 'active' : ''}`}
-                onClick={() => setActiveSection('notifications')}
-              >
-                <Bell size={20} />
-                <span>Edit Notification</span>
-              </button>
-              <button
-                className={`profile-nav-item ${activeSection === 'help' ? 'active' : ''}`}
-                onClick={() => setActiveSection('help')}
-              >
-                <HelpCircle size={20} />
-                <span>Help Center</span>
-              </button>
-              <button
-                className={`profile-nav-item ${activeSection === 'settings' ? 'active' : ''}`}
-                onClick={() => setActiveSection('settings')}
-              >
-                <Settings size={20} />
-                <span>Settings</span>
-              </button>
-            </div>
 
-            {/* Main Profile Content */}
+            {/* Main Profile Content — full width, no sidebar */}
             <div className="profile-main">
               {/* Edit Profile Section */}
               {activeSection === 'profile' &&  editingUser && (
@@ -605,11 +615,11 @@ export default function Profile({ view }) {
                       </div>
                     </div>
 
-                    <div className="settings-group danger-zone">
+                    {/* <div className="settings-group danger-zone">
                       <h3>Danger Zone</h3>
                       <button className="danger-btn">Reset All Settings</button>
                       <button className="danger-btn">Delete Account</button>
-                    </div>
+                    </div> */}
                   </div>
                 </div>
               )}

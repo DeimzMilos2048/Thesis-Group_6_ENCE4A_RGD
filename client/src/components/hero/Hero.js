@@ -6,7 +6,7 @@ function Hero({ onExplore }){
       <div className="hero">  
           <div className="hero-title">
               <TextType 
-                  text={["Optimizing Post-Harvest Rice Drying: A Real-Time IoT System for Time Reduction and Quality Control"]}
+                  text={["Mala: A Real Time IoT System for Sustainable Rice Drying"]}
                     typingSpeed={75}
                       pauseDuration={1500}
                         showCursor={true}

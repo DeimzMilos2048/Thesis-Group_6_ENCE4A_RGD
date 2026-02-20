@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Activity, AlertTriangle, BarChart2, Bell, CircleUser, Clock, LogOut, Thermometer, Droplets, Waves, Weight } from 'lucide-react';
+import { Activity, AlertTriangle, BarChart2, Bell, CircleUser, Clock, LogOut, Thermometer, Droplets, Waves, Weight, ChevronDown, ChevronUp, User, HelpCircle, Settings } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from 'recharts';
 import './Dashboard.css';
 import './Analytics.css';
@@ -13,17 +13,17 @@ export default function Analytics({ view }) {
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('analytics'); 
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   
   const [chartData, setChartData] = useState({
-    moisture: [],     // [{ time, sensor1, sensor2 }]
-    humidity: [],     // [{ time, value }]
-    temperature: [],  // [{ time, value }]
-    weight: [],       // [{ time, sensor1, sensor2 }]
+    moisture: [],     
+    humidity: [],     
+    temperature: [],  
+    weight: [],       
   });
 
-  // Latest values for display badges
   const [latestValues, setLatestValues] = useState({
     moisture1: null, moisture2: null,
     humidity: null,
@@ -46,11 +46,11 @@ export default function Analytics({ view }) {
     }
   }, [location]);
 
-  // Socket.io setup for real-time sensor data
   useEffect(() => {
     console.log('Analytics: Attempting to connect to socket...');
     
-    const socket = io('http://localhost:5001', {
+    const SOCKET_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001';
+    const socket = io(SOCKET_URL, {
       reconnection: true,
       reconnectionDelay: 1000,
       reconnectionDelayMax: 5000,
@@ -67,7 +67,6 @@ export default function Analytics({ view }) {
       setError('Unable to connect');
     });
 
-    // Listen for real-time sensor data updates
     socket.on('sensor_readings_table', (data) => {
       console.log('Analytics: Sensor data received:', data);
       
@@ -174,7 +173,6 @@ export default function Analytics({ view }) {
 
   const fmt = (val, unit) => val === null ? 'N/A' : `${Number(val).toFixed(1)}${unit}`;
 
-  // Dual-line chart (moisture, weight)
   const DualLineGraph = ({ data, color1, color2, unit, minValue, maxValue }) => (
     <ResponsiveContainer width="100%" height="100%">
       <LineChart data={data} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
@@ -189,7 +187,6 @@ export default function Analytics({ view }) {
     </ResponsiveContainer>
   );
 
-  // Single-line chart (humidity, temperature)
   const SingleLineGraph = ({ data, color, unit, minValue, maxValue }) => (
     <ResponsiveContainer width="100%" height="100%">
       <LineChart data={data} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
@@ -249,13 +246,41 @@ export default function Analytics({ view }) {
         </div>
 
         <nav className="nav-section">
-          <button 
-            className={`nav-item ${activeTab === 'profile' ? 'active' : ''}`}
-            onClick={() => handleNavigation('/profile', 'profile')}
-          >
-            <CircleUser size={16} />
-            <span>Profile</span>
-          </button>
+          {/* Profile with dropdown */}
+          <div className="nav-item-dropdown">
+            <button
+              className={`nav-item ${activeTab === 'profile' ? 'active' : ''}`}
+              onClick={() => {
+                handleNavigation('/profile', 'profile');
+                setProfileDropdownOpen(prev => !prev);
+              }}
+            >
+              <CircleUser size={16} />
+              <span>Profile</span>
+              {profileDropdownOpen ? <ChevronUp size={14} style={{ marginLeft: 'auto' }} /> : <ChevronDown size={14} style={{ marginLeft: 'auto' }} />}
+            </button>
+
+            {profileDropdownOpen && (
+              <div className="nav-submenu">
+                <button className="nav-subitem" onClick={() => handleNavigation('/profile', 'profile')}>
+                  <User size={14} />
+                  <span>Edit Profile</span>
+                </button>
+                <button className="nav-subitem" onClick={() => handleNavigation('/profile', 'profile')}>
+                  <Bell size={14} />
+                  <span>Edit Notification</span>
+                </button>
+                <button className="nav-subitem" onClick={() => handleNavigation('/profile', 'profile')}>
+                  <HelpCircle size={14} />
+                  <span>Help Center</span>
+                </button>
+                <button className="nav-subitem" onClick={() => handleNavigation('/profile', 'profile')}>
+                  <Settings size={14} />
+                  <span>Settings</span>
+                </button>
+              </div>
+            )}
+          </div>
 
           <button 
             className={`nav-item ${activeTab === 'dashboard' ? 'active' : ''}`}
@@ -310,16 +335,18 @@ export default function Analytics({ view }) {
             {/* ── Moisture (2 sensors) ───────────────────────────────── */}
             <div className="analytics-cards">
               <h3 className="analytics-card-title">
-                <Droplets size={24} /> Moisture Content
+                <div className="analytics-card-title-left">
+                  <Droplets size={24} /> Moisture Content
+                </div>
+                <div className="sensor-badges">
+                  <span className="sensor-badge" style={{ color: '#22c55e', backgroundColor: 'white' }}>
+                    S1: {fmt(latestValues.moisture1, '%')}
+                  </span>
+                  <span className="sensor-badge" style={{ color: '#16a34a', backgroundColor: 'white' }}>
+                    S2: {fmt(latestValues.moisture2, '%')}
+                  </span>
+                </div>
               </h3>
-              <div className="sensor-badges">
-                <span className="sensor-badge" style={{ color: '#22c55e' }}>
-                  S1: {fmt(latestValues.moisture1, '%')}
-                </span>
-                <span className="sensor-badge" style={{ color: '#16a34a' }}>
-                  S2: {fmt(latestValues.moisture2, '%')}
-                </span>
-              </div>
               <div className="analytics-card-status">
                 <DualLineGraph
                   data={chartData.moisture}
@@ -335,13 +362,15 @@ export default function Analytics({ view }) {
             {/* ── Humidity (1 sensor) ────────────────────────────────── */}
             <div className="analytics-cards">
               <h3 className="analytics-card-title">
-                <Waves size={24} /> Humidity
+                <div className="analytics-card-title-left">
+                  <Waves size={24} /> Humidity
+                </div>
+                <div className="sensor-badges">
+                  <span className="sensor-badge" style={{ color: '#3b82f6', backgroundColor: 'white' }}>
+                    {fmt(latestValues.humidity, '%')}
+                  </span>
+                </div>
               </h3>
-              <div className="sensor-badges">
-                <span className="sensor-badge" style={{ color: '#3b82f6' }}>
-                  {fmt(latestValues.humidity, '%')}
-                </span>
-              </div>
               <div className="analytics-card-status">
                 <SingleLineGraph
                   data={chartData.humidity}
@@ -356,13 +385,15 @@ export default function Analytics({ view }) {
             {/* ── Temperature (1 sensor) ─────────────────────────────── */}
             <div className="analytics-cards">
               <h3 className="analytics-card-title">
-                <Thermometer size={24} /> Temperature
+                <div className="analytics-card-title-left">
+                  <Thermometer size={24} /> Temperature
+                </div>
+                <div className="sensor-badges">
+                  <span className="sensor-badge" style={{ color: '#efb944ff', backgroundColor: 'white' }}>
+                    {fmt(latestValues.temperature, '°C')}
+                  </span>
+                </div>
               </h3>
-              <div className="sensor-badges">
-                <span className="sensor-badge" style={{ color: '#efb944ff' }}>
-                  {fmt(latestValues.temperature, '°C')}
-                </span>
-              </div>
               <div className="analytics-card-status">
                 <SingleLineGraph
                   data={chartData.temperature}
@@ -377,21 +408,23 @@ export default function Analytics({ view }) {
             {/* ── Weight (2 sensors) ─────────────────────────────────── */}
             <div className="analytics-cards">
               <h3 className="analytics-card-title">
-                <Weight size={24} /> Weight
+                <div className="analytics-card-title-left">
+                  <Weight size={24} /> Weight
+                </div>
+                <div className="sensor-badges">
+                  <span className="sensor-badge" style={{ color: '#9E9E9E', backgroundColor: 'white' }}>
+                    S1: {fmt(latestValues.weight1, 'kg')}
+                  </span>
+                  <span className="sensor-badge" style={{ color: '#9E9E9EAD', backgroundColor: 'white' }}>
+                    S2: {fmt(latestValues.weight2, 'kg')}
+                  </span>
+                </div>
               </h3>
-              <div className="sensor-badges">
-                <span className="sensor-badge" style={{ color: '#a855f7' }}>
-                  S1: {fmt(latestValues.weight1, 'kg')}
-                </span>
-                <span className="sensor-badge" style={{ color: '#7c3aed' }}>
-                  S2: {fmt(latestValues.weight2, 'kg')}
-                </span>
-              </div>
               <div className="analytics-card-status">
                 <DualLineGraph
                   data={chartData.weight}
-                  color1="#a855f7"
-                  color2="#7c3aed"
+                  color1="#9E9E9E"
+                  color2="#9E9E9EAD"
                   unit="kg"
                   minValue={0}
                   maxValue={50}

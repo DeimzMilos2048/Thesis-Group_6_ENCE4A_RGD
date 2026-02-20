@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Activity, BarChart2, Bell, CircleUser,Clock, AlertTriangle, LogOut} from 'lucide-react';
+import { Activity, BarChart2, Bell, CircleUser, Clock, AlertTriangle, LogOut, ChevronDown, ChevronUp, User, HelpCircle, Settings } from 'lucide-react';
 import './Dashboard.css';
 import './History.css';
 import * as XLSX from 'xlsx';
@@ -13,6 +13,7 @@ export default function History({ view }) {
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('analytics');
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -188,13 +189,41 @@ export default function History({ view }) {
         </div>
 
         <nav className="nav-section">
-          <button 
-            className={`nav-item ${activeTab === 'profile' ? 'active' : ''}`}
-            onClick={() => handleNavigation('/profile', 'profile')}
-          >
-           <CircleUser size={16} />
-           <span>Profile</span>
-           </button>
+          {/* Profile with dropdown */}
+          <div className="nav-item-dropdown">
+            <button
+              className={`nav-item ${activeTab === 'profile' ? 'active' : ''}`}
+              onClick={() => {
+                handleNavigation('/profile', 'profile');
+                setProfileDropdownOpen(prev => !prev);
+              }}
+            >
+              <CircleUser size={16} />
+              <span>Profile</span>
+              {profileDropdownOpen ? <ChevronUp size={14} style={{ marginLeft: 'auto' }} /> : <ChevronDown size={14} style={{ marginLeft: 'auto' }} />}
+            </button>
+
+            {profileDropdownOpen && (
+              <div className="nav-submenu">
+                <button className="nav-subitem" onClick={() => handleNavigation('/profile', 'profile')}>
+                  <User size={14} />
+                  <span>Edit Profile</span>
+                </button>
+                <button className="nav-subitem" onClick={() => handleNavigation('/profile', 'profile')}>
+                  <Bell size={14} />
+                  <span>Edit Notification</span>
+                </button>
+                <button className="nav-subitem" onClick={() => handleNavigation('/profile', 'profile')}>
+                  <HelpCircle size={14} />
+                  <span>Help Center</span>
+                </button>
+                <button className="nav-subitem" onClick={() => handleNavigation('/profile', 'profile')}>
+                  <Settings size={14} />
+                  <span>Settings</span>
+                </button>
+              </div>
+            )}
+          </div>
 
           <button 
             className={`nav-item ${activeTab === 'dashboard' ? 'active' : ''}`}
