@@ -152,14 +152,11 @@ export default function RiceDryingDashboard({ view }) {
         </div>
       )}
 
-      {/* ── Topbar ── */}
       <header className="topbar">
-        {/* Logo */}
         <div className="topbar-logo-section">
           <img src={logo} alt="Logo" className="topbar-logo" />
         </div>
 
-        {/* Main Nav */}
         <nav className="topbar-nav">
           <button
             className={`nav-item ${activeTab === 'dashboard' ? 'active' : ''}`}
@@ -191,9 +188,7 @@ export default function RiceDryingDashboard({ view }) {
           </button>
         </nav>
 
-        {/* Right Side: Profile + Logout */}
         <div className="topbar-right">
-          {/* Profile Dropdown */}
           <div className="profile-dropdown-wrapper">
             <button
               className={`nav-item ${activeTab === 'profile' ? 'active' : ''}`}
@@ -224,7 +219,6 @@ export default function RiceDryingDashboard({ view }) {
             )}
           </div>
 
-          {/* Logout */}
           <button className="nav-item logout" onClick={handleLogoutClick}>
             <LogOut size={16} />
             <span>Log Out</span>
@@ -232,18 +226,14 @@ export default function RiceDryingDashboard({ view }) {
         </div>
       </header>
 
-      {/* ── Main Content ── */}
       <div className="main-content">
         <div className="unified-dashboard">
-
           <div className="dashboard-header">
             <h1>Dashboard</h1>
             <p>Real-time monitoring and control interface</p>
           </div>
-
           <div className="dashboard-content">
-
-          {/* Status Cards */}
+            
           <div className="status-cards">
             <div className="status-card">
               <div className="status-content">
@@ -379,7 +369,6 @@ export default function RiceDryingDashboard({ view }) {
                     </div>
                   </div>
 
-                  {/* Divider between Before and After */}
                   <div style={{ height: '1px', backgroundColor: '#e5e7eb', margin: '6px 0' }}></div>
 
                   {/* AFTER */}
