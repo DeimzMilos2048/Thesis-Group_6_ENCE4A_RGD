@@ -20,7 +20,7 @@ router.get('/history', async (req, res) => {
   try {
     const history = await SensorData.find()
       .sort({ timestamp: -1 })
-      .limit(100); // Get last 100 records
+      .limit(100); 
     
     res.json({
       success: true,

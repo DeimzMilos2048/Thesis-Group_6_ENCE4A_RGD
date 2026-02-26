@@ -11,26 +11,50 @@ const sensorDataSchema = new mongoose.Schema(
     temperature: {
       type: Number,
       required: true,
-      min: 50,
-      max: 60
+      min: 40,
+      max: 50
     },
     humidity: {
       type: Number,
       required: true,
       default: 0,
       min: 0,
-      max: 65
+      max: 100
     },
     moisture1: {
       type: Number,
       required: true,
-      min: 10,
+      min: 13,
       max: 14
     },
     moisture2: {
       type: Number,
       required: true,
-      min: 10,
+      min: 13,
+      max: 14
+    },
+    moisture3: {
+      type: Number,
+      required: true,
+      min: 13,
+      max: 14
+    },
+    moisture4: {
+      type: Number,
+      required: true,
+      min: 13,
+      max: 14
+    },
+    moisture5: {
+      type: Number,
+      required: true,
+      min: 13,
+      max: 14
+    },
+    moisture6: {
+      type: Number,
+      required: true,
+      min: 13,
       max: 14
     },
     weight1: {
@@ -38,14 +62,42 @@ const sensorDataSchema = new mongoose.Schema(
       required: true,
       default: 0,
       min: 0,
-      max: 25
+      max: 1.5
     },
     weight2: {
       type: Number,
       required: true,
       default: 0,
       min: 0,
-      max: 25
+      max: 1.5
+    },
+    weight3: {
+      type: Number,
+      required: true,
+      default: 0,
+      min: 0,
+      max: 1.5
+    },
+    weight4: {
+      type: Number,
+      required: true,
+      default: 0,
+      min: 0,
+      max: 1.5
+    },
+    weight5: {
+      type: Number,
+      required: true,
+      default: 0,
+      min: 0,
+      max: 1.5
+    },
+    weight6: {
+      type: Number,
+      required: true,
+      default: 0,
+      min: 0,
+      max: 1.5
     },
     status: {
       type: String,

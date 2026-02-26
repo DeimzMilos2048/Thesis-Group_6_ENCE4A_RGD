@@ -3,16 +3,28 @@ import { sendNotification } from "../controllers/notificationController.js";
 
 // Define your thresholds
 const THRESHOLDS = {
-  temperatureMax: 60,
-  temperatureMin: 50,
-  humidityMax: 65,
+  temperatureMax: 50,
+  temperatureMin: 40,
+  humidityMax: 100,
   humidityMin: 0,
   moisture1Target: 14,
-  moisture1Min: 10,
+  moisture1Min: 13,
   moisture2Target: 14,
-  moisture2Min: 10,
-  weight1Max: 25,
-  weight2Max: 25
+  moisture2Min: 13,
+  moisture3Target: 14,
+  moisture3Min: 13,
+  moisture4Target: 14,
+  moisture4Min: 13,
+  moisture5Target: 14,
+  moisture5Min: 13,
+  moisture6Target: 14,
+  moisture6Min: 13,
+  weight1Max: 1.5,
+  weight2Max: 1.5,
+  weight3Max: 1.5,
+  weight4Max: 1.5,
+  weight5Max: 1.5,
+  weight6Max: 1.5
 };
 
 /**
@@ -37,7 +49,7 @@ export const checkSensorThresholds = async (reading, io) => {
         title: "Low Temperature Warning",
         message: `Temperature (${reading.temperature}°C) below minimum (${THRESHOLDS.temperatureMin}°C)`
       });
-    }
+    } 
 
     // Humidity checks
     if (reading.humidity > THRESHOLDS.humidityMax) {
@@ -52,7 +64,7 @@ export const checkSensorThresholds = async (reading, io) => {
     if (reading.moisture1 > THRESHOLDS.moisture1Target) {
       alerts.push({
         type: "WARNING",
-        title: "High Moisture Content - Sensor 1",
+        title: "High Moisture Content - Tray 1",
         message: `Moisture 1 (${reading.moisture1}%) above target (${THRESHOLDS.moisture1Target}%)`
       });
     }
@@ -60,7 +72,7 @@ export const checkSensorThresholds = async (reading, io) => {
     if (reading.moisture2 > THRESHOLDS.moisture2Target) {
       alerts.push({
         type: "WARNING",
-        title: "High Moisture Content - Sensor 2",
+        title: "High Moisture Content - Tray 2",
         message: `Moisture 2 (${reading.moisture2}%) above target (${THRESHOLDS.moisture2Target}%)`
       });
     }
@@ -69,7 +81,7 @@ export const checkSensorThresholds = async (reading, io) => {
     if (reading.weight1 > THRESHOLDS.weight1Max) {
       alerts.push({
         type: "CRITICAL",
-        title: "Weight Overload - Chamber 1",
+        title: "Weight Overload - Tray 1",
         message: `Weight 1 (${reading.weight1}kg) exceeded maximum (${THRESHOLDS.weight1Max}kg)`
       });
     }
@@ -77,7 +89,7 @@ export const checkSensorThresholds = async (reading, io) => {
     if (reading.weight2 > THRESHOLDS.weight2Max) {
       alerts.push({
         type: "CRITICAL",
-        title: "Weight Overload - Chamber 2",
+        title: "Weight Overload - Tray 2",
         message: `Weight 2 (${reading.weight2}kg) exceeded maximum (${THRESHOLDS.weight2Max}kg)`
       });
     }
@@ -97,7 +109,7 @@ export const checkSensorThresholds = async (reading, io) => {
           weight2: reading.weight2
         },
         thresholds: THRESHOLDS,
-        system: "Rice Grain Dryer"
+        system: "MALA'"
       });
 
       await notification.save();

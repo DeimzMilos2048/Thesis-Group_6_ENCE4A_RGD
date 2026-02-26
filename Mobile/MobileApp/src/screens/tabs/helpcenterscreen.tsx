@@ -42,7 +42,7 @@ const helpcenterscreen: React.FC = () => {
                   </Text>
                   <Text style={styles.faqAnswer}>
                     Navigate to the Dashboard and use the System Controls panel in Web Browser
-                    to set your desired target temperature between 50°C - 60°C.
+                    to set your desired target temperature between 40°C - 50°C.
                   </Text>
                 </View>
 
@@ -52,7 +52,7 @@ const helpcenterscreen: React.FC = () => {
                   </Text>
                   <Text style={styles.faqAnswer}>
                     The optimal moisture content for rice drying is between
-                    10-14%. The system will alert when this range is
+                    13-14%. The system will alert when this range is
                     reached.
                   </Text>
                 </View>

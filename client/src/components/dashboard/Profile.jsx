@@ -152,7 +152,6 @@ export default function Profile({ view }) {
     setShowLogoutConfirm(false);
   };
 
-
   const handleNotificationToggle = (field) => {
     setNotifications(prev => ({ ...prev, [field]: !prev[field] }));
   };
@@ -224,103 +223,93 @@ export default function Profile({ view }) {
         </div>
       )}
       
-      {/* Sidebar */}
-      <div className="sidebar">
-        <div className="logo-section">
-          <div className="logo-box">
-            <img src={logo} alt="" className="sidebar-logo" />
-          </div>
+      {/* Topbar */}
+      <header className="topbar">
+        <div className="topbar-logo-section">
+          <img src={logo} alt="Logo" className="topbar-logo" />
         </div>
 
-        <nav className="nav-section">
-          {/* Profile with dropdown */}
-          <div className="nav-item-dropdown">
-            <button
-              className={`nav-item ${activeTab === 'profile' ? 'active' : ''}`}
-              onClick={() => {
-                handleNavigation('/profile', 'profile');
-                setProfileDropdownOpen(prev => !prev);
-              }}
-            >
-              <CircleUser size={16} />
-              <span>Profile</span>
-              {profileDropdownOpen ? <ChevronUp size={14} style={{ marginLeft: 'auto' }} /> : <ChevronDown size={14} style={{ marginLeft: 'auto' }} />}
-            </button>
-
-            {profileDropdownOpen && (
-              <div className="nav-submenu">
-                <button
-                  className={`nav-subitem ${activeSection === 'profile' ? 'active' : ''}`}
-                  onClick={() => setActiveSection('profile')}
-                >
-                  <User size={14} />
-                  <span>Edit Profile</span>
-                </button>
-                <button
-                  className={`nav-subitem ${activeSection === 'notifications' ? 'active' : ''}`}
-                  onClick={() => setActiveSection('notifications')}
-                >
-                  <Bell size={14} />
-                  <span>Edit Notification</span>
-                </button>
-                <button
-                  className={`nav-subitem ${activeSection === 'help' ? 'active' : ''}`}
-                  onClick={() => setActiveSection('help')}
-                >
-                  <HelpCircle size={14} />
-                  <span>Help Center</span>
-                </button>
-                <button
-                  className={`nav-subitem ${activeSection === 'settings' ? 'active' : ''}`}
-                  onClick={() => setActiveSection('settings')}
-                >
-                  <Settings size={14} />
-                  <span>Settings</span>
-                </button>
-              </div>
-            )}
-          </div>
-          
-          <button 
+        <nav className="topbar-nav">
+          <button
             className={`nav-item ${activeTab === 'dashboard' ? 'active' : ''}`}
             onClick={() => handleNavigation('/dashboard', 'dashboard')}
           >
             <BarChart2 size={16} />
             <span>Dashboard</span>
           </button>
-          <button 
+          <button
             className={`nav-item ${activeTab === 'analytics' ? 'active' : ''}`}
             onClick={() => handleNavigation('/analytics', 'analytics')}
           >
             <Activity size={16} />
             <span>Analytics</span>
           </button>
-          <button 
+          <button
             className={`nav-item ${activeTab === 'history' ? 'active' : ''}`}
             onClick={() => handleNavigation('/history', 'history')}
           >
             <Clock size={16} />
             <span>History</span>
           </button>
-   
-          <button 
+          <button
             className={`nav-item ${activeTab === 'notification' ? 'active' : ''}`}
             onClick={() => handleNavigation('/notification', 'notification')}
           >
             <Bell size={16} />
             <span>Notification</span>
           </button>
-
         </nav>
 
-        <button 
-          className="nav-item logout"
-          onClick={handleLogoutClick}
-        >
-          <LogOut size={16} />
-          <span>Log Out</span>
-        </button>
-      </div>
+        <div className="topbar-right">
+          <div className="profile-dropdown-wrapper">
+            <button
+              className={`nav-item ${activeTab === 'profile' ? 'active' : ''}`}
+              onClick={() => {
+                
+                setProfileDropdownOpen(prev => !prev);
+              }}
+            >
+              <CircleUser size={16} />
+              <span>Profile</span>
+              {profileDropdownOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+            </button>
+
+            {profileDropdownOpen && (
+              <div className="profile-submenu">
+                <button
+                  className={`submenu-item ${activeSection === 'profile' ? 'active' : ''}`}
+                  onClick={() => setActiveSection('profile')}
+                >
+                  <User size={14} /><span>Edit Profile</span>
+                </button>
+                <button
+                  className={`submenu-item ${activeSection === 'notifications' ? 'active' : ''}`}
+                  onClick={() => setActiveSection('notifications')}
+                >
+                  <Bell size={14} /><span>Edit Notification</span>
+                </button>
+                <button
+                  className={`submenu-item ${activeSection === 'help' ? 'active' : ''}`}
+                  onClick={() => setActiveSection('help')}
+                >
+                  <HelpCircle size={14} /><span>Help Center</span>
+                </button>
+                <button
+                  className={`submenu-item ${activeSection === 'settings' ? 'active' : ''}`}
+                  onClick={() => setActiveSection('settings')}
+                >
+                  <Settings size={14} /><span>Settings</span>
+                </button>
+              </div>
+            )}
+          </div>
+
+          <button className="nav-item logout" onClick={handleLogoutClick}>
+            <LogOut size={16} />
+            <span>Log Out</span>
+          </button>
+        </div>
+      </header>
 
       {/* Main Content for Profile */}
       <div className="main-content">
@@ -564,12 +553,12 @@ export default function Profile({ view }) {
                       
                       <div className="faq-item">
                         <strong>How do I set target temperature?</strong>
-                        <p>Navigate to the Dashboard and use the System Controls panel to set your desired target temperature between 50°C - 60°C.</p>
+                        <p>Navigate to the Dashboard and use the System Controls panel to set your desired target temperature between 40°C - 50°C.</p>
                       </div>
 
                       <div className="faq-item">
                         <strong>What is the optimal moisture content?</strong>
-                        <p>The optimal moisture content for rice drying is between 10-14%. The system will alert you when this range is reached.</p>
+                        <p>The optimal moisture content for rice drying is between 13-14%. The system will alert you when this range is reached.</p>
                       </div>
 
                       <div className="faq-item">

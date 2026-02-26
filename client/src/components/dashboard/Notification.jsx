@@ -17,6 +17,7 @@ export default function Notification({ view }) {
   const [filter, setFilter] = useState("all");
   const [alerts, setAlerts] = useState([]); 
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
+  const [popupNotifications, setPopupNotifications] = useState([]); 
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -169,6 +170,10 @@ export default function Notification({ view }) {
     return alert.isRead ? 'Acknowledged' : 'New';
   };
 
+  const removePopupNotification = (id) => {
+    setPopupNotifications(prev => prev.filter(popup => popup.id !== id));
+  };
+
   // Ensure alerts is always an array
   const alertsArray = Array.isArray(alerts) ? alerts : [];
 
@@ -185,6 +190,37 @@ export default function Notification({ view }) {
 
   return (
     <div className="dashboard-container">
+  
+      <div className="popup-notifications-container">
+        {popupNotifications.map((popup) => (
+          <div 
+            key={popup.id} 
+            className={`popup-notification ${popup.type.toLowerCase()}`}
+            onClick={() => removePopupNotification(popup.id)}
+          >
+            <div className="popup-notification-header">
+              <AlertTriangle size={16} />
+              <span className="popup-notification-type">{popup.type}</span>
+              <button 
+                className="popup-notification-close" 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  removePopupNotification(popup.id);
+                }}
+              >
+                ×
+              </button>
+            </div>
+            <div className="popup-notification-message">
+              {popup.message}
+            </div>
+            <div className="popup-notification-time">
+              {formatTime(popup.timestamp)}
+            </div>
+          </div>
+        ))}
+      </div>
+
       {error && (
         <div className="error-banner">
           <AlertTriangle size={20} />
@@ -198,114 +234,104 @@ export default function Notification({ view }) {
         </div>
       )}
 
-       {/* Logout Confirmation Modal */}
-          {showLogoutConfirm && (
-              <div className="modal-overlay" onClick={handleLogoutCancel}>
-                  <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-                      <div className="modal-header">
-                        <LogOut size={24} />
-                        <h3>Confirm Logout</h3>
-                      </div>
-                        <div className="modal-body">
-                          <p>Are you sure, you want to log out?</p>
-                        </div>
-                          <div className="modal-footer">
-                            <button className="modal-button cancel" onClick={handleLogoutCancel}>
-                              Cancel
-                            </button>
-                            <button className="modal-button confirm" onClick={handleLogoutConfirm}>
-                              Log Out
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-      )}
-      
-      {/* Sidebar */}
-      <div className="sidebar">
-        <div className="logo-section">
-          <div className="logo-box">
-            <img src={logo} alt="" className="sidebar-logo" />
+      {/* Logout Confirmation Modal */}
+      {showLogoutConfirm && (
+        <div className="modal-overlay" onClick={handleLogoutCancel}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <LogOut size={24} />
+              <h3>Confirm Logout</h3>
+            </div>
+            <div className="modal-body">
+              <p>Are you sure, you want to log out?</p>
+            </div>
+            <div className="modal-footer">
+              <button className="modal-button cancel" onClick={handleLogoutCancel}>
+                Cancel
+              </button>
+              <button className="modal-button confirm" onClick={handleLogoutConfirm}>
+                Log Out
+              </button>
+            </div>
           </div>
         </div>
+      )}
+      
+      {/* Topbar */}
+      <header className="topbar">
+        <div className="topbar-logo-section">
+          <img src={logo} alt="Logo" className="topbar-logo" />
+        </div>
 
-        <nav className="nav-section">
-          {/* Profile with dropdown */}
-          <div className="nav-item-dropdown">
-            <button
-              className={`nav-item ${activeTab === 'profile' ? 'active' : ''}`}
-              onClick={() => {
-                handleNavigation('/profile', 'profile');
-                setProfileDropdownOpen(prev => !prev);
-              }}
-            >
-              <CircleUser size={16} />
-              <span>Profile</span>
-              {profileDropdownOpen ? <ChevronUp size={14} style={{ marginLeft: 'auto' }} /> : <ChevronDown size={14} style={{ marginLeft: 'auto' }} />}
-            </button>
-
-            {profileDropdownOpen && (
-              <div className="nav-submenu">
-                <button className="nav-subitem" onClick={() => handleNavigation('/profile', 'profile')}>
-                  <User size={14} />
-                  <span>Edit Profile</span>
-                </button>
-                <button className="nav-subitem" onClick={() => handleNavigation('/profile', 'profile')}>
-                  <Bell size={14} />
-                  <span>Edit Notification</span>
-                </button>
-                <button className="nav-subitem" onClick={() => handleNavigation('/profile', 'profile')}>
-                  <HelpCircle size={14} />
-                  <span>Help Center</span>
-                </button>
-                <button className="nav-subitem" onClick={() => handleNavigation('/profile', 'profile')}>
-                  <Settings size={14} />
-                  <span>Settings</span>
-                </button>
-              </div>
-            )}
-          </div>
-           
-          <button 
+        <nav className="topbar-nav">
+          <button
             className={`nav-item ${activeTab === 'dashboard' ? 'active' : ''}`}
             onClick={() => handleNavigation('/dashboard', 'dashboard')}
           >
             <BarChart2 size={16} />
             <span>Dashboard</span>
           </button>
-          <button 
+          <button
             className={`nav-item ${activeTab === 'analytics' ? 'active' : ''}`}
             onClick={() => handleNavigation('/analytics', 'analytics')}
           >
             <Activity size={16} />
             <span>Analytics</span>
           </button>
-          <button 
+          <button
             className={`nav-item ${activeTab === 'history' ? 'active' : ''}`}
             onClick={() => handleNavigation('/history', 'history')}
           >
             <Clock size={16} />
             <span>History</span>
           </button>
-   
-          <button 
+          <button
             className={`nav-item ${activeTab === 'notification' ? 'active' : ''}`}
             onClick={() => handleNavigation('/notification', 'notification')}
           >
             <Bell size={16} />
             <span>Notification</span>
           </button>
- 
         </nav>
 
-        <button 
-          className="nav-item logout"
-          onClick={handleLogoutClick}
-        >
-          <LogOut size={16} />
-          <span>Log Out</span>
-        </button>
-      </div>
+        <div className="topbar-right">
+          <div className="profile-dropdown-wrapper">
+            <button
+              className={`nav-item ${activeTab === 'profile' ? 'active' : ''}`}
+              onClick={() => {
+                
+                setProfileDropdownOpen(prev => !prev);
+              }}
+            >
+              <CircleUser size={16} />
+              <span>Profile</span>
+              {profileDropdownOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+            </button>
+
+            {profileDropdownOpen && (
+              <div className="profile-submenu">
+                <button className="submenu-item" onClick={() => handleNavigation('/profile', 'profile')}>
+                  <User size={14} /><span>Edit Profile</span>
+                </button>
+                <button className="submenu-item" onClick={() => handleNavigation('/profile', 'profile')}>
+                  <Bell size={14} /><span>Edit Notification</span>
+                </button>
+                <button className="submenu-item" onClick={() => handleNavigation('/profile', 'profile')}>
+                  <HelpCircle size={14} /><span>Help Center</span>
+                </button>
+                <button className="submenu-item" onClick={() => handleNavigation('/profile', 'profile')}>
+                  <Settings size={14} /><span>Settings</span>
+                </button>
+              </div>
+            )}
+          </div>
+
+          <button className="nav-item logout" onClick={handleLogoutClick}>
+            <LogOut size={16} />
+            <span>Log Out</span>
+          </button>
+        </div>
+      </header>
 
       {/* Main Content for Notification*/}
       <div className="main-content">

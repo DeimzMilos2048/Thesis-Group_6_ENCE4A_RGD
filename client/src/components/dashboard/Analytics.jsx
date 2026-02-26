@@ -125,6 +125,40 @@ export default function Analytics({ view }) {
     </ResponsiveContainer>
   );
 
+  const MultiLineGraph = ({ arrays, colors, names, unit, minValue, maxValue }) => {
+    const data = (arrays[0] || []).map((item, index) => {
+      const point = { time: item?.time ?? '' };
+      arrays.forEach((arr, i) => {
+        point[`sensor${i + 1}`] = arr[index]?.value ?? null;
+      });
+      return point;
+    });
+
+    return (
+      <ResponsiveContainer width="100%" height="100%">
+        <LineChart data={data} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+          <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+          <XAxis dataKey="time" tick={{ fontSize: 12 }} />
+          <YAxis tick={{ fontSize: 12 }} unit={unit} domain={[minValue, maxValue]} />
+          <Tooltip />
+          <Legend />
+          {arrays.map((_, i) => (
+            <Line
+              key={i}
+              type="monotone"
+              dataKey={`sensor${i + 1}`}
+              name={names[i]}
+              stroke={colors[i]}
+              strokeWidth={2.5}
+              dot={{ r: 3 }}
+              isAnimationActive={false}
+            />
+          ))}
+        </LineChart>
+      </ResponsiveContainer>
+    );
+  };
+
   const combineDualData = (arr1 = [], arr2 = []) => {
 
   if (!Array.isArray(arr1)) arr1 = [];
@@ -176,74 +210,35 @@ export default function Analytics({ view }) {
         </div>
       )}
                 
-      {/* Sidebar */}
-      <div className="sidebar">
-        <div className="logo-section">
-          <div className="logo-box">
-            <img src={logo} alt="" className="sidebar-logo" />
-          </div>
+      {/* Topbar */}
+      <header className="topbar">
+        <div className="topbar-logo-section">
+          <img src={logo} alt="Logo" className="topbar-logo" />
         </div>
 
-        <nav className="nav-section">
-          {/* Profile with dropdown */}
-          <div className="nav-item-dropdown">
-            <button
-              className={`nav-item ${activeTab === 'profile' ? 'active' : ''}`}
-              onClick={() => {
-                handleNavigation('/profile', 'profile');
-                setProfileDropdownOpen(prev => !prev);
-              }}
-            >
-              <CircleUser size={16} />
-              <span>Profile</span>
-              {profileDropdownOpen ? <ChevronUp size={14} style={{ marginLeft: 'auto' }} /> : <ChevronDown size={14} style={{ marginLeft: 'auto' }} />}
-            </button>
-
-            {profileDropdownOpen && (
-              <div className="nav-submenu">
-                <button className="nav-subitem" onClick={() => handleNavigation('/profile', 'profile')}>
-                  <User size={14} />
-                  <span>Edit Profile</span>
-                </button>
-                <button className="nav-subitem" onClick={() => handleNavigation('/profile', 'profile')}>
-                  <Bell size={14} />
-                  <span>Edit Notification</span>
-                </button>
-                <button className="nav-subitem" onClick={() => handleNavigation('/profile', 'profile')}>
-                  <HelpCircle size={14} />
-                  <span>Help Center</span>
-                </button>
-                <button className="nav-subitem" onClick={() => handleNavigation('/profile', 'profile')}>
-                  <Settings size={14} />
-                  <span>Settings</span>
-                </button>
-              </div>
-            )}
-          </div>
-
-          <button 
+        <nav className="topbar-nav">
+          <button
             className={`nav-item ${activeTab === 'dashboard' ? 'active' : ''}`}
             onClick={() => handleNavigation('/dashboard', 'dashboard')}
           >
             <BarChart2 size={16} />
             <span>Dashboard</span>
           </button>
-          <button 
+          <button
             className={`nav-item ${activeTab === 'analytics' ? 'active' : ''}`}
             onClick={() => handleNavigation('/analytics', 'analytics')}
           >
             <Activity size={16} />
             <span>Analytics</span>
           </button>
-          <button 
+          <button
             className={`nav-item ${activeTab === 'history' ? 'active' : ''}`}
             onClick={() => handleNavigation('/history', 'history')}
           >
             <Clock size={16} />
             <span>History</span>
           </button>
-        
-          <button 
+          <button
             className={`nav-item ${activeTab === 'notification' ? 'active' : ''}`}
             onClick={() => handleNavigation('/notification', 'notification')}
           >
@@ -252,14 +247,43 @@ export default function Analytics({ view }) {
           </button>
         </nav>
 
-        <button 
-          className="nav-item logout"
-          onClick={handleLogoutClick}
-        >
-          <LogOut size={16} />
-          <span>Log Out</span>
-        </button>
-      </div>
+        <div className="topbar-right">
+          <div className="profile-dropdown-wrapper">
+            <button
+              className={`nav-item ${activeTab === 'profile' ? 'active' : ''}`}
+              onClick={() => {
+                setProfileDropdownOpen(prev => !prev);
+              }}
+            >
+              <CircleUser size={16} />
+              <span>Profile</span>
+              {profileDropdownOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+            </button>
+
+            {profileDropdownOpen && (
+              <div className="profile-submenu">
+                <button className="submenu-item" onClick={() => handleNavigation('/profile', 'profile')}>
+                  <User size={14} /><span>Edit Profile</span>
+                </button>
+                <button className="submenu-item" onClick={() => handleNavigation('/profile', 'profile')}>
+                  <Bell size={14} /><span>Edit Notification</span>
+                </button>
+                <button className="submenu-item" onClick={() => handleNavigation('/profile', 'profile')}>
+                  <HelpCircle size={14} /><span>Help Center</span>
+                </button>
+                <button className="submenu-item" onClick={() => handleNavigation('/profile', 'profile')}>
+                  <Settings size={14} /><span>Settings</span>
+                </button>
+              </div>
+            )}
+          </div>
+
+          <button className="nav-item logout" onClick={handleLogoutClick}>
+            <LogOut size={16} />
+            <span>Log Out</span>
+          </button>
+        </div>
+      </header>
 
       {/* Main Content for Analytics */}
       <div className="main-content">
@@ -271,33 +295,28 @@ export default function Analytics({ view }) {
 
           <div className="analytics-content">
 
-            {/* ── Moisture (2 sensors) ───────────────────────────────── */}
+            {/* ── Temperature (1 sensor) ─────────────────────────────── */}
             <div className="analytics-cards">
               <h3 className="analytics-card-title">
                 <div className="analytics-card-title-left">
-                  <Droplets size={24} /> Moisture Content
+                  <Thermometer size={24} /> Temperature
                 </div>
                 <div className="sensor-badges">
-                  <span className="sensor-badge" style={{ color: '#22c55e', backgroundColor: 'white' }}>
-                    S1: {fmt(latestValuesFromSocket.moisture1, '%')}
-                  </span>
-                  <span className="sensor-badge" style={{ color: '#16a34a', backgroundColor: 'white' }}>
-                    S2: {fmt(latestValuesFromSocket.moisture2, '%')}
+                  <span className="sensor-badge" style={{ color: '#efb944ff', backgroundColor: 'white' }}>
+                    {fmt(latestValuesFromSocket.temperature, '°C')}
                   </span>
                 </div>
               </h3>
               <div className="analytics-card-status">
-                <DualLineGraph
-                  data={combineDualData(
-                    chartDataFromSocket.moisture1,
-                    chartDataFromSocket.moisture2
-                  )}
-                  color1="#22c55e"
-                  color2="#16a34a"
-                  unit="%"
+                <SingleLineGraph
+                  data={Array.isArray(chartDataFromSocket.temperature)
+                    ? chartDataFromSocket.temperature
+                    : []}
+                  color="#efb944ff"
+                  unit="°C"
                   minValue={0}
                   maxValue={100}
-                />  
+                />
               </div>
             </div>
 
@@ -326,32 +345,53 @@ export default function Analytics({ view }) {
               </div>
             </div>
 
-            {/* ── Temperature (1 sensor) ─────────────────────────────── */}
+            {/* ── Moisture (6 sensors) ───────────────────────────────── */}
             <div className="analytics-cards">
               <h3 className="analytics-card-title">
                 <div className="analytics-card-title-left">
-                  <Thermometer size={24} /> Temperature
+                  <Droplets size={24} /> Moisture Content
                 </div>
                 <div className="sensor-badges">
-                  <span className="sensor-badge" style={{ color: '#efb944ff', backgroundColor: 'white' }}>
-                    {fmt(latestValuesFromSocket.temperature, '°C')}
+                  <span className="sensor-badge" style={{ color: '#22c55e', backgroundColor: 'white' }}>
+                    S1: {fmt(latestValuesFromSocket.moisture1, '%')}
+                  </span>
+                  <span className="sensor-badge" style={{ color: '#16a34a', backgroundColor: 'white' }}>
+                    S2: {fmt(latestValuesFromSocket.moisture2, '%')}
+                  </span>
+                  <span className="sensor-badge" style={{ color: '#15803d', backgroundColor: 'white' }}>
+                    S3: {fmt(latestValuesFromSocket.moisture3, '%')}
+                  </span>
+                  <span className="sensor-badge" style={{ color: '#166534', backgroundColor: 'white' }}>
+                    S4: {fmt(latestValuesFromSocket.moisture4, '%')}
+                  </span>
+                  <span className="sensor-badge" style={{ color: '#14532d', backgroundColor: 'white' }}>
+                    S5: {fmt(latestValuesFromSocket.moisture5, '%')}
+                  </span>
+                  <span className="sensor-badge" style={{ color: '#052e16', backgroundColor: 'white' }}>
+                    S6: {fmt(latestValuesFromSocket.moisture6, '%')}
                   </span>
                 </div>
               </h3>
               <div className="analytics-card-status">
-                <SingleLineGraph
-                  data={Array.isArray(chartDataFromSocket.temperature)
-                    ? chartDataFromSocket.temperature
-                    : []}
-                  color="#efb944ff"
-                  unit="°C"
+                <MultiLineGraph
+                  arrays={[
+                    Array.isArray(chartDataFromSocket.moisture1) ? chartDataFromSocket.moisture1 : [],
+                    Array.isArray(chartDataFromSocket.moisture2) ? chartDataFromSocket.moisture2 : [],
+                    Array.isArray(chartDataFromSocket.moisture3) ? chartDataFromSocket.moisture3 : [],
+                    Array.isArray(chartDataFromSocket.moisture4) ? chartDataFromSocket.moisture4 : [],
+                    Array.isArray(chartDataFromSocket.moisture5) ? chartDataFromSocket.moisture5 : [],
+                    Array.isArray(chartDataFromSocket.moisture6) ? chartDataFromSocket.moisture6 : [],
+                  ]}
+                  colors={['#22c55e', '#16a34a', '#15803d', '#166534', '#14532d', '#052e16']}
+                  names={['Sensor 1', 'Sensor 2', 'Sensor 3', 'Sensor 4', 'Sensor 5', 'Sensor 6']}
+                  unit="%"
                   minValue={0}
                   maxValue={100}
                 />
               </div>
             </div>
 
-            {/* ── Weight (2 sensors) ─────────────────────────────────── */}
+            {/* ── Weight (6 sensors) ─────────────────────────────────── */}
             <div className="analytics-cards">
               <h3 className="analytics-card-title">
                 <div className="analytics-card-title-left">
@@ -361,19 +401,35 @@ export default function Analytics({ view }) {
                   <span className="sensor-badge" style={{ color: '#9E9E9E', backgroundColor: 'white' }}>
                     S1: {fmt(latestValuesFromSocket.weight1, 'kg')}
                   </span>
-                  <span className="sensor-badge" style={{ color: '#9E9E9EAD', backgroundColor: 'white' }}>
+                  <span className="sensor-badge" style={{ color: '#757575', backgroundColor: 'white' }}>
                     S2: {fmt(latestValuesFromSocket.weight2, 'kg')}
+                  </span>
+                  <span className="sensor-badge" style={{ color: '#616161', backgroundColor: 'white' }}>
+                    S3: {fmt(latestValuesFromSocket.weight3, 'kg')}
+                  </span>
+                  <span className="sensor-badge" style={{ color: '#424242', backgroundColor: 'white' }}>
+                    S4: {fmt(latestValuesFromSocket.weight4, 'kg')}
+                  </span>
+                  <span className="sensor-badge" style={{ color: '#212121', backgroundColor: 'white' }}>
+                    S5: {fmt(latestValuesFromSocket.weight5, 'kg')}
+                  </span>
+                  <span className="sensor-badge" style={{ color: '#000000', backgroundColor: 'white' }}>
+                    S6: {fmt(latestValuesFromSocket.weight6, 'kg')}
                   </span>
                 </div>
               </h3>
               <div className="analytics-card-status">
-                <DualLineGraph
-                  data={combineDualData(
-                    chartDataFromSocket.weight1,
-                    chartDataFromSocket.weight2
-                  )}
-                  color1="#9E9E9E"
-                  color2="#9E9E9EAD"
+                <MultiLineGraph
+                  arrays={[
+                    Array.isArray(chartDataFromSocket.weight1) ? chartDataFromSocket.weight1 : [],
+                    Array.isArray(chartDataFromSocket.weight2) ? chartDataFromSocket.weight2 : [],
+                    Array.isArray(chartDataFromSocket.weight3) ? chartDataFromSocket.weight3 : [],
+                    Array.isArray(chartDataFromSocket.weight4) ? chartDataFromSocket.weight4 : [],
+                    Array.isArray(chartDataFromSocket.weight5) ? chartDataFromSocket.weight5 : [],
+                    Array.isArray(chartDataFromSocket.weight6) ? chartDataFromSocket.weight6 : [],
+                  ]}
+                  colors={['#9E9E9E', '#757575', '#616161', '#424242', '#212121', '#000000']}
+                  names={['Sensor 1', 'Sensor 2', 'Sensor 3', 'Sensor 4', 'Sensor 5', 'Sensor 6']}
                   unit="kg"
                   minValue={0}
                   maxValue={50}

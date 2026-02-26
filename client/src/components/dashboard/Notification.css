@@ -1,3 +1,148 @@
+/* NEW: Popup Notifications Styles */
+.popup-notifications-container {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 350px;
+}
+
+.popup-notification {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  border-left: 4px solid #ccc;
+  padding: 12px 16px;
+  cursor: pointer;
+  animation: slideInRight 0.3s ease-out;
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.popup-notification:hover {
+  transform: translateX(-5px);
+  box-shadow: 0 6px 25px rgba(0, 0, 0, 0.2);
+}
+
+.popup-notification.critical {
+  border-left-color: #dc3545;
+  background: linear-gradient(135deg, #fff 0%, #fff5f5 100%);
+}
+
+.popup-notification.warning {
+  border-left-color: #ffc107;
+  background: linear-gradient(135deg, #fff 0%, #fffbf0 100%);
+}
+
+.popup-notification.info {
+  border-left-color: #17a2b8;
+  background: linear-gradient(135deg, #fff 0%, #f0f8ff 100%);
+}
+
+.popup-notification-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.popup-notification-type {
+  font-weight: 600;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.popup-notification.critical .popup-notification-type {
+  color: #dc3545;
+}
+
+.popup-notification.warning .popup-notification-type {
+  color: #e0a800;
+}
+
+.popup-notification.info .popup-notification-type {
+  color: #17a2b8;
+}
+
+.popup-notification-close {
+  margin-left: auto;
+  background: none;
+  border: none;
+  font-size: 18px;
+  cursor: pointer;
+  color: #666;
+  padding: 0;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+}
+
+.popup-notification-close:hover {
+  background: rgba(0, 0, 0, 0.1);
+  color: #333;
+}
+
+.popup-notification-message {
+  font-size: 14px;
+  line-height: 1.4;
+  color: #333;
+  margin-bottom: 6px;
+}
+
+.popup-notification-time {
+  font-size: 11px;
+  color: #666;
+  opacity: 0.8;
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes fadeOut {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+  .popup-notifications-container {
+    top: 10px;
+    right: 10px;
+    left: 10px;
+    max-width: none;
+  }
+  
+  .popup-notification {
+    padding: 10px 12px;
+  }
+  
+  .popup-notification-message {
+    font-size: 13px;
+  }
+}
+
 .alert-summary {
   display: flex;
   gap: 16px;
