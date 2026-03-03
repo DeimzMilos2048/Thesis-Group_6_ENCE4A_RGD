@@ -21,7 +21,7 @@ export default function Analytics({ view }) {
     moisture1: null, moisture2: null,
     humidity: null,
     temperature: null,
-    weight1: null, weight2: null,
+    weight1: null, 
   });
 
   const { 
@@ -315,7 +315,7 @@ export default function Analytics({ view }) {
                   color="#efb944ff"
                   unit="°C"
                   minValue={0}
-                  maxValue={100}
+                  maxValue={60}
                 />
               </div>
             </div>
@@ -386,7 +386,7 @@ export default function Analytics({ view }) {
                   names={['Sensor 1', 'Sensor 2', 'Sensor 3', 'Sensor 4', 'Sensor 5', 'Sensor 6']}
                   unit="%"
                   minValue={0}
-                  maxValue={100}
+                  maxValue={30}
                 />
               </div>
             </div>
@@ -409,7 +409,7 @@ export default function Analytics({ view }) {
                   color="#9E9E9E"
                   unit="kg"
                   minValue={0}
-                  maxValue={50}
+                  maxValue={6}
                 />
               </div>
             </div>

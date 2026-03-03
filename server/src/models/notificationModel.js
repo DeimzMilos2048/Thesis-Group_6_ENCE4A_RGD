@@ -6,8 +6,11 @@ const SensorDataSchema = new mongoose.Schema({
   humidity: Number,
   moisture1: Number,
   moisture2: Number,
+  moisture3: Number,
+  moisture4: Number,
+  moisture5: Number,
+  moisture6: Number,
   weight1: Number,
-  weight2: Number
 }, { _id: false });
 
 const ThresholdSchema = new mongoose.Schema({
@@ -15,7 +18,12 @@ const ThresholdSchema = new mongoose.Schema({
   temperatureMin: Number, 
   humidityMax: Number,
   humidityMin: Number,
-  moistureTarget: Number,
+  moisture1Target: Number,
+  moisture2Target: Number,
+  moisture3Target: Number,
+  moisture4Target: Number,
+  moisture5Target: Number,
+  moisture6Target: Number,
   weightMax: Number
 }, { _id: false });
 

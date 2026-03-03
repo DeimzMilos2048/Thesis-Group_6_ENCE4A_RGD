@@ -8,9 +8,10 @@ const getBaseURL = () => {
       'http://localhost:5001',
       'http://192.168.0.109:5001',
       'http://127.0.0.1:5001',
+      'http://10.103.40.83:5001'
     ];
   } else {
-    return ['https://mala-luin.onrender.com'];
+    return ['https://mala-backend-q03k.onrender.com'];
   }
 };
 

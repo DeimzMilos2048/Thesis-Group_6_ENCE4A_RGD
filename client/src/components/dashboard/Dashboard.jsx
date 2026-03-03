@@ -335,7 +335,6 @@ export default function RiceDryingDashboard({ view }) {
                     <div className="six-sensor-column">
                       {[1].map(i => (
                         <div className="six-sensor-item" key={`wb-l-${i}`}>
-                          <div className="sensor-sublabel">TRAY{i}</div>
                           <div className="sensor-value-sm">{(sensorData[`weight${i}`] || 0).toFixed(1)}kg</div>
                           <div className="progress-bar">
                             <div className="progress-fill green" style={{ width: `${Math.min(((sensorData[`weight${i}`] || 0) / 2) * 100, 100)}%` }}></div>
@@ -353,7 +352,6 @@ export default function RiceDryingDashboard({ view }) {
                     <div className="six-sensor-column">
                       {[1].map(i => (
                         <div className="six-sensor-item" key={`wa-l-${i}`}>
-                          <div className="sensor-sublabel">TRAY{i}</div>
                           <div className="sensor-value-sm">{(sensorData[`weight${i}`] || 0).toFixed(1)}kg</div>
                           <div className="progress-bar">
                             <div className="progress-fill green" style={{ width: `${Math.min(((sensorData[`weight${i}`] || 0) / 2) * 100, 100)}%` }}></div>

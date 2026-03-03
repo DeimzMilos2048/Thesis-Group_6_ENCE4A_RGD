@@ -130,26 +130,87 @@ export default function History({ view }) {
           }
           
           // Transform database data to match table format
-          const formattedData = sensorData.map((item, index) => ({
-            id: item._id || item.id || index + 1,
-            date: item.timestamp ? new Date(item.timestamp).toLocaleDateString('en-US', { 
-              month: '2-digit', 
-              day: '2-digit', 
-              year: 'numeric' 
-            }) : 'N/A',
-            time: item.timestamp ? new Date(item.timestamp).toLocaleTimeString('en-US', { 
-              hour: '2-digit', 
-              minute: '2-digit',
-              hour12: true 
-            }) : 'N/A',
-            moisture: item.moisture1 !== undefined ? item.moisture1.toString() : 
-                     item.moisture !== undefined ? item.moisture.toString() : '0',
-            temperature: item.temperature !== undefined ? `${item.temperature}°` : '0°',
-            humidity: item.humidity !== undefined ? item.humidity.toString() : '0',
-            weight: item.weight1 !== undefined ? item.weight1.toString() : 
-                   item.weight !== undefined ? item.weight.toString() : '0',
-            status: item.status || 'Idle'
-          }));
+          const formattedData = sensorData.map((item, index) => {
+            const beforeWeightValue =
+              item.weightBefore ??
+              item.initialWeight ??
+              item.weight1 ??
+              item.weight;
+
+            const safeToString = (value, fallback = 'N/A') =>
+              value !== undefined && value !== null ? value.toString() : fallback;
+
+            return {
+              id: item._id || item.id || index + 1,
+              date: item.timestamp
+                ? new Date(item.timestamp).toLocaleDateString('en-US', {
+                    month: '2-digit',
+                    day: '2-digit',
+                    year: 'numeric',
+                  })
+                : 'N/A',
+              // Starting time of the session
+              startTime:
+                item.startTime ||
+                (item.timestamp
+                  ? new Date(item.timestamp).toLocaleTimeString('en-US', {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                      hour12: true,
+                    })
+                  : 'N/A'),
+              // End time of the session (if provided by backend)
+              endTime: item.endTime
+                ? new Date(item.endTime).toLocaleTimeString('en-US', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: true,
+                  })
+                : 'N/A',
+              // Initial moisture per tray (1–6)
+              initialMoistureT1: safeToString(item.moisture1),
+              initialMoistureT2: safeToString(item.moisture2),
+              initialMoistureT3: safeToString(item.moisture3),
+              initialMoistureT4: safeToString(item.moisture4),
+              initialMoistureT5: safeToString(item.moisture5),
+              initialMoistureT6: safeToString(item.moisture6),
+              // Final moisture per tray (1–6) – uses dedicated fields if backend provides them
+              finalMoistureT1: safeToString(
+                item.finalMoisture1 ?? item.moisture1End
+              ),
+              finalMoistureT2: safeToString(
+                item.finalMoisture2 ?? item.moisture2End
+              ),
+              finalMoistureT3: safeToString(
+                item.finalMoisture3 ?? item.moisture3End
+              ),
+              finalMoistureT4: safeToString(
+                item.finalMoisture4 ?? item.moisture4End
+              ),
+              finalMoistureT5: safeToString(
+                item.finalMoisture5 ?? item.moisture5End
+              ),
+              finalMoistureT6: safeToString(
+                item.finalMoisture6 ?? item.moisture6End
+              ),
+              temperature:
+                item.temperature !== undefined ? `${item.temperature}°` : '0°',
+              humidity:
+                item.humidity !== undefined ? item.humidity.toString() : '0',
+              // Before drying weight
+              beforeWeight:
+                beforeWeightValue !== undefined && beforeWeightValue !== null
+                  ? beforeWeightValue.toString()
+                  : '0',
+              // Final weight after drying
+              finalWeight:
+                item.weightFinal ??
+                item.finalWeight ??
+                item.weight2 ??
+                'N/A',
+              status: item.status || 'Idle',
+            };
+          });
           
           console.log('Formatted History Data:', formattedData);
           setHistoryData(formattedData);
@@ -319,28 +380,44 @@ export default function History({ view }) {
       <div className="main-content">
         <div className="unified-dashboard">
           {/* Header */}
-          <div className="dashboard-header">
-            <h1>History</h1>
-            <p>Review past drying sessions and activity.</p>
-          </div>
-
-          <div className="history-container">
-              <button className="download-btn" onClick={handleDownloadExcel}>
-                Export Excel
-              </button>
+          <div className="dashboard-header history-header">
+            <div className="history-header-text">
+              <h1>History</h1>
+              <p>Review past drying sessions and activity.</p>
+            </div>
+            <button className="download-btn" onClick={handleDownloadExcel}>
+              Export Excel
+            </button>
           </div>
 
            <div className="table-wrapper">
         <table className="history-table">
           <thead>
             <tr>
-              <th>Date</th>
-              <th>Time</th>
-              <th>Moisture Content</th>
-              <th>Temperature</th>
-              <th>Humidity</th>
-              <th>Weight</th>
-              <th>Status</th>
+              <th rowSpan="2">Date</th>
+              <th rowSpan="2">Starting Time</th>
+              <th rowSpan="2">End Time</th>
+              <th colSpan="6">Initial Moisture (6 Trays)</th>
+              <th colSpan="6">Final Moisture (6 Trays)</th>
+              <th rowSpan="2">Temperature</th>
+              <th rowSpan="2">Humidity</th>
+              <th rowSpan="2">Before Weight</th>
+              <th rowSpan="2">Final Weight</th>
+              <th rowSpan="2">Status</th>
+            </tr>
+            <tr>
+              <th>T1</th>
+              <th>T2</th>
+              <th>T3</th>
+              <th>T4</th>
+              <th>T5</th>
+              <th>T6</th>
+              <th>T1</th>
+              <th>T2</th>
+              <th>T3</th>
+              <th>T4</th>
+              <th>T5</th>
+              <th>T6</th>
             </tr>
           </thead>
 
@@ -348,11 +425,24 @@ export default function History({ view }) {
             {historyData.map((item) => (
               <tr key={item.id}>
                 <td>{item.date}</td>
-                <td>{item.time}</td>
-                <td>{item.moisture}</td>
+                <td>{item.startTime}</td>
+                <td>{item.endTime}</td>
+                <td>{item.initialMoistureT1}</td>
+                <td>{item.initialMoistureT2}</td>
+                <td>{item.initialMoistureT3}</td>
+                <td>{item.initialMoistureT4}</td>
+                <td>{item.initialMoistureT5}</td>
+                <td>{item.initialMoistureT6}</td>
+                <td>{item.finalMoistureT1}</td>
+                <td>{item.finalMoistureT2}</td>
+                <td>{item.finalMoistureT3}</td>
+                <td>{item.finalMoistureT4}</td>
+                <td>{item.finalMoistureT5}</td>
+                <td>{item.finalMoistureT6}</td>
                 <td>{item.temperature}</td>
                 <td>{item.humidity}</td>
-                <td>{item.weight}</td>
+                <td>{item.beforeWeight}</td>
+                <td>{item.finalWeight}</td>
                 <td>
                   <span className={`status ${item.status.toLowerCase()}`}>
                     {item.status}

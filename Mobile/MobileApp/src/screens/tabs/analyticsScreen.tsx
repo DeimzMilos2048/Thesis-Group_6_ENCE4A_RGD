@@ -99,7 +99,7 @@ const AnalyticsScreen = () => {
     console.log('Analytics: Attempting to connect to socket...');
 
      const SOCKET_URL = __DEV__ 
-      ? 'http://192.168.86.144:5001'        
+      ? 'http://10.103.40.83:5001'        
        : 'https://mala-backend-q03k.onrender.com'; 
     
     const socket = io(SOCKET_URL, {
