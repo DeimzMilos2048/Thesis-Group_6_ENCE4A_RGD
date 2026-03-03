@@ -86,10 +86,13 @@ const AnalyticsScreen = () => {
   const [chartData, setChartData] = useState({
     moisture1: [] as number[],
     moisture2: [] as number[],
+    moisture3: [] as number[],
+    moisture4: [] as number[],
+    moisture5: [] as number[],
+    moisture6: [] as number[],
     humidity: [] as number[],
     temperature: [] as number[],
     weight1: [] as number[],
-    weight2: [] as number[],
   });
 
   useEffect(() => {
@@ -132,6 +135,22 @@ const AnalyticsScreen = () => {
             ...prevData.moisture2,
             typeof data.moisture2 === 'number' ? data.moisture2 : 0
           ].slice(-maxDataPoints),
+          moisture3: [
+            ...prevData.moisture3,
+            typeof data.moisture3 === 'number' ? data.moisture3 : 0
+          ].slice(-maxDataPoints),
+          moisture4: [
+            ...prevData.moisture4,
+            typeof data.moisture4 === 'number' ? data.moisture4 : 0
+          ].slice(-maxDataPoints),
+          moisture5: [
+            ...prevData.moisture5,
+            typeof data.moisture5 === 'number' ? data.moisture5 : 0
+          ].slice(-maxDataPoints),
+          moisture6: [
+            ...prevData.moisture6,
+            typeof data.moisture6 === 'number' ? data.moisture6 : 0
+          ].slice(-maxDataPoints),
           humidity: [
             ...prevData.humidity,
             typeof data.humidity === 'number' ? data.humidity : 0
@@ -143,10 +162,6 @@ const AnalyticsScreen = () => {
           weight1: [
             ...prevData.weight1,
             typeof data.weight1 === 'number' ? data.weight1 : 0
-          ].slice(-maxDataPoints),
-          weight2: [
-            ...prevData.weight2,
-            typeof data.weight2 === 'number' ? data.weight2 : 0
           ].slice(-maxDataPoints),
         };
       });
@@ -166,6 +181,8 @@ const AnalyticsScreen = () => {
     };
   }, []);
 
+  const moistureColors = ['#22c55e', '#16a34a', '#15803d', '#166534', '#14532d', '#052e16'];
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
@@ -175,30 +192,21 @@ const AnalyticsScreen = () => {
 
           <View style={styles.card}>
             <Text style={styles.title}>Moisture Content</Text>
-
-            <View style={styles.sensorRow}>
-              <Text style={styles.sensorLabel}>Sensor 1</Text>
-              <Text style={styles.sensorValue}>{latestValue(chartData.moisture1, '%')}</Text>
-            </View>
-            <LiveLineGraph
-              data={chartData.moisture1}
-              color="#22c55e"
-              unit="%"
-              minValue={0}
-              maxValue={100}
-            />
-
-            <View style={styles.sensorRow}>
-              <Text style={styles.sensorLabel}>Sensor 2</Text>
-              <Text style={styles.sensorValue}>{latestValue(chartData.moisture2, '%')}</Text>
-            </View>
-            <LiveLineGraph
-              data={chartData.moisture2}
-              color="#16a34a"
-              unit="%"
-              minValue={0}
-              maxValue={100}
-            />
+            {[1, 2, 3, 4, 5, 6].map(i => (
+              <View key={`moisture-${i}`} style={{ width: '100%' }}>
+                <View style={styles.sensorRow}>
+                  <Text style={styles.sensorLabel}>Sensor {i}</Text>
+                  <Text style={styles.sensorValue}>{latestValue(chartData[`moisture${i}` as keyof typeof chartData] as number[], '%')}</Text>
+                </View>
+                <LiveLineGraph
+                  data={chartData[`moisture${i}` as keyof typeof chartData] as number[]}
+                  color={moistureColors[i - 1]}
+                  unit="%"
+                  minValue={0}
+                  maxValue={100}
+                />
+              </View>
+            ))}
           </View>
 
           <View style={styles.card}>
@@ -233,7 +241,6 @@ const AnalyticsScreen = () => {
 
           <View style={styles.card}>
             <Text style={styles.title}>Weight</Text>
-
             <View style={styles.sensorRow}>
               <Text style={styles.sensorLabel}>Sensor 1</Text>
               <Text style={styles.sensorValue}>{latestValue(chartData.weight1, 'kg')}</Text>
@@ -241,18 +248,6 @@ const AnalyticsScreen = () => {
             <LiveLineGraph
               data={chartData.weight1}
               color="#9E9E9E"
-              unit="kg"
-              minValue={0}
-              maxValue={50}
-            />
-
-            <View style={styles.sensorRow}>
-              <Text style={styles.sensorLabel}>Sensor 2</Text>
-              <Text style={styles.sensorValue}>{latestValue(chartData.weight2, 'kg')}</Text>
-            </View>
-            <LiveLineGraph
-              data={chartData.weight2}
-              color="#9e9e9ead"
               unit="kg"
               minValue={0}
               maxValue={50}

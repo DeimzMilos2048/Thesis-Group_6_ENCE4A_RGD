@@ -391,7 +391,7 @@ export default function Analytics({ view }) {
               </div>
             </div>
 
-            {/* ── Weight (6 sensors) ─────────────────────────────────── */}
+            {/* ── Weight (1 sensor only) ─────────────────────────────── */}
             <div className="analytics-cards">
               <h3 className="analytics-card-title">
                 <div className="analytics-card-title-left">
@@ -401,35 +401,12 @@ export default function Analytics({ view }) {
                   <span className="sensor-badge" style={{ color: '#9E9E9E', backgroundColor: 'white' }}>
                     S1: {fmt(latestValuesFromSocket.weight1, 'kg')}
                   </span>
-                  <span className="sensor-badge" style={{ color: '#757575', backgroundColor: 'white' }}>
-                    S2: {fmt(latestValuesFromSocket.weight2, 'kg')}
-                  </span>
-                  <span className="sensor-badge" style={{ color: '#616161', backgroundColor: 'white' }}>
-                    S3: {fmt(latestValuesFromSocket.weight3, 'kg')}
-                  </span>
-                  <span className="sensor-badge" style={{ color: '#424242', backgroundColor: 'white' }}>
-                    S4: {fmt(latestValuesFromSocket.weight4, 'kg')}
-                  </span>
-                  <span className="sensor-badge" style={{ color: '#212121', backgroundColor: 'white' }}>
-                    S5: {fmt(latestValuesFromSocket.weight5, 'kg')}
-                  </span>
-                  <span className="sensor-badge" style={{ color: '#000000', backgroundColor: 'white' }}>
-                    S6: {fmt(latestValuesFromSocket.weight6, 'kg')}
-                  </span>
                 </div>
               </h3>
               <div className="analytics-card-status">
-                <MultiLineGraph
-                  arrays={[
-                    Array.isArray(chartDataFromSocket.weight1) ? chartDataFromSocket.weight1 : [],
-                    Array.isArray(chartDataFromSocket.weight2) ? chartDataFromSocket.weight2 : [],
-                    Array.isArray(chartDataFromSocket.weight3) ? chartDataFromSocket.weight3 : [],
-                    Array.isArray(chartDataFromSocket.weight4) ? chartDataFromSocket.weight4 : [],
-                    Array.isArray(chartDataFromSocket.weight5) ? chartDataFromSocket.weight5 : [],
-                    Array.isArray(chartDataFromSocket.weight6) ? chartDataFromSocket.weight6 : [],
-                  ]}
-                  colors={['#9E9E9E', '#757575', '#616161', '#424242', '#212121', '#000000']}
-                  names={['Sensor 1', 'Sensor 2', 'Sensor 3', 'Sensor 4', 'Sensor 5', 'Sensor 6']}
+                <SingleLineGraph
+                  data={Array.isArray(chartDataFromSocket.weight1) ? chartDataFromSocket.weight1 : []}
+                  color="#9E9E9E"
                   unit="kg"
                   minValue={0}
                   maxValue={50}

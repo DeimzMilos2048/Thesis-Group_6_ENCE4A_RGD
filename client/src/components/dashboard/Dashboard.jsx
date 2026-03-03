@@ -282,7 +282,7 @@ export default function RiceDryingDashboard({ view }) {
                     <div className="sensor-range">Target: &lt;100%</div>
                   </div>
 
-                  <div className="sensor-card" style={{ gridColumn: '1 / -1' }}>
+                  <div className="sensor-card">
                     <div className="sensor-icon cyan"><Waves size={24} /></div>
                     <div className="sensor-label">Moisture Content</div>
                     <div className="six-sensor-container">
@@ -325,7 +325,7 @@ export default function RiceDryingDashboard({ view }) {
                     <div className="sensor-range">Target: 13-14%</div>
                   </div>
 
-                  <div className="sensor-card" style={{ gridColumn: '1 / -1' }}>
+                  <div className="sensor-card">
                   <div className="sensor-icon green"><Weight size={24} /></div>
                   <div className="sensor-label">Weight</div>
 
@@ -333,32 +333,8 @@ export default function RiceDryingDashboard({ view }) {
                   <div style={{ fontSize: '10px', fontWeight: '600', color: '#9ca3af', marginBottom: '4px', textAlign: 'center', letterSpacing: '0.5px' }}>BEFORE</div>
                   <div className="six-sensor-container">
                     <div className="six-sensor-column">
-                      {[1, 2].map(i => (
+                      {[1].map(i => (
                         <div className="six-sensor-item" key={`wb-l-${i}`}>
-                          <div className="sensor-sublabel">TRAY{i}</div>
-                          <div className="sensor-value-sm">{(sensorData[`weight${i}`] || 0).toFixed(1)}kg</div>
-                          <div className="progress-bar">
-                            <div className="progress-fill green" style={{ width: `${Math.min(((sensorData[`weight${i}`] || 0) / 2) * 100, 100)}%` }}></div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                    <div className="six-sensor-divider"></div>
-                    <div className="six-sensor-column">
-                      {[3, 4].map(i => (
-                        <div className="six-sensor-item" key={`wb-m-${i}`}>
-                          <div className="sensor-sublabel">TRAY{i}</div>
-                          <div className="sensor-value-sm">{(sensorData[`weight${i}`] || 0).toFixed(1)}kg</div>
-                          <div className="progress-bar">
-                            <div className="progress-fill green" style={{ width: `${Math.min(((sensorData[`weight${i}`] || 0) / 2) * 100, 100)}%` }}></div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                    <div className="six-sensor-divider"></div>
-                    <div className="six-sensor-column">
-                      {[5, 6].map(i => (
-                        <div className="six-sensor-item" key={`wb-r-${i}`}>
                           <div className="sensor-sublabel">TRAY{i}</div>
                           <div className="sensor-value-sm">{(sensorData[`weight${i}`] || 0).toFixed(1)}kg</div>
                           <div className="progress-bar">
@@ -375,32 +351,8 @@ export default function RiceDryingDashboard({ view }) {
                   <div style={{ fontSize: '10px', fontWeight: '600', color: '#9ca3af', marginBottom: '4px', textAlign: 'center', letterSpacing: '0.5px' }}>AFTER</div>
                   <div className="six-sensor-container">
                     <div className="six-sensor-column">
-                      {[1, 2].map(i => (
+                      {[1].map(i => (
                         <div className="six-sensor-item" key={`wa-l-${i}`}>
-                          <div className="sensor-sublabel">TRAY{i}</div>
-                          <div className="sensor-value-sm">{(sensorData[`weight${i}`] || 0).toFixed(1)}kg</div>
-                          <div className="progress-bar">
-                            <div className="progress-fill green" style={{ width: `${Math.min(((sensorData[`weight${i}`] || 0) / 2) * 100, 100)}%` }}></div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                    <div className="six-sensor-divider"></div>
-                    <div className="six-sensor-column">
-                      {[3, 4].map(i => (
-                        <div className="six-sensor-item" key={`wa-m-${i}`}>
-                          <div className="sensor-sublabel">TRAY{i}</div>
-                          <div className="sensor-value-sm">{(sensorData[`weight${i}`] || 0).toFixed(1)}kg</div>
-                          <div className="progress-bar">
-                            <div className="progress-fill green" style={{ width: `${Math.min(((sensorData[`weight${i}`] || 0) / 2) * 100, 100)}%` }}></div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                    <div className="six-sensor-divider"></div>
-                    <div className="six-sensor-column">
-                      {[5, 6].map(i => (
-                        <div className="six-sensor-item" key={`wa-r-${i}`}>
                           <div className="sensor-sublabel">TRAY{i}</div>
                           <div className="sensor-value-sm">{(sensorData[`weight${i}`] || 0).toFixed(1)}kg</div>
                           <div className="progress-bar">
@@ -431,7 +383,7 @@ export default function RiceDryingDashboard({ view }) {
                     {isProcessing ? (<><span className="processing-dot"></span>Processing...</>) : 'Start'}
                   </button>
                   <button className="stop-button" onClick={handleStop}>
-                    <StopCircle size={20} />
+                    <StopCircle size={20} /> 
                     Stop
                   </button>
                 </div>

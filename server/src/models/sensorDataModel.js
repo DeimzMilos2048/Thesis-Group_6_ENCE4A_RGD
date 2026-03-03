@@ -64,41 +64,6 @@ const sensorDataSchema = new mongoose.Schema(
       min: 0,
       max: 1.5
     },
-    weight2: {
-      type: Number,
-      required: true,
-      default: 0,
-      min: 0,
-      max: 1.5
-    },
-    weight3: {
-      type: Number,
-      required: true,
-      default: 0,
-      min: 0,
-      max: 1.5
-    },
-    weight4: {
-      type: Number,
-      required: true,
-      default: 0,
-      min: 0,
-      max: 1.5
-    },
-    weight5: {
-      type: Number,
-      required: true,
-      default: 0,
-      min: 0,
-      max: 1.5
-    },
-    weight6: {
-      type: Number,
-      required: true,
-      default: 0,
-      min: 0,
-      max: 1.5
-    },
     status: {
       type: String,
       enum: ['Idle', 'Drying', 'Finished', 'Error', 'Warning'],

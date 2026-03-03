@@ -3,7 +3,7 @@ import sendNotification from './notificationController.js';
 export const updateSensor = async (req, res) => {
     try{
         const {deviceId, powerStatus,temperature,humidity,moisture1,moisture2,moisture3,moisture4,moisture5,moisture6,
-            weight1,weight2,weight3,weight4,weight5,weight6} = req.body;
+            weight1} = req.body;
 
         const sensorData = await Sensor.create({
             deviceId,
@@ -17,11 +17,6 @@ export const updateSensor = async (req, res) => {
             moisture5,
             moisture6,
             weight1,
-            weight2,
-            weight3,
-            weight4,
-            weight5,
-            weight6
         });
 
         if(!powerStatus){

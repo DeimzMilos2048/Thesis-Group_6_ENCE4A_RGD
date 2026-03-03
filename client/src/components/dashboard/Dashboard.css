@@ -259,6 +259,7 @@
   flex: 1;
 }
 
+/* ── MODIFIED: sensor card now has a visible border outline ── */
 .sensor-card {
   display: flex;
   flex-direction: column;
@@ -266,10 +267,16 @@
   text-align: center;
   padding: 10px;
   border-radius: 8px;
-  transition: background-color 0.2s;
+  border: 1.5px solid #e5e7eb;
+  transition: background-color 0.2s, border-color 0.2s, box-shadow 0.2s;
 }
 
-.sensor-card:hover { background-color: #f9fafb; }
+.sensor-card:hover {
+  background-color: #f9fafb;
+  border-color: #10b981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+}
+/* ─────────────────────────────────────────────────────────── */
 
 .sensor-icon {
   display: inline-flex;

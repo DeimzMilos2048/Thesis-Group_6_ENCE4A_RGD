@@ -1,16 +1,15 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// Use the same AUTH_URL as web app
 const getBaseURL = () => {
-  // For React Native, we need to use different localhost for emulator
-  const isDev = __DEV__;
-  
-  if (isDev) {
-    // Try multiple URLs in order for development
-    return ['http://10.0.2.2:5001', 'http://localhost:5001', 'http://192.168.0.109:5001', 'http://127.0.0.1:5001'];
+  if (__DEV__) {
+    return [
+      'http://10.0.2.2:5001',
+      'http://localhost:5001',
+      'http://192.168.0.109:5001',
+      'http://127.0.0.1:5001',
+    ];
   } else {
-    // Production URL - same as web
     return ['https://mala-luin.onrender.com'];
   }
 };
@@ -35,48 +34,47 @@ api.interceptors.request.use(
     }
     return config;
   },
-  (error) => {
-    return Promise.reject(error);
-  }
+  (error) => Promise.reject(error)
 );
 
 // Add a response interceptor to handle errors and URL fallback
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // Reset index on success so future requests start from the working URL
+    // but keep currentURLIndex at the working one (don't reset to 0)
+    return response;
+  },
   async (error) => {
     if (error.response) {
-      // The request was made and the server responded with a status code
-      // that falls out of the range of 2xx
+      // Server responded with a non-2xx status — don't fallback, this is a real error
       console.error('Response error:', error.response.data);
-      
-      // If we get a connection error and have more URLs to try, fallback to next URL
-      if (error.code === 'ECONNREFUSED' || error.code === 'NETWORK_ERROR' && currentURLIndex < BASE_URLS.length - 1) {
-        currentURLIndex++;
-        api.defaults.baseURL = BASE_URLS[currentURLIndex];
-        console.log('Trying next URL:', BASE_URLS[currentURLIndex]);
-        
-        // Retry the request with the new URL
-        return api.request(error.config);
-      }
-      
       return Promise.reject(error);
+
     } else if (error.request) {
-      // The request was made but no response was received
+      // No response received — try next URL
       console.error('Request error:', error.request);
-      
-      // Try next URL if available
+
       if (currentURLIndex < BASE_URLS.length - 1) {
         currentURLIndex++;
         api.defaults.baseURL = BASE_URLS[currentURLIndex];
         console.log('Trying next URL:', BASE_URLS[currentURLIndex]);
-        
-        // Retry the request with the new URL
-        return api.request(error.config);
+
+        // Retry the request with the new base URL
+        const retryConfig = {
+          ...error.config,
+          baseURL: BASE_URLS[currentURLIndex],
+          url: error.config.url, // keep relative path
+        };
+        return api.request(retryConfig);
       }
-      
-      return Promise.reject(new Error('No response from server'));
+
+      // All URLs exhausted — reset for next time
+      currentURLIndex = 0;
+      api.defaults.baseURL = BASE_URLS[0];
+
+      return Promise.reject(new Error('No response from server. Make sure your backend is running.'));
+
     } else {
-      // Something happened in setting up the request that triggered an Error
       console.error('Error:', error.message);
       return Promise.reject(error);
     }

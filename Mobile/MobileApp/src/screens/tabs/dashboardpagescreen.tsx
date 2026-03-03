@@ -56,8 +56,16 @@ const DashboardPageScreen: React.FC = () => {
     humidity: 0,
     moisture1: 0,
     moisture2: 0,
+    moisture3: 0,
+    moisture4: 0,
+    moisture5: 0,
+    moisture6: 0,
     weight1: 0,
     weight2: 0,
+    weight3: 0,
+    weight4: 0,
+    weight5: 0,
+    weight6: 0,
     status: 'Idle'
   });
 
@@ -91,8 +99,16 @@ const DashboardPageScreen: React.FC = () => {
         humidity: typeof data.humidity === 'number' ? data.humidity : 0,
         moisture1: typeof data.moisture1 === 'number' ? data.moisture1 : 0,
         moisture2: typeof data.moisture2 === 'number' ? data.moisture2 : 0,
+        moisture3: typeof data.moisture3 === 'number' ? data.moisture3 : 0,
+        moisture4: typeof data.moisture4 === 'number' ? data.moisture4 : 0,
+        moisture5: typeof data.moisture5 === 'number' ? data.moisture5 : 0,
+        moisture6: typeof data.moisture6 === 'number' ? data.moisture6 : 0,
         weight1: typeof data.weight1 === 'number' ? data.weight1 : 0,
         weight2: typeof data.weight2 === 'number' ? data.weight2 : 0,
+        weight3: typeof data.weight3 === 'number' ? data.weight3 : 0,
+        weight4: typeof data.weight4 === 'number' ? data.weight4 : 0,
+        weight5: typeof data.weight5 === 'number' ? data.weight5 : 0,
+        weight6: typeof data.weight6 === 'number' ? data.weight6 : 0,
         status: data.status || 'Idle'
       });
     });
@@ -110,86 +126,66 @@ const DashboardPageScreen: React.FC = () => {
     <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
       <Header onNotificationPress={handleNotificationPress} />
 
-      <View style={styles.statusGrid}>
-        <View style={styles.statusCard}>
-          <Text style={styles.statusTitle}>System Status</Text>
-          <Text style={styles.statusValue}>{sensorData.status || 'Idle'}</Text>
-        </View>
-      </View>
-      
-      <Text style={styles.sectionTitle}>Sensor Readings</Text>
-      <View style={styles.statusGrid}> 
-        <View style={styles.card}>
-          <View style={[styles.iconContainer, styles.iconOrange]}>
-            <Ionicons name="thermometer-outline" size={28} color="#FFFFFF" />
-          </View>
-          <Text style={styles.label}>Temperature</Text>
-          <Text style={styles.value}>{(sensorData.temperature || 0).toFixed(1)}°C</Text>
-          <Text style={styles.sub}>Normal (40–50 °C)</Text>
-        </View>
-        <View style={styles.card}>
-          <View style={[styles.iconContainer, styles.iconCyan]}>
-            <Ionicons name="water-outline" size={28} color="#FFFFFF" />
-          </View>
-          <Text style={styles.label}>Humidity</Text>
-          <Text style={styles.value}>{(sensorData.humidity || 0).toFixed(1)}%</Text>
-          <Text style={styles.sub}>Target (≤ 100%)</Text>
-        </View>
-        <View style={styles.card}>
-          <View style={[styles.iconContainer, styles.iconGreen]}>
-            <Ionicons name="leaf-outline" size={28} color="#FFFFFF" />
-          </View>
-          <Text style={styles.label}>Moisture Content 1</Text>
-          <Text style={styles.value}>{(sensorData.moisture1 || 0).toFixed(1)}%</Text>
-          <Text style={styles.sub}>Target 13–14%</Text>
-        </View>
-        <View style={styles.card}>
-          <View style={[styles.iconContainer, styles.iconGreen]}>
-            <Ionicons name="leaf-outline" size={28} color="#FFFFFF" />
-          </View>
-          <Text style={styles.label}>Moisture Content 2</Text>
-          <Text style={styles.value}>{(sensorData.moisture2 || 0).toFixed(1)}%</Text>
-          <Text style={styles.sub}>Target 13–14%</Text>
-        </View>
-        <View style={styles.card}>
-         <View style={[styles.iconContainer, styles.iconGray]}>
-            <Ionicons name="scale-outline" size={28} color="#FFFFFF" />
-          </View>
-          <Text style={styles.label}>Current Weight 1</Text>
-          <Text style={styles.value}>{(sensorData.weight1 || 0).toFixed(1)}kg</Text>
-          <Text style={styles.sub}>Initial 5 kg</Text>
-        </View>
-        <View style={styles.card}>
-          <View style={[styles.iconContainer, styles.iconGray]}>
-            <Ionicons name="scale-outline" size={28} color="#FFFFFF" />
-          </View>
-          <Text style={styles.label}>Current Weight 2</Text>
-          <Text style={styles.value}>{(sensorData.weight2 || 0).toFixed(1)}kg</Text>
-          <Text style={styles.sub}>Initial 5 kg</Text>
-        </View>
-      </View>
+      <ScrollView contentContainerStyle={styles.scrollContent}>
 
-     {/* Test Button
-      <View style={{paddingHorizontal: 15, marginTop: 20, marginBottom: 30}}>
-        <TouchableOpacity 
-          style={styles.applyBtn}
-          onPress={async () => {
-            try {
-              console.log('Testing HTTP connection...');
-              const response = await fetch('http://192.168.0.109:5001/');
-              const data = await response.json();
-              console.log('Success:', data);
-              Alert.alert('Success!', `Server: ${data.status}`);
-            } catch (error:any) {
-              console.error('Failed:', error);
-              Alert.alert('Failed', error.message || 'connection failed');
-            }
-          }}
-        >
-          <Text style={styles.btnText}>Test Server Connection</Text>
-        </TouchableOpacity>
-      </View>
-    </ScrollView> */}
+        <View style={styles.statusGrid}>
+          <View style={styles.statusCard}>
+            <Text style={styles.statusTitle}>System Status</Text>
+            <Text style={styles.statusValue}>{sensorData.status || 'Idle'}</Text>
+          </View>
+        </View>
+        
+        <Text style={styles.sectionTitle}>Sensor Readings</Text>
+
+        {/* Temperature & Humidity */}
+        <View style={styles.statusGrid}> 
+          <View style={styles.card}>
+            <View style={[styles.iconContainer, styles.iconOrange]}>
+              <Ionicons name="thermometer-outline" size={28} color="#FFFFFF" />
+            </View>
+            <Text style={styles.label}>Temperature</Text>
+            <Text style={styles.value}>{(sensorData.temperature || 0).toFixed(1)}°C</Text>
+            <Text style={styles.sub}>Normal (40–50 °C)</Text>
+          </View>
+          <View style={styles.card}>
+            <View style={[styles.iconContainer, styles.iconCyan]}>
+              <Ionicons name="water-outline" size={28} color="#FFFFFF" />
+            </View>
+            <Text style={styles.label}>Humidity</Text>
+            <Text style={styles.value}>{(sensorData.humidity || 0).toFixed(1)}%</Text>
+            <Text style={styles.sub}>Target (≤ 100%)</Text>
+          </View>
+        </View>
+
+        {/* Moisture Content - 6 sensors */}
+        <Text style={styles.sectionTitle}>Moisture Content</Text>
+        <View style={styles.statusGrid}>
+          {[1, 2, 3, 4, 5, 6].map(i => (
+            <View style={styles.card} key={`moisture-${i}`}>
+              <View style={[styles.iconContainer, styles.iconGreen]}>
+                <Ionicons name="leaf-outline" size={28} color="#FFFFFF" />
+              </View>
+              <Text style={styles.label}>Tray {i}</Text>
+              <Text style={styles.value}>{(sensorData[`moisture${i}` as keyof typeof sensorData] as number || 0).toFixed(1)}%</Text>
+              <Text style={styles.sub}>Target 13–14%</Text>
+            </View>
+          ))}
+        </View>
+
+        {/* Weight - 1 sensor */}
+        <Text style={styles.sectionTitle}>Weight</Text>
+        <View style={styles.statusGrid}>
+          <View style={styles.card}>
+            <View style={[styles.iconContainer, styles.iconGray]}>
+              <Ionicons name="scale-outline" size={28} color="#FFFFFF" />
+            </View>
+            <Text style={styles.label}>Sensor 1</Text>
+            <Text style={styles.value}>{(sensorData.weight1 || 0).toFixed(1)}kg</Text>
+            <Text style={styles.sub}>Initial 5 kg</Text>
+          </View>
+        </View>
+
+      </ScrollView>
     
     </SafeAreaView>
   );
