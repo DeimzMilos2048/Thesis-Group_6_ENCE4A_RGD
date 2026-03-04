@@ -72,17 +72,22 @@
   font-weight: 500;
 }
 
-.status.complete {
-  background: #dcfce7;
-  color: #166534;
+.status.completed {
+  background: #30e971;
+  color: #ffffff;
 }
 
 .status.warning {
-  background: #fef3c7;
-  color: #92400e;
+  background: #ff9900;
+  color: #ffffff;
 }
 
 .status.error {
-  background: #fee2e2;
-  color: #991b1b;
+  background: #ff0000;
+  color: #ffffff;
+}
+
+.status.drying {
+  background: #bbff00;
+  color: #ffffff;
 }

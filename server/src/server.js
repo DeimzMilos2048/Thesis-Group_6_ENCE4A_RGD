@@ -93,20 +93,27 @@ app.post('/api/sensor/data', async (req, res) => {
     const reading = await SensorData.create(req.body);
 
     // 2. Calculate averages for emission
-    const avgMoisture = (reading.moisture1 + reading.moisture2) / 2;
-    const avgWeight = (reading.weight1 + reading.weight2) / 2;
+    const avgMoisture =
+      typeof reading.moistureavg === 'number'
+        ? reading.moistureavg
+        : (reading.moisture1 + reading.moisture2) / 2;
 
-    // 3. Emit real-time update via Socket.io with averaged values
-    socket.emit('sensor_readings_table', {
-        temperature: latestReading.temperature,
-        humidity: latestReading.humidity,
-        moisture1: latestReading.moisture1,
-        moisture2: latestReading.moisture2,
-        weight1: latestReading.weight1,
-        weight2: latestReading.weight2,
-        status: latestReading.status || 'Idle',
-        timestamp: latestReading.timestamp
-      });
+    // 3. Emit real-time update via Socket.io including average moisture
+    io.emit('sensor_readings_table', {
+      temperature: reading.temperature,
+      humidity: reading.humidity,
+      moisture1: reading.moisture1,
+      moisture2: reading.moisture2,
+      moisture3: reading.moisture3,
+      moisture4: reading.moisture4,
+      moisture5: reading.moisture5,
+      moisture6: reading.moisture6,
+      moistureavg: avgMoisture,
+      weight1: reading.weight1,
+      weight2: reading.weight2,
+      status: reading.status || 'Idle',
+      timestamp: reading.timestamp,
+    });
 
     // 4. Check thresholds and send notifications if needed
     await checkSensorThresholds(reading, io);

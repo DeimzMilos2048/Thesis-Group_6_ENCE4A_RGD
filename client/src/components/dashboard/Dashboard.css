@@ -257,18 +257,19 @@
   grid-template-columns: repeat(2, 1fr);
   gap: 12px;
   flex: 1;
+  align-items: start;   
 }
 
-/* ── MODIFIED: sensor card now has a visible border outline ── */
 .sensor-card {
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: flex-start;  
   text-align: center;
   padding: 10px;
   border-radius: 8px;
   border: 1.5px solid #e5e7eb;
   transition: background-color 0.2s, border-color 0.2s, box-shadow 0.2s;
+  overflow: visible; 
 }
 
 .sensor-card:hover {
@@ -276,7 +277,6 @@
   border-color: #10b981;
   box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
 }
-/* ─────────────────────────────────────────────────────────── */
 
 .sensor-icon {
   display: inline-flex;
@@ -373,6 +373,24 @@
   color: #000000;
   line-height: 1;
   padding-bottom: 5px;
+}
+
+.sensor-avg-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #4b5563;
+}
+
+.sensor-avg-row {
+  margin-top: 6px;
+  text-align: center;
+}
+
+.sensor-avg-value {
+  margin-top: 2px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #111827;
 }
 
 /* Progress Bar */

@@ -3,7 +3,7 @@ import { sendNotification } from "../controllers/notificationController.js";
 
 // Define your thresholds
 const THRESHOLDS = {
-  temperatureMax: 50,
+  temperatureMax: 45,
   temperatureMin: 40,
   humidityMax: 100,
   humidityMin: 0,
@@ -105,6 +105,10 @@ export const checkSensorThresholds = async (reading, io) => {
           humidity: reading.humidity,
           moisture1: reading.moisture1,
           moisture2: reading.moisture2,
+          moisture3: reading.moisture3,
+          moisture4: reading.moisture4,
+          moisture5: reading.moisture5,
+          moisture6: reading.moisture6,
           weight1: reading.weight1,
           weight2: reading.weight2
         },
@@ -140,6 +144,10 @@ export const checkSensorThresholds = async (reading, io) => {
           humidity: reading.humidity,
           moisture1: reading.moisture1,
           moisture2: reading.moisture2,
+          moisture3: reading.moisture3,
+          moisture4: reading.moisture4,
+          moisture5: reading.moisture5,
+          moisture6: reading.moisture6,
           weight1: reading.weight1,
           weight2: reading.weight2
         },

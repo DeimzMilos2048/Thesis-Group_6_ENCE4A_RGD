@@ -11,62 +11,61 @@ const sensorDataSchema = new mongoose.Schema(
     temperature: {
       type: Number,
       required: true,
-      min: 40,
-      max: 50
+      default: 0
     },
     humidity: {
       type: Number,
       required: true,
-      default: 0,
-      min: 0,
-      max: 100
+      default: 0
     },
     moisture1: {
       type: Number,
       required: true,
-      min: 13,
-      max: 14
+      default: 0
     },
     moisture2: {
       type: Number,
       required: true,
-      min: 13,
-      max: 14
+      default: 0
     },
     moisture3: {
       type: Number,
       required: true,
-      min: 13,
-      max: 14
+      default: 0
     },
     moisture4: {
       type: Number,
       required: true,
-      min: 13,
-      max: 14
+      default: 0
     },
     moisture5: {
       type: Number,
       required: true,
-      min: 13,
-      max: 14
+      default: 0
     },
     moisture6: {
       type: Number,
       required: true,
-      min: 13,
-      max: 14
+      default: 0
+    },
+    moistureavg: {
+      type: Number,
+      required: true,
+      default: 0
     },
     weight1: {
       type: Number,
       required: true,
-      default: 0,
-      min: 0,
-      max: 1.5
+      default: 0
+    },
+    weight2: {
+      type: Number,
+      required: false,
+      default: 0
     },
     status: {
       type: String,
-      enum: ['Idle', 'Drying', 'Finished', 'Error', 'Warning'],
+      enum: ['Idle', 'Drying', 'Finished', 'Completed', 'Error', 'Warning'],
       default: 'Idle'
     },
     timestamp: {
@@ -82,4 +81,4 @@ const sensorDataSchema = new mongoose.Schema(
 sensorDataSchema.index({ userId: 1, timestamp: -1 });
 sensorDataSchema.index({ timestamp: -1 });
 
-export default sensorDB.model('esp32_db', sensorDataSchema,"sensor_readings_table");
+export default sensorDB.model('esp32_db', sensorDataSchema, "sensor_readings_table");

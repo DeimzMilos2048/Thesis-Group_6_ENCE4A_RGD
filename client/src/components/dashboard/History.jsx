@@ -193,6 +193,8 @@ export default function History({ view }) {
               finalMoistureT6: safeToString(
                 item.finalMoisture6 ?? item.moisture6End
               ),
+              // Average moisture across trays (from sensorDataModel.js moistureavg)
+              moistureavg: safeToString(item.moistureavg),
               temperature:
                 item.temperature !== undefined ? `${item.temperature}°` : '0°',
               humidity:
@@ -397,8 +399,8 @@ export default function History({ view }) {
               <th rowSpan="2">Date</th>
               <th rowSpan="2">Starting Time</th>
               <th rowSpan="2">End Time</th>
-              <th colSpan="6">Initial Moisture (6 Trays)</th>
-              <th colSpan="6">Final Moisture (6 Trays)</th>
+              <th colSpan="6">Initial Moisture</th>
+              <th colSpan="7">Final Moisture</th>
               <th rowSpan="2">Temperature</th>
               <th rowSpan="2">Humidity</th>
               <th rowSpan="2">Before Weight</th>
@@ -418,6 +420,7 @@ export default function History({ view }) {
               <th>T4</th>
               <th>T5</th>
               <th>T6</th>
+              <th>AVG</th>
             </tr>
           </thead>
 
@@ -439,6 +442,7 @@ export default function History({ view }) {
                 <td>{item.finalMoistureT4}</td>
                 <td>{item.finalMoistureT5}</td>
                 <td>{item.finalMoistureT6}</td>
+                <td>{item.moistureavg}</td>
                 <td>{item.temperature}</td>
                 <td>{item.humidity}</td>
                 <td>{item.beforeWeight}</td>

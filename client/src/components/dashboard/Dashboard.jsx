@@ -14,27 +14,12 @@ export default function RiceDryingDashboard({ view }) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [dryingSeconds, setDryingSeconds] = useState(0);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
-  const [sensorData, setSensorData] = useState({
-    temperature: 0,
-    humidity: 0,
-    moisture1: 0,
-    moisture2: 0,
-    moisture3: 0,
-    moisture4: 0,
-    moisture5: 0,
-    moisture6: 0,
-    weight1: 0,
-    weight2: 0,
-    weight3: 0,
-    weight4: 0,
-    weight5: 0,
-    weight6: 0,
-    status: 'Idle'
-  });
 
   const navigate = useNavigate();
   const location = useLocation();
-  const { socket, sensorData: socketSensorData, chartData, isConnected } = useSocket();
+
+  // Use socket data directly — no local sensorData state needed
+  const { socket, sensorData, chartData, isConnected } = useSocket();
 
   useEffect(() => {
     const path = location.pathname;
@@ -44,10 +29,6 @@ export default function RiceDryingDashboard({ view }) {
     else if (path.includes('/profile')) setActiveTab('profile');
     else setActiveTab('dashboard');
   }, [location]);
-
-  useEffect(() => {
-    if (socketSensorData) setSensorData(socketSensorData);
-  }, [socketSensorData]);
 
   useEffect(() => {
     let isMounted = true;
@@ -71,16 +52,16 @@ export default function RiceDryingDashboard({ view }) {
   }, [navigate]);
 
   useEffect(() => {
-  let interval = null;
-  if (isProcessing) {
-    interval = setInterval(() => {
-      setDryingSeconds(prev => prev + 1);
-    }, 1000);
-  } else {
-    setDryingSeconds(0);
-  }
-  return () => clearInterval(interval);
-}, [isProcessing]);
+    let interval = null;
+    if (isProcessing) {
+      interval = setInterval(() => {
+        setDryingSeconds(prev => prev + 1);
+      }, 1000);
+    } else {
+      setDryingSeconds(0);
+    }
+    return () => clearInterval(interval);
+  }, [isProcessing]);
 
   const handleNavigation = (path, tab) => {
     setActiveTab(tab);
@@ -107,12 +88,11 @@ export default function RiceDryingDashboard({ view }) {
   };
 
   const formatDryingTime = (seconds) => {
-  const h = Math.floor(seconds / 3600).toString().padStart(2, '0');
-  const m = Math.floor((seconds % 3600) / 60).toString().padStart(2, '0');
-  const s = (seconds % 60).toString().padStart(2, '0');
-  return `${h}:${m}:${s}`;
-};
-
+    const h = Math.floor(seconds / 3600).toString().padStart(2, '0');
+    const m = Math.floor((seconds % 3600) / 60).toString().padStart(2, '0');
+    const s = (seconds % 60).toString().padStart(2, '0');
+    return `${h}:${m}:${s}`;
+  };
 
   return (
     <div className="dashboard-container">
@@ -233,29 +213,28 @@ export default function RiceDryingDashboard({ view }) {
             <p>Real-time monitoring and control interface</p>
           </div>
           <div className="dashboard-content">
-            
-          <div className="status-cards">
-            <div className="status-card">
-              <div className="status-content">
-                <div className="status-icon"><CheckCircle size={22} /></div>
-                <div className="status-label">System Status</div>
-                <div className="status-value">{sensorData.status}</div>
-              </div>
-            </div>
 
-            <div className="status-card">
-              <div className="status-content">
-                <div className="status-icon" style={{ backgroundColor: '#fef3c7', color: '#f59e0b' }}>
-                  <Clock size={22} />
-                </div>
-                <div className="status-label">Drying Time</div>
-                <div className="status-value" style={{ fontSize: '18px', fontFamily: 'monospace' }}>
-                  {formatDryingTime(dryingSeconds)}
+            <div className="status-cards">
+              <div className="status-card">
+                <div className="status-content">
+                  <div className="status-icon"><CheckCircle size={22} /></div>
+                  <div className="status-label">System Status</div>
+                  <div className="status-value">{sensorData.status}</div>
                 </div>
               </div>
-            </div>
-          </div>
 
+              <div className="status-card">
+                <div className="status-content">
+                  <div className="status-icon" style={{ backgroundColor: '#fef3c7', color: '#f59e0b' }}>
+                    <Clock size={22} />
+                  </div>
+                  <div className="status-label">Drying Time</div>
+                  <div className="status-value" style={{ fontSize: '18px', fontFamily: 'monospace' }}>
+                    {formatDryingTime(dryingSeconds)}
+                  </div>
+                </div>
+              </div>
+            </div>
 
             <div className="grid-container">
               <div className="sensor-readings">
@@ -285,84 +264,74 @@ export default function RiceDryingDashboard({ view }) {
                   <div className="sensor-card">
                     <div className="sensor-icon cyan"><Waves size={24} /></div>
                     <div className="sensor-label">Moisture Content</div>
-                    <div className="six-sensor-container">
-                      <div className="six-sensor-column">
-                        {[1, 2].map(i => (
-                          <div className="six-sensor-item" key={`m-l-${i}`}>
-                            <div className="sensor-sublabel">TRAY{i}</div>
-                            <div className="sensor-value-sm">{(sensorData[`moisture${i}`] || 0).toFixed(1)}%</div>
-                            <div className="progress-bar">
-                              <div className="progress-fill cyan" style={{ width: `${Math.min(((sensorData[`moisture${i}`] || 0) / 14) * 100, 100)}%` }}></div>
-                            </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', marginTop: '8px' }}>
+                      {[1, 2, 3, 4, 5, 6].map(i => (
+                        <div key={`moisture-${i}`} style={{ textAlign: 'center' }}>
+                          <div className="sensor-sublabel">TRAY {i}</div>
+                          <div className="sensor-value-sm">{(sensorData[`moisture${i}`] || 0).toFixed(1)}%</div>
+                          <div className="progress-bar">
+                            <div
+                              className="progress-fill cyan"
+                              style={{ width: `${Math.min(((sensorData[`moisture${i}`] || 0) / 14) * 100, 100)}%` }}
+                            />
                           </div>
-                        ))}
-                      </div>
-                      <div className="six-sensor-divider"></div>
-                      <div className="six-sensor-column">
-                        {[3, 4].map(i => (
-                          <div className="six-sensor-item" key={`m-m-${i}`}>
-                            <div className="sensor-sublabel">TRAY{i}</div>
-                            <div className="sensor-value-sm">{(sensorData[`moisture${i}`] || 0).toFixed(1)}%</div>
-                            <div className="progress-bar">
-                              <div className="progress-fill cyan" style={{ width: `${Math.min(((sensorData[`moisture${i}`] || 0) / 14) * 100, 100)}%` }}></div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                      <div className="six-sensor-divider"></div>
-                      <div className="six-sensor-column">
-                        {[5, 6].map(i => (
-                          <div className="six-sensor-item" key={`m-r-${i}`}>
-                            <div className="sensor-sublabel">TRAY{i}</div>
-                            <div className="sensor-value-sm">{(sensorData[`moisture${i}`] || 0).toFixed(1)}%</div>
-                            <div className="progress-bar">
-                              <div className="progress-fill cyan" style={{ width: `${Math.min(((sensorData[`moisture${i}`] || 0) / 14) * 100, 100)}%` }}></div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
+                        </div>
+                      ))}
                     </div>
+
+                    <div className="sensor-avg-row" style={{ marginTop: '10px' }}>
+                      <span className="sensor-avg-label">Average Moisture</span>
+                      <div className="progress-bar">
+                        <div
+                          className="progress-fill cyan"
+                          style={{ width: `${Math.min(((sensorData.moistureavg || 0) / 14) * 100, 100)}%` }}
+                        />
+                      </div>
+                      <div className="sensor-avg-value">{(sensorData.moistureavg || 0).toFixed(2)}%</div>
+                    </div>
+
                     <div className="sensor-range">Target: 13-14%</div>
                   </div>
 
                   <div className="sensor-card">
-                  <div className="sensor-icon green"><Weight size={24} /></div>
-                  <div className="sensor-label">Weight</div>
+                    <div className="sensor-icon green"><Weight size={24} /></div>
+                    <div className="sensor-label">Weight</div>
 
-                  {/* BEFORE */}
-                  <div style={{ fontSize: '10px', fontWeight: '600', color: '#9ca3af', marginBottom: '4px', textAlign: 'center', letterSpacing: '0.5px' }}>BEFORE</div>
-                  <div className="six-sensor-container">
-                    <div className="six-sensor-column">
-                      {[1].map(i => (
-                        <div className="six-sensor-item" key={`wb-l-${i}`}>
-                          <div className="sensor-value-sm">{(sensorData[`weight${i}`] || 0).toFixed(1)}kg</div>
-                          <div className="progress-bar">
-                            <div className="progress-fill green" style={{ width: `${Math.min(((sensorData[`weight${i}`] || 0) / 2) * 100, 100)}%` }}></div>
+                    {/* BEFORE */}
+                    <div style={{ fontSize: '10px', fontWeight: '600', color: '#9ca3af', marginBottom: '4px', textAlign: 'center', letterSpacing: '0.5px' }}>BEFORE</div>
+                    <div className="six-sensor-container">
+                      <div className="six-sensor-column">
+                        {[1].map(i => (
+                          <div className="six-sensor-item" key={`wb-l-${i}`}>
+                            <div className="sensor-value-sm">{(sensorData[`weight${i}`] || 0).toFixed(1)}kg</div>
+                            <div className="progress-bar">
+                              <div className="progress-fill green" style={{ width: `${Math.min(((sensorData[`weight${i}`] || 0) / 2) * 100, 100)}%` }}></div>
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        ))}
+                      </div>
                     </div>
-                  </div>
 
-                  <div style={{ height: '1px', backgroundColor: '#e5e7eb', margin: '6px 0' }}></div>
+                    <div style={{ height: '1px', backgroundColor: '#e5e7eb', margin: '6px 0' }}></div>
 
-                  {/* AFTER */}
-                  <div style={{ fontSize: '10px', fontWeight: '600', color: '#9ca3af', marginBottom: '4px', textAlign: 'center', letterSpacing: '0.5px' }}>AFTER</div>
-                  <div className="six-sensor-container">
-                    <div className="six-sensor-column">
-                      {[1].map(i => (
-                        <div className="six-sensor-item" key={`wa-l-${i}`}>
-                          <div className="sensor-value-sm">{(sensorData[`weight${i}`] || 0).toFixed(1)}kg</div>
-                          <div className="progress-bar">
-                            <div className="progress-fill green" style={{ width: `${Math.min(((sensorData[`weight${i}`] || 0) / 2) * 100, 100)}%` }}></div>
+                    {/* AFTER */}
+                    <div style={{ fontSize: '10px', fontWeight: '600', color: '#9ca3af', marginBottom: '4px', textAlign: 'center', letterSpacing: '0.5px' }}>AFTER</div>
+                    <div className="six-sensor-container">
+                      <div className="six-sensor-column">
+                        {[2].map(i => (
+                          <div className="six-sensor-item" key={`wa-l-${i}`}>
+                            <div className="sensor-value-sm">{(sensorData[`weight${i}`] || 0).toFixed(1)}kg</div>
+                            <div className="progress-bar">
+                              <div className="progress-fill green" style={{ width: `${Math.min(((sensorData[`weight${i}`] || 0) / 2) * 100, 100)}%` }}></div>
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        ))}
+                      </div>
                     </div>
-                  </div>
 
-                  <div className="sensor-range">Initial: 2kg</div>
-                </div>
+                    <div className="sensor-range">Initial: 2kg</div>
+                  </div>
 
                 </div>
               </div>
@@ -381,11 +350,11 @@ export default function RiceDryingDashboard({ view }) {
                     {isProcessing ? (<><span className="processing-dot"></span>Processing...</>) : 'Start'}
                   </button>
                   <button className="stop-button" onClick={handleStop}>
-                    <StopCircle size={20} /> 
+                    <StopCircle size={20} />
                     Stop
                   </button>
                 </div>
-              </div> 
+              </div>
 
             </div>
           </div>
