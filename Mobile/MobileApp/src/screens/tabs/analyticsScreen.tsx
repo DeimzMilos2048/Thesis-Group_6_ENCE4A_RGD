@@ -34,18 +34,18 @@ interface LiveLineGraphProps {
   maxValue: number;
 }
 
-  const LiveLineGraph: FC<LiveLineGraphProps> = ({ data, color, unit, minValue, maxValue }) => {
+const LiveLineGraph: FC<LiveLineGraphProps> = ({ data, color, unit, minValue, maxValue }) => {
   const safeData = Array.isArray(data) ? data : [];
   const chartData = safeData.length >= 2 ? safeData : [minValue, minValue];
-  
+
   return (
     <LineChart
       data={{
-        labels: chartData.map((_, i) => (i % 5 === 0 ? i.toString() : '')),
+        labels: [], //chartData.map((_, i) => (i % 5 === 0 ? i.toString() : ''))
         datasets: [
           { data: chartData },
-          { data: [minValue], withDots: false }, 
-          { data: [maxValue], withDots: false }, 
+          { data: [minValue], withDots: false },
+          { data: [maxValue], withDots: false },
         ],
       }}
       width={screenWidth - 40}
@@ -82,7 +82,27 @@ const latestValue = (arr: number[], unit: string): string => {
   return `${arr[arr.length - 1].toFixed(1)}${unit}`;
 };
 
+interface LatestValues {
+  moisture1: number | null;
+  moisture2: number | null;
+  moisture3: number | null;
+  moisture4: number | null;
+  moisture5: number | null;
+  moisture6: number | null;
+  humidity: number | null;
+  temperature: number | null;
+  weight1: number | null;
+}
+
+const MAX_POINTS = 20;
+
 const AnalyticsScreen = () => {
+  const [latestValuesFromSocket, setLatestValuesFromSocket] = useState<LatestValues>({
+    moisture1: null, moisture2: null, moisture3: null,
+    moisture4: null, moisture5: null, moisture6: null,
+    humidity: null, temperature: null, weight1: null,
+  });
+
   const [chartData, setChartData] = useState({
     moisture1: [] as number[],
     moisture2: [] as number[],
@@ -95,13 +115,16 @@ const AnalyticsScreen = () => {
     weight1: [] as number[],
   });
 
+  const fmt = (val: number | null, unit: string): string =>
+    val === null ? 'N/A' : `${Number(val).toFixed(1)}${unit}`;
+
   useEffect(() => {
     console.log('Analytics: Attempting to connect to socket...');
 
-     const SOCKET_URL = __DEV__ 
-      ? 'http://10.103.40.83:5001'        
-       : 'https://mala-backend-q03k.onrender.com'; 
-    
+    const SOCKET_URL = __DEV__
+      ? 'http://192.168.0.109:5001'
+      : 'https://mala-backend-q03k.onrender.com';
+
     const socket = io(SOCKET_URL, {
       transports: ['polling'],
       reconnection: true,
@@ -122,49 +145,30 @@ const AnalyticsScreen = () => {
 
     socket.on('sensor_readings_table', (data) => {
       console.log('Analytics: Sensor data received:', data);
-      
-      setChartData(prevData => {
-        const maxDataPoints = 20; 
 
-        return {
-          moisture1: [
-            ...prevData.moisture1,
-            typeof data.moisture1 === 'number' ? data.moisture1 : 0
-          ].slice(-maxDataPoints),
-          moisture2: [
-            ...prevData.moisture2,
-            typeof data.moisture2 === 'number' ? data.moisture2 : 0
-          ].slice(-maxDataPoints),
-          moisture3: [
-            ...prevData.moisture3,
-            typeof data.moisture3 === 'number' ? data.moisture3 : 0
-          ].slice(-maxDataPoints),
-          moisture4: [
-            ...prevData.moisture4,
-            typeof data.moisture4 === 'number' ? data.moisture4 : 0
-          ].slice(-maxDataPoints),
-          moisture5: [
-            ...prevData.moisture5,
-            typeof data.moisture5 === 'number' ? data.moisture5 : 0
-          ].slice(-maxDataPoints),
-          moisture6: [
-            ...prevData.moisture6,
-            typeof data.moisture6 === 'number' ? data.moisture6 : 0
-          ].slice(-maxDataPoints),
-          humidity: [
-            ...prevData.humidity,
-            typeof data.humidity === 'number' ? data.humidity : 0
-          ].slice(-maxDataPoints),
-          temperature: [
-            ...prevData.temperature,
-            typeof data.temperature === 'number' ? data.temperature : 0
-          ].slice(-maxDataPoints),
-          weight1: [
-            ...prevData.weight1,
-            typeof data.weight1 === 'number' ? data.weight1 : 0
-          ].slice(-maxDataPoints),
-        };
+      setLatestValuesFromSocket({
+        moisture1:   typeof data.moisture1   === 'number' ? data.moisture1   : null,
+        moisture2:   typeof data.moisture2   === 'number' ? data.moisture2   : null,
+        moisture3:   typeof data.moisture3   === 'number' ? data.moisture3   : null,
+        moisture4:   typeof data.moisture4   === 'number' ? data.moisture4   : null,
+        moisture5:   typeof data.moisture5   === 'number' ? data.moisture5   : null,
+        moisture6:   typeof data.moisture6   === 'number' ? data.moisture6   : null,
+        humidity:    typeof data.humidity    === 'number' ? data.humidity    : null,
+        temperature: typeof data.temperature === 'number' ? data.temperature : null,
+        weight1:     typeof data.weight1     === 'number' ? data.weight1     : null,
       });
+
+      setChartData(prev => ({
+        moisture1:   [...prev.moisture1,   typeof data.moisture1   === 'number' ? data.moisture1   : 0].slice(-MAX_POINTS),
+        moisture2:   [...prev.moisture2,   typeof data.moisture2   === 'number' ? data.moisture2   : 0].slice(-MAX_POINTS),
+        moisture3:   [...prev.moisture3,   typeof data.moisture3   === 'number' ? data.moisture3   : 0].slice(-MAX_POINTS),
+        moisture4:   [...prev.moisture4,   typeof data.moisture4   === 'number' ? data.moisture4   : 0].slice(-MAX_POINTS),
+        moisture5:   [...prev.moisture5,   typeof data.moisture5   === 'number' ? data.moisture5   : 0].slice(-MAX_POINTS),
+        moisture6:   [...prev.moisture6,   typeof data.moisture6   === 'number' ? data.moisture6   : 0].slice(-MAX_POINTS),
+        humidity:    [...prev.humidity,    typeof data.humidity    === 'number' ? data.humidity    : 0].slice(-MAX_POINTS),
+        temperature: [...prev.temperature, typeof data.temperature === 'number' ? data.temperature : 0].slice(-MAX_POINTS),
+        weight1:     [...prev.weight1,     typeof data.weight1     === 'number' ? data.weight1     : 0].slice(-MAX_POINTS),
+      }));
     });
 
     socket.on('disconnect', (reason) => {
@@ -191,12 +195,53 @@ const AnalyticsScreen = () => {
         <View style={styles.grid}>
 
           <View style={styles.card}>
+            <View style={styles.cardHeader}>
+              <Text style={styles.title}>Temperature</Text>
+              <Text style={[styles.badge, { color: '#efb944ff' }]}>
+                {fmt(latestValuesFromSocket.temperature, '°C')}
+              </Text>
+            </View>
+            <LiveLineGraph
+              data={chartData.temperature}
+              color="#efb944ff"
+              unit="°C"
+              minValue={0}
+              maxValue={60}
+            />
+          </View>
+
+          <View style={styles.card}>
+            <View style={styles.cardHeader}>
+              <Text style={styles.title}>Humidity</Text>
+              <Text style={[styles.badge, { color: '#3b82f6' }]}>
+                {fmt(latestValuesFromSocket.humidity, '%')}
+              </Text>
+            </View>
+            <LiveLineGraph
+              data={chartData.humidity}
+              color="#3b82f6"
+              unit="%"
+              minValue={0}
+              maxValue={100}
+            />
+          </View>
+
+          <View style={styles.card}>
             <Text style={styles.title}>Moisture Content</Text>
+            <View style={styles.badgeRow}>
+              {[1, 2, 3, 4, 5, 6].map((i) => (
+                <Text key={i} style={[styles.badge, { color: moistureColors[i - 1] }]}>
+                  S{i}: {fmt((latestValuesFromSocket as any)[`moisture${i}`], '%')}
+                </Text>
+              ))}
+            </View>
             {[1, 2, 3, 4, 5, 6].map(i => (
               <View key={`moisture-${i}`} style={{ width: '100%' }}>
                 <View style={styles.sensorRow}>
                   <Text style={styles.sensorLabel}>Sensor {i}</Text>
-                  <Text style={styles.sensorValue}>{latestValue(chartData[`moisture${i}` as keyof typeof chartData] as number[], '%')}</Text>
+                  <Text style={styles.sensorValue}>
+                    {latestValue(chartData[`moisture${i}` as keyof typeof chartData] as number[], '%')}
+                  </Text>
                 </View>
                 <LiveLineGraph
                   data={chartData[`moisture${i}` as keyof typeof chartData] as number[]}
@@ -210,40 +255,11 @@ const AnalyticsScreen = () => {
           </View>
 
           <View style={styles.card}>
-            <Text style={styles.title}>Humidity</Text>
-            <View style={styles.sensorRow}>
-              <Text style={styles.sensorLabel}>Sensor 1</Text>
-              <Text style={styles.sensorValue}>{latestValue(chartData.humidity, '%')}</Text>
-            </View>
-            <LiveLineGraph 
-              data={chartData.humidity} 
-              color="#3b82f6" 
-              unit="%" 
-              minValue={0}
-              maxValue={100}
-            />
-          </View>
-
-          <View style={styles.card}>
-            <Text style={styles.title}>Temperature</Text>
-             <View style={styles.sensorRow}>
-              <Text style={styles.sensorLabel}>Sensor 1</Text>
-              <Text style={styles.sensorValue}>{latestValue(chartData.temperature, '°C')}</Text>
-            </View>
-            <LiveLineGraph 
-              data={chartData.temperature} 
-              color="#efb944ff" 
-              unit="°C" 
-              minValue={0}
-              maxValue={100}
-            />
-          </View>
-
-          <View style={styles.card}>
-            <Text style={styles.title}>Weight</Text>
-            <View style={styles.sensorRow}>
-              <Text style={styles.sensorLabel}>Sensor 1</Text>
-              <Text style={styles.sensorValue}>{latestValue(chartData.weight1, 'kg')}</Text>
+            <View style={styles.cardHeader}>
+              <Text style={styles.title}>Weight</Text>
+              <Text style={[styles.badge, { color: '#9E9E9E' }]}>
+                S1: {fmt(latestValuesFromSocket.weight1, 'kg')}
+              </Text>
             </View>
             <LiveLineGraph
               data={chartData.weight1}
@@ -296,6 +312,29 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     alignItems: "center",
     elevation: 2,
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignSelf: 'stretch',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  badgeRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 6,
+    marginBottom: 8,
+  },
+  badge: {
+    fontSize: 12,
+    fontWeight: '700',
+    backgroundColor: 'white',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    overflow: 'hidden',
   },
   title: {
     fontSize: 14,

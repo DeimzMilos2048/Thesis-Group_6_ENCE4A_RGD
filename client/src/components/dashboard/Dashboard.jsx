@@ -14,11 +14,14 @@ export default function RiceDryingDashboard({ view }) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [dryingSeconds, setDryingSeconds] = useState(0);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
+  const [selectedTemp, setSelectedTemp] = useState(null);
+  const [selectedMoisture, setSelectedMoisture] = useState(null);
+  const [toast, setToast] = useState(null); // { type: 'success'|'error'|'info', message: string }
+  const [currentTray, setCurrentTray] = useState(1);
 
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Use socket data directly — no local sensorData state needed
   const { socket, sensorData, chartData, isConnected } = useSocket();
 
   useEffect(() => {
@@ -75,16 +78,33 @@ export default function RiceDryingDashboard({ view }) {
     navigate('/login');
   };
 
+  const showToast = (type, message) => {
+    setToast({ type, message });
+    setTimeout(() => setToast(null), 7000);
+  };
+
   const handleApply = () => {
-    console.log("Applied");
+    if (!selectedTemp && !selectedMoisture) {
+      showToast('error', 'Please select a target temperature and moisture before starting.');
+      return;
+    }
+    if (!selectedTemp) {
+      showToast('error', 'Please select a target temperature (41–45°C) before starting.');
+      return;
+    }
+    if (!selectedMoisture) {
+      showToast('error', 'Please select a target moisture (13% or 14%) before starting.');
+      return;
+    }
+    console.log("Applied — Temp:", selectedTemp, "Moisture:", selectedMoisture);
     setIsProcessing(true);
-    alert("Drying process started.");
+    showToast('success', `Drying started — Target: ${selectedTemp}°C · Moisture: ${selectedMoisture}%`);
   };
 
   const handleStop = () => {
     console.log("Stop command triggered");
     setIsProcessing(false);
-    alert("Drying process stopped.");
+    showToast('info', 'Drying process has been stopped.');
   };
 
   const formatDryingTime = (seconds) => {
@@ -97,7 +117,6 @@ export default function RiceDryingDashboard({ view }) {
   return (
     <div className="dashboard-container">
 
-      {/* Error Banner */}
       {error && (
         <div className="error-banner">
           <AlertTriangle size={20} />
@@ -105,7 +124,6 @@ export default function RiceDryingDashboard({ view }) {
         </div>
       )}
 
-      {/* Loading Overlay */}
       {loading && (
         <div className="loading-overlay">
           <div className="loading-spinner"></div>
@@ -113,7 +131,6 @@ export default function RiceDryingDashboard({ view }) {
         </div>
       )}
 
-      {/* Logout Confirmation Modal */}
       {showLogoutConfirm && (
         <div className="modal-overlay" onClick={handleLogoutCancel}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
@@ -129,6 +146,19 @@ export default function RiceDryingDashboard({ view }) {
               <button className="modal-button confirm" onClick={handleLogoutConfirm}>Log Out</button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Toast Notification */}
+      {toast && (
+        <div className={`toast-notification toast-${toast.type}`}>
+          <span className="toast-icon">
+            {toast.type === 'success' && <CheckCircle size={18} />}
+            {toast.type === 'error' && <AlertTriangle size={18} />}
+            {toast.type === 'info' && <StopCircle size={18} />}
+          </span>
+          <span className="toast-message">{toast.message}</span>
+          <button className="toast-close" onClick={() => setToast(null)}>×</button>
         </div>
       )}
 
@@ -172,9 +202,7 @@ export default function RiceDryingDashboard({ view }) {
           <div className="profile-dropdown-wrapper">
             <button
               className={`nav-item ${activeTab === 'profile' ? 'active' : ''}`}
-              onClick={() => {
-                setProfileDropdownOpen(prev => !prev);
-              }}
+              onClick={() => setProfileDropdownOpen(prev => !prev)}
             >
               <CircleUser size={16} />
               <span>Profile</span>
@@ -298,39 +326,32 @@ export default function RiceDryingDashboard({ view }) {
                     <div className="sensor-icon green"><Weight size={24} /></div>
                     <div className="sensor-label">Weight</div>
 
-                    {/* BEFORE */}
-                    <div style={{ fontSize: '10px', fontWeight: '600', color: '#9ca3af', marginBottom: '4px', textAlign: 'center', letterSpacing: '0.5px' }}>BEFORE</div>
-                    <div className="six-sensor-container">
-                      <div className="six-sensor-column">
-                        {[1].map(i => (
-                          <div className="six-sensor-item" key={`wb-l-${i}`}>
-                            <div className="sensor-value-sm">{(sensorData[`weight${i}`] || 0).toFixed(1)}kg</div>
-                            <div className="progress-bar">
-                              <div className="progress-fill green" style={{ width: `${Math.min(((sensorData[`weight${i}`] || 0) / 2) * 100, 100)}%` }}></div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', marginTop: '8px' }}>
+                      {[1, 2, 3, 4, 5, 6].map(i => (
+                        <div key={`weight-tray-${i}`} style={{ textAlign: 'center' }}>
+                          <div className="sensor-sublabel">TRAY {i}</div>
+                          <div className="weight-before-after">
+                            <div className="weight-ba-item">
+                              <div className="weight-ba-label">B</div>
+                              <div className="sensor-value-sm" style={{ fontSize: '13px' }}>{(sensorData[`weightbefore${i}`] || 0).toFixed(1)}kg</div>
+                            </div>
+                            <div className="weight-ba-divider" />
+                            <div className="weight-ba-item">
+                              <div className="weight-ba-label after">A</div>
+                              <div className="sensor-value-sm" style={{ fontSize: '13px' }}>{(sensorData[`weightafter${i}`] || 0).toFixed(1)}kg</div>
                             </div>
                           </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div style={{ height: '1px', backgroundColor: '#e5e7eb', margin: '6px 0' }}></div>
-
-                    {/* AFTER */}
-                    <div style={{ fontSize: '10px', fontWeight: '600', color: '#9ca3af', marginBottom: '4px', textAlign: 'center', letterSpacing: '0.5px' }}>AFTER</div>
-                    <div className="six-sensor-container">
-                      <div className="six-sensor-column">
-                        {[2].map(i => (
-                          <div className="six-sensor-item" key={`wa-l-${i}`}>
-                            <div className="sensor-value-sm">{(sensorData[`weight${i}`] || 0).toFixed(1)}kg</div>
-                            <div className="progress-bar">
-                              <div className="progress-fill green" style={{ width: `${Math.min(((sensorData[`weight${i}`] || 0) / 2) * 100, 100)}%` }}></div>
-                            </div>
+                          <div className="progress-bar">
+                            <div
+                              className="progress-fill green"
+                              style={{ width: `${Math.min(((sensorData[`weightafter${i}`] || 0) / 2) * 100, 100)}%` }}
+                            />
                           </div>
-                        ))}
-                      </div>
+                        </div>
+                      ))}
                     </div>
 
-                    <div className="sensor-range">Initial: 2kg</div>
+                    <div className="sensor-range" style={{ marginTop: '8px' }}>B = Before &nbsp;·&nbsp; A = After &nbsp;·&nbsp; Initial: 2kg</div>
                   </div>
 
                 </div>
@@ -341,6 +362,72 @@ export default function RiceDryingDashboard({ view }) {
                   <h2>System Controls</h2>
                 </div>
 
+                {/* Temperature Selector */}
+                <div className="control-group">
+                  <label className="control-group-label">
+                    <Thermometer size={14} style={{ color: '#f97316' }} />
+                    Target Temperature (°C)
+                  </label>
+                  <div className="selector-buttons temp-grid">
+                    {[40, 41, 42, 43, 44, 45].map(temp => (
+                      <button
+                        key={temp}
+                        className={`selector-btn temp-btn ${selectedTemp === temp ? 'selected-temp' : ''}`}
+                        onClick={() => setSelectedTemp(temp)}
+                      >
+                        {temp}°
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Moisture Selector */}
+                <div className="control-group">
+                  <label className="control-group-label">
+                    <Waves size={14} style={{ color: '#06b6d4' }} />
+                    Target Moisture (%)
+                  </label>
+                  <div className="selector-buttons">
+                    {[13, 14].map(moisture => (
+                      <button
+                        key={moisture}
+                        className={`selector-btn moisture-btn ${selectedMoisture === moisture ? 'selected-moisture' : ''}`}
+                        onClick={() => setSelectedMoisture(moisture)}
+                      >
+                        {moisture}%
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Next Tray for Weighing */}
+                <div className="control-group">
+                  <label className="control-group-label">
+                    <Weight size={14} style={{ color: '#10b981' }} />
+                    Tray for Weighing
+                  </label>
+                  <div className="tray-weighing-row">
+                    <div className="tray-indicator">
+                      <span className="tray-indicator-label">Current Tray</span>
+                      <span className="tray-indicator-value">TRAY {currentTray}</span>
+                    </div>
+                    <button
+                      className="next-tray-btn"
+                      onClick={() => setCurrentTray(prev => prev >= 6 ? 1 : prev + 1)}
+                    >
+                      Next Tray
+                    </button>
+                  </div>
+                  <div className="tray-dots">
+                    {[1,2,3,4,5,6].map(i => (
+                      <span
+                        key={i}
+                        className={`tray-dot ${i === currentTray ? 'tray-dot-active' : i < currentTray ? 'tray-dot-done' : ''}`}
+                      />
+                    ))}
+                  </div>
+                </div>
+
                 <div className="control-buttons">
                   <button
                     className={`start-button ${isProcessing ? 'processing' : ''}`}
@@ -349,8 +436,8 @@ export default function RiceDryingDashboard({ view }) {
                   >
                     {isProcessing ? (<><span className="processing-dot"></span>Processing...</>) : 'Start'}
                   </button>
-                  <button className="stop-button" onClick={handleStop}>
-                    <StopCircle size={20} />
+                  <button className="stop-button" onClick={handleStop} disabled={!isProcessing}>
+                    <StopCircle size={18} />
                     Stop
                   </button>
                 </div>
