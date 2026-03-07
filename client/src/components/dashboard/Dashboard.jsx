@@ -14,14 +14,13 @@ export default function RiceDryingDashboard({ view }) {
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const [toast, setToast] = useState(null);
-  const [savedWeights, setSavedWeights] = useState({}); // { 1: { before: 1.5, frozen: true }, ... }
+  const [savedWeights, setSavedWeights] = useState({}); 
 
   const navigate = useNavigate();
   const location = useLocation();
 
   const { socket, sensorData, chartData, isConnected } = useSocket();
 
-  // ── All drying state comes from context — persists across tab navigation ──
   const {
     isProcessing,
     dryingSeconds,
@@ -105,7 +104,7 @@ export default function RiceDryingDashboard({ view }) {
   };
 
   const handleSaveWeight = () => {
-    const currentWeight = sensorData[`weightbefore${currentTray}`] || 0;
+    const currentWeight = sensorData.weight1 ?? sensorData.weightbefore1 ?? 0;
     if (savedWeights[currentTray]?.frozen) {
       showToast('error', `Tray ${currentTray} weight is already saved and locked.`);
       return;
@@ -340,10 +339,19 @@ export default function RiceDryingDashboard({ view }) {
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', marginTop: '8px', flex: 1, alignContent: 'start' }}>
                       {[1, 2, 3, 4, 5, 6].map(i => {
                         const isFrozen = savedWeights[i]?.frozen;
-                        const beforeVal = isFrozen
-                          ? savedWeights[i].before
-                          : (sensorData[`weightbefore${i}`] || 0);
-                        const afterVal = sensorData[`weightafter${i}`] || 0;
+                        const isSelected = currentTray === i;
+
+               
+                        const rawLive = isSelected
+                          ? (sensorData.weight1 ?? sensorData.weightbefore1 ?? null)
+                          : null;
+                        const beforeVal = isFrozen ? savedWeights[i].before : (rawLive ?? 0);
+                        const hasBeforeVal = isFrozen || (isSelected && rawLive !== null && rawLive > 0);
+
+                        const rawAfter = isSelected ? (sensorData.weightafter1 ?? null) : null;
+                        const afterVal = rawAfter ?? 0;
+                        const hasAfterVal = isSelected && rawAfter !== null && rawAfter > 0;
+
                         return (
                           <div
                             key={`weight-tray-${i}`}
@@ -353,31 +361,37 @@ export default function RiceDryingDashboard({ view }) {
                               flexDirection: 'column',
                               borderRadius: '6px',
                               padding: '4px 2px',
-                              border: currentTray === i ? '2px solid #10b981' : isFrozen ? '2px solid #6ee7b7' : '2px solid transparent',
-                              backgroundColor: currentTray === i ? '#f0fdf4' : isFrozen ? '#f0fdf4' : 'transparent',
+                              border: isSelected ? '2px solid #10b981' : isFrozen ? '2px solid #6ee7b7' : '2px solid transparent',
+                              backgroundColor: isSelected ? '#f0fdf4' : isFrozen ? '#f0fdf4' : 'transparent',
                               transition: 'border-color 0.2s, background-color 0.2s',
                             }}
                           >
-                            <div className="sensor-sublabel" style={{ color: currentTray === i ? '#059669' : isFrozen ? '#10b981' : undefined, fontWeight: currentTray === i || isFrozen ? '700' : undefined }}>
+                            <div className="sensor-sublabel" style={{ color: isSelected ? '#059669' : isFrozen ? '#10b981' : '#9ca3af', fontWeight: isSelected || isFrozen ? '700' : '400' }}>
                               TRAY {i}{isFrozen ? ' (Saved)' : ''}
                             </div>
                             <div className="weight-before-after">
                               <div className="weight-ba-item">
                                 <div className="weight-ba-label">B</div>
                                 <div className="sensor-value-sm" style={{ fontSize: '15px', color: isFrozen ? '#059669' : undefined }}>
-                                  {beforeVal.toFixed(1)}kg
+                                  {hasBeforeVal
+                                    ? `${beforeVal.toFixed(1)}kg`
+                                    : <span style={{ color: '#d1d5db' }}>—</span>}
                                 </div>
                               </div>
                               <div className="weight-ba-divider" />
                               <div className="weight-ba-item">
                                 <div className="weight-ba-label after">A</div>
-                                <div className="sensor-value-sm" style={{ fontSize: '15px' }}>{afterVal.toFixed(1)}kg</div>
+                                <div className="sensor-value-sm" style={{ fontSize: '15px' }}>
+                                  {hasAfterVal
+                                    ? `${afterVal.toFixed(1)}kg`
+                                    : <span style={{ color: '#d1d5db' }}>—</span>}
+                                </div>
                               </div>
                             </div>
                             <div className="progress-bar">
                               <div
                                 className="progress-fill green"
-                                style={{ width: `${Math.min((beforeVal / 2) * 100, 100)}%` }}
+                                style={{ width: `${hasBeforeVal ? Math.min((beforeVal / 2) * 100, 100) : 0}%` }}
                               />
                             </div>
                           </div>
@@ -385,7 +399,7 @@ export default function RiceDryingDashboard({ view }) {
                       })}
                     </div>
 
-                    <div className="sensor-range" style={{ marginTop: '8px' }}>B = Before &nbsp;·&nbsp; A = After &nbsp;·&nbsp; (Saved) = Saved &nbsp;·&nbsp; Initial: 1.5kg</div>
+                    <div className="sensor-range" style={{ marginTop: '8px' }}>B = Before &nbsp;·&nbsp; A = After &nbsp;·&nbsp; (Saved) = Saved</div>
                   </div>
 
                 </div>
@@ -468,6 +482,12 @@ export default function RiceDryingDashboard({ view }) {
                       <>
                         <Weight size={15} />
                         Save Weight · Tray {currentTray}
+                        {(() => {
+                          const liveW = sensorData.weight1 ?? sensorData.weightbefore1 ?? null;
+                          return liveW > 0
+                            ? <span style={{ marginLeft: 4, fontWeight: 400, opacity: 0.75 }}>({liveW.toFixed(2)} kg)</span>
+                            : <span style={{ marginLeft: 4, fontWeight: 400, opacity: 0.5 }}>(no data)</span>;
+                        })()}
                       </>
                     )}
                   </button>
