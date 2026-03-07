@@ -14,6 +14,7 @@ export default function RiceDryingDashboard({ view }) {
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const [toast, setToast] = useState(null);
+  const [savedWeights, setSavedWeights] = useState({}); // { 1: { before: 1.5, frozen: true }, ... }
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -101,6 +102,23 @@ export default function RiceDryingDashboard({ view }) {
     console.log("Stop command triggered");
     stopDrying();
     showToast('info', 'Drying process has been stopped.');
+  };
+
+  const handleSaveWeight = () => {
+    const currentWeight = sensorData[`weightbefore${currentTray}`] || 0;
+    if (savedWeights[currentTray]?.frozen) {
+      showToast('error', `Tray ${currentTray} weight is already saved and locked.`);
+      return;
+    }
+    if (currentWeight <= 0) {
+      showToast('error', `No weight data available for Tray ${currentTray}.`);
+      return;
+    }
+    setSavedWeights(prev => ({
+      ...prev,
+      [currentTray]: { before: currentWeight, frozen: true }
+    }));
+    showToast('success', `Tray ${currentTray} before weight saved: ${currentWeight.toFixed(2)} kg`);
   };
 
   return (
@@ -261,9 +279,11 @@ export default function RiceDryingDashboard({ view }) {
                   <div className="sensor-card">
                     <div className="sensor-icon orange"><Thermometer size={24} /></div>
                     <div className="sensor-label">Temperature</div>
-                    <div className="sensor-value-sm">{(sensorData.temperature || 0).toFixed(1)}°C</div>
-                    <div className="progress-bar">
-                      <div className="progress-fill orange" style={{ width: `${Math.min(((sensorData.temperature || 0) / 45) * 100, 100)}%` }}></div>
+                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                      <div className="sensor-value-sm">{(sensorData.temperature || 0).toFixed(1)}°C</div>
+                      <div className="progress-bar">
+                        <div className="progress-fill orange" style={{ width: `${Math.min(((sensorData.temperature || 0) / 45) * 100, 100)}%` }}></div>
+                      </div>
                     </div>
                     <div className="sensor-range">Range: 40-45°C</div>
                   </div>
@@ -271,9 +291,11 @@ export default function RiceDryingDashboard({ view }) {
                   <div className="sensor-card">
                     <div className="sensor-icon cyan"><Droplets size={24} /></div>
                     <div className="sensor-label">Humidity</div>
-                    <div className="sensor-value-sm">{(sensorData.humidity || 0).toFixed(1)}%</div>
-                    <div className="progress-bar">
-                      <div className="progress-fill cyan" style={{ width: `${sensorData.humidity || 0}%` }}></div>
+                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                      <div className="sensor-value-sm">{(sensorData.humidity || 0).toFixed(1)}%</div>
+                      <div className="progress-bar">
+                        <div className="progress-fill cyan" style={{ width: `${sensorData.humidity || 0}%` }}></div>
+                      </div>
                     </div>
                     <div className="sensor-range">Target: &lt;100%</div>
                   </div>
@@ -282,9 +304,9 @@ export default function RiceDryingDashboard({ view }) {
                     <div className="sensor-icon cyan"><Waves size={24} /></div>
                     <div className="sensor-label">Moisture Content</div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', marginTop: '8px' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', marginTop: '8px', flex: 1 }}>
                       {[1, 2, 3, 4, 5, 6].map(i => (
-                        <div key={`moisture-${i}`} style={{ textAlign: 'center' }}>
+                        <div key={`moisture-${i}`} style={{ textAlign: 'center', display: 'flex', flexDirection: 'column' }}>
                           <div className="sensor-sublabel">TRAY {i}</div>
                           <div className="sensor-value-sm">{(sensorData[`moisture${i}`] || 0).toFixed(1)}%</div>
                           <div className="progress-bar">
@@ -315,32 +337,55 @@ export default function RiceDryingDashboard({ view }) {
                     <div className="sensor-icon green"><Weight size={24} /></div>
                     <div className="sensor-label">Weight</div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', marginTop: '8px' }}>
-                      {[1, 2, 3, 4, 5, 6].map(i => (
-                        <div key={`weight-tray-${i}`} style={{ textAlign: 'center' }}>
-                          <div className="sensor-sublabel">TRAY {i}</div>
-                          <div className="weight-before-after">
-                            <div className="weight-ba-item">
-                              <div className="weight-ba-label">B</div>
-                              <div className="sensor-value-sm" style={{ fontSize: '15px' }}>{(sensorData[`weightbefore${i}`] || 0).toFixed(1)}kg</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', marginTop: '8px', flex: 1, alignContent: 'start' }}>
+                      {[1, 2, 3, 4, 5, 6].map(i => {
+                        const isFrozen = savedWeights[i]?.frozen;
+                        const beforeVal = isFrozen
+                          ? savedWeights[i].before
+                          : (sensorData[`weightbefore${i}`] || 0);
+                        const afterVal = sensorData[`weightafter${i}`] || 0;
+                        return (
+                          <div
+                            key={`weight-tray-${i}`}
+                            style={{
+                              textAlign: 'center',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              borderRadius: '6px',
+                              padding: '4px 2px',
+                              border: currentTray === i ? '2px solid #10b981' : isFrozen ? '2px solid #6ee7b7' : '2px solid transparent',
+                              backgroundColor: currentTray === i ? '#f0fdf4' : isFrozen ? '#f0fdf4' : 'transparent',
+                              transition: 'border-color 0.2s, background-color 0.2s',
+                            }}
+                          >
+                            <div className="sensor-sublabel" style={{ color: currentTray === i ? '#059669' : isFrozen ? '#10b981' : undefined, fontWeight: currentTray === i || isFrozen ? '700' : undefined }}>
+                              TRAY {i}{isFrozen ? ' (Saved)' : ''}
                             </div>
-                            <div className="weight-ba-divider" />
-                            <div className="weight-ba-item">
-                              <div className="weight-ba-label after">A</div>
-                              <div className="sensor-value-sm" style={{ fontSize: '15px' }}>{(sensorData[`weightafter${i}`] || 0).toFixed(1)}kg</div>
+                            <div className="weight-before-after">
+                              <div className="weight-ba-item">
+                                <div className="weight-ba-label">B</div>
+                                <div className="sensor-value-sm" style={{ fontSize: '15px', color: isFrozen ? '#059669' : undefined }}>
+                                  {beforeVal.toFixed(1)}kg
+                                </div>
+                              </div>
+                              <div className="weight-ba-divider" />
+                              <div className="weight-ba-item">
+                                <div className="weight-ba-label after">A</div>
+                                <div className="sensor-value-sm" style={{ fontSize: '15px' }}>{afterVal.toFixed(1)}kg</div>
+                              </div>
+                            </div>
+                            <div className="progress-bar">
+                              <div
+                                className="progress-fill green"
+                                style={{ width: `${Math.min((beforeVal / 2) * 100, 100)}%` }}
+                              />
                             </div>
                           </div>
-                          <div className="progress-bar">
-                            <div
-                              className="progress-fill green"
-                              style={{ width: `${Math.min(((sensorData[`weightafter${i}`] || 0) / 2) * 100, 100)}%` }}
-                            />
-                          </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
 
-                    <div className="sensor-range" style={{ marginTop: '8px' }}>B = Before &nbsp;·&nbsp; A = After &nbsp;·&nbsp; Initial: 1.5kg</div>
+                    <div className="sensor-range" style={{ marginTop: '8px' }}>B = Before &nbsp;·&nbsp; A = After &nbsp;·&nbsp; (Saved) = Saved &nbsp;·&nbsp; Initial: 1.5kg</div>
                   </div>
 
                 </div>
@@ -389,32 +434,43 @@ export default function RiceDryingDashboard({ view }) {
                   </div>
                 </div>
 
-                {/* Next Tray for Weighing */}
+                {/* Tray for Weighing — grid selector matching temperature format */}
                 <div className="control-group">
                   <label className="control-group-label">
                     <Weight size={14} style={{ color: '#10b981' }} />
                     Tray for Weighing
                   </label>
-                  <div className="tray-weighing-row">
-                    <div className="tray-indicator">
-                      <span className="tray-indicator-label">Current Tray</span>
-                      <span className="tray-indicator-value">TRAY {currentTray}</span>
-                    </div>
-                    <button
-                      className="next-tray-btn"
-                      onClick={() => setCurrentTray(prev => prev >= 6 ? 1 : prev + 1)}
-                    >
-                      Next Tray
-                    </button>
-                  </div>
-                  <div className="tray-dots">
-                    {[1,2,3,4,5,6].map(i => (
-                      <span
-                        key={i}
-                        className={`tray-dot ${i === currentTray ? 'tray-dot-active' : i < currentTray ? 'tray-dot-done' : ''}`}
-                      />
+                  <div className="selector-buttons temp-grid">
+                    {[1, 2, 3, 4, 5, 6].map(tray => (
+                      <button
+                        key={tray}
+                        className={`selector-btn tray-btn ${currentTray === tray ? 'selected-tray' : ''} ${savedWeights[tray]?.frozen ? 'tray-btn-frozen' : ''}`}
+                        onClick={() => setCurrentTray(tray)}
+                      >
+                        T{tray}
+                        {savedWeights[tray]?.frozen && <span className="tray-frozen-dot" />}
+                      </button>
                     ))}
                   </div>
+
+                  {/* Save Weight Button */}
+                  <button
+                    className={`save-weight-btn ${savedWeights[currentTray]?.frozen ? 'save-weight-btn-frozen' : ''}`}
+                    onClick={handleSaveWeight}
+                    disabled={savedWeights[currentTray]?.frozen}
+                  >
+                    {savedWeights[currentTray]?.frozen ? (
+                      <>
+                        <CheckCircle size={15} />
+                        Tray {currentTray} Saved — {savedWeights[currentTray].before.toFixed(2)} kg
+                      </>
+                    ) : (
+                      <>
+                        <Weight size={15} />
+                        Save Weight · Tray {currentTray}
+                      </>
+                    )}
+                  </button>
                 </div>
 
                 <div className="control-buttons">

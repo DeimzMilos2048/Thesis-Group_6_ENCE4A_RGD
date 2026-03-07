@@ -246,6 +246,7 @@
   grid-template-columns: 2fr 300px;
   gap: 16px;
   flex: 1;
+  align-items: stretch;
 }
 
 @media (max-width: 1024px) {
@@ -259,6 +260,7 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   display: flex;
   flex-direction: column;
+  height: 100%;
 }
 
 .sensor-readings h2 {
@@ -274,19 +276,20 @@
   grid-template-columns: repeat(2, 1fr);
   gap: 12px;
   flex: 1;
-  align-items: start;   
+  align-items: stretch;
 }
 
 .sensor-card {
   display: flex;
   flex-direction: column;
-  justify-content: flex-start;  
+  justify-content: space-between;
   text-align: center;
   padding: 10px;
   border-radius: 8px;
   border: 1.5px solid #e5e7eb;
   transition: background-color 0.2s, border-color 0.2s, box-shadow 0.2s;
-  overflow: visible; 
+  overflow: visible;
+  height: 100%;
 }
 
 .sensor-card:hover {
@@ -329,6 +332,8 @@
   font-size: 14px;
   color: #6b7280;
   flex-shrink: 0;
+  margin-top: auto;
+  padding-top: 4px;
 }
 
 .dual-sensor-container {
@@ -397,7 +402,8 @@
 }
 
 .sensor-avg-row {
-  margin-top: 6px;
+  margin-top: auto;
+  padding-top: 8px;
   text-align: center;
 }
 
@@ -409,17 +415,21 @@
 }
 
 .progress-bar {
-  height: 6px;
+  min-height: 6px;
+  height: 10px;
   background-color: #e5e7eb;
   border-radius: 9999px;
   overflow: hidden;
   margin-bottom: 6px;
-  flex-shrink: 0;
   width: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 .progress-fill {
+  width: var(--fill-width, 0%);
   height: 100%;
+  min-height: 6px;
   border-radius: 9999px;
   transition: width 0.3s;
 }
@@ -437,7 +447,6 @@
   display: flex;
   flex-direction: column;
   height: 100%;
-  overflow: hidden;
   width: 300px;
   min-width: 260px;
   max-width: 340px;
@@ -481,7 +490,7 @@
   flex-wrap: wrap;
 }
 
-/* 3-column grid for temperature */
+/* 3-column grid for temperature and tray */
 .temp-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -530,6 +539,135 @@
   box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.15);
 }
 
+/* Tray selected state — green theme */
+.tray-btn.selected-tray {
+  background-color: #f0fdf4;
+  border-color: #10b981;
+  color: #059669;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
+}
+
+/* Frozen tray button state */
+.tray-btn.tray-btn-frozen {
+  background-color: #f0fdf4;
+  border-color: #6ee7b7;
+  color: #059669;
+}
+
+.tray-frozen-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  background-color: #10b981;
+  border-radius: 50%;
+  margin-left: 3px;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
+/* Save Weight Button */
+.save-weight-btn {
+  margin-top: 10px;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1.5px solid #10b981;
+  background-color: #ecfdf5;
+  color: #059669;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s, box-shadow 0.15s, transform 0.1s;
+  white-space: nowrap;
+}
+
+.save-weight-btn:hover:not(:disabled) {
+  background-color: #d1fae5;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
+  transform: translateY(-1px);
+}
+
+.save-weight-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.save-weight-btn.save-weight-btn-frozen {
+  background-color: #f0fdf4;
+  border-color: #6ee7b7;
+  color: #10b981;
+  cursor: not-allowed;
+  opacity: 0.85;
+}
+
+/* Tray weight detail panel */
+.tray-weight-detail {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background-color: #f0fdf4;
+  border: 1.5px solid #6ee7b7;
+}
+
+.tray-weight-detail-header {
+  margin-bottom: 8px;
+}
+
+.tray-weight-detail-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #059669;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.tray-weight-detail-values {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.tray-weight-detail-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+}
+
+.tray-weight-ba-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background-color: #e5e7eb;
+  color: #6b7280;
+  letter-spacing: 0.3px;
+}
+
+.tray-weight-ba-badge.after {
+  background-color: #d1fae5;
+  color: #059669;
+}
+
+.tray-weight-ba-value {
+  font-size: 16px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.tray-weight-detail-divider {
+  width: 1px;
+  height: 36px;
+  background-color: #a7f3d0;
+  flex-shrink: 0;
+}
+
 .control-input {
   width: 100%;
   padding: 10px 14px;
@@ -548,23 +686,23 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
-  flex: 1;
-  justify-content: stretch;
+  margin-top: auto;
+  padding-top: 8px;
 }
 
 .start-button,
 .stop-button {
   width: 100%;
-  flex: 1;
+  min-height: 56px;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 10px;
   border: none;
-  border-radius: 12px;
-  font-size: 17px;
+  border-radius: 14px;
+  font-size: 20px;
   font-weight: 700;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.6px;
   color: #ffffff;
   cursor: pointer;
   transition: background-color 0.2s, transform 0.1s, box-shadow 0.2s;
@@ -801,7 +939,7 @@
   flex-shrink: 0;
 }
 
-/* Next Tray for Weighing */
+/* Next Tray for Weighing — kept for backward compat, no longer rendered */
 .tray-weighing-row {
   display: flex;
   align-items: center;
