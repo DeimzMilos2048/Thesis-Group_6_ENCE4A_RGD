@@ -5,24 +5,32 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import authService from '../../api/authService';
 import logo from "../../assets/images/logo2.png";
 import { useSocket } from '../../contexts/SocketContext.js';
+import { useDrying } from '../../contexts/DryingContext.js';
 
 export default function RiceDryingDashboard({ view }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [dryingSeconds, setDryingSeconds] = useState(0);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
-  const [selectedTemp, setSelectedTemp] = useState(null);
-  const [selectedMoisture, setSelectedMoisture] = useState(null);
-  const [toast, setToast] = useState(null); // { type: 'success'|'error'|'info', message: string }
-  const [currentTray, setCurrentTray] = useState(1);
+  const [toast, setToast] = useState(null);
 
   const navigate = useNavigate();
   const location = useLocation();
 
   const { socket, sensorData, chartData, isConnected } = useSocket();
+
+  // ── All drying state comes from context — persists across tab navigation ──
+  const {
+    isProcessing,
+    dryingSeconds,
+    selectedTemp,   setSelectedTemp,
+    selectedMoisture, setSelectedMoisture,
+    currentTray,    setCurrentTray,
+    startDrying,
+    stopDrying,
+    formatDryingTime,
+  } = useDrying();
 
   useEffect(() => {
     const path = location.pathname;
@@ -54,18 +62,6 @@ export default function RiceDryingDashboard({ view }) {
     return () => { isMounted = false; };
   }, [navigate]);
 
-  useEffect(() => {
-    let interval = null;
-    if (isProcessing) {
-      interval = setInterval(() => {
-        setDryingSeconds(prev => prev + 1);
-      }, 1000);
-    } else {
-      setDryingSeconds(0);
-    }
-    return () => clearInterval(interval);
-  }, [isProcessing]);
-
   const handleNavigation = (path, tab) => {
     setActiveTab(tab);
     navigate(path);
@@ -80,7 +76,7 @@ export default function RiceDryingDashboard({ view }) {
 
   const showToast = (type, message) => {
     setToast({ type, message });
-    setTimeout(() => setToast(null), 7000);
+    setTimeout(() => setToast(null), 10000);
   };
 
   const handleApply = () => {
@@ -89,7 +85,7 @@ export default function RiceDryingDashboard({ view }) {
       return;
     }
     if (!selectedTemp) {
-      showToast('error', 'Please select a target temperature (41–45°C) before starting.');
+      showToast('error', 'Please select a target temperature (40–45°C) before starting.');
       return;
     }
     if (!selectedMoisture) {
@@ -97,21 +93,14 @@ export default function RiceDryingDashboard({ view }) {
       return;
     }
     console.log("Applied — Temp:", selectedTemp, "Moisture:", selectedMoisture);
-    setIsProcessing(true);
+    startDrying(selectedTemp, selectedMoisture);
     showToast('success', `Drying started — Target: ${selectedTemp}°C · Moisture: ${selectedMoisture}%`);
   };
 
   const handleStop = () => {
     console.log("Stop command triggered");
-    setIsProcessing(false);
+    stopDrying();
     showToast('info', 'Drying process has been stopped.');
-  };
-
-  const formatDryingTime = (seconds) => {
-    const h = Math.floor(seconds / 3600).toString().padStart(2, '0');
-    const m = Math.floor((seconds % 3600) / 60).toString().padStart(2, '0');
-    const s = (seconds % 60).toString().padStart(2, '0');
-    return `${h}:${m}:${s}`;
   };
 
   return (
@@ -274,9 +263,9 @@ export default function RiceDryingDashboard({ view }) {
                     <div className="sensor-label">Temperature</div>
                     <div className="sensor-value-sm">{(sensorData.temperature || 0).toFixed(1)}°C</div>
                     <div className="progress-bar">
-                      <div className="progress-fill orange" style={{ width: `${Math.min(((sensorData.temperature || 0) / 60) * 100, 100)}%` }}></div>
+                      <div className="progress-fill orange" style={{ width: `${Math.min(((sensorData.temperature || 0) / 45) * 100, 100)}%` }}></div>
                     </div>
-                    <div className="sensor-range">Range: 40-50°C</div>
+                    <div className="sensor-range">Range: 40-45°C</div>
                   </div>
 
                   <div className="sensor-card">
@@ -333,12 +322,12 @@ export default function RiceDryingDashboard({ view }) {
                           <div className="weight-before-after">
                             <div className="weight-ba-item">
                               <div className="weight-ba-label">B</div>
-                              <div className="sensor-value-sm" style={{ fontSize: '13px' }}>{(sensorData[`weightbefore${i}`] || 0).toFixed(1)}kg</div>
+                              <div className="sensor-value-sm" style={{ fontSize: '15px' }}>{(sensorData[`weightbefore${i}`] || 0).toFixed(1)}kg</div>
                             </div>
                             <div className="weight-ba-divider" />
                             <div className="weight-ba-item">
                               <div className="weight-ba-label after">A</div>
-                              <div className="sensor-value-sm" style={{ fontSize: '13px' }}>{(sensorData[`weightafter${i}`] || 0).toFixed(1)}kg</div>
+                              <div className="sensor-value-sm" style={{ fontSize: '15px' }}>{(sensorData[`weightafter${i}`] || 0).toFixed(1)}kg</div>
                             </div>
                           </div>
                           <div className="progress-bar">
@@ -351,7 +340,7 @@ export default function RiceDryingDashboard({ view }) {
                       ))}
                     </div>
 
-                    <div className="sensor-range" style={{ marginTop: '8px' }}>B = Before &nbsp;·&nbsp; A = After &nbsp;·&nbsp; Initial: 2kg</div>
+                    <div className="sensor-range" style={{ marginTop: '8px' }}>B = Before &nbsp;·&nbsp; A = After &nbsp;·&nbsp; Initial: 1.5kg</div>
                   </div>
 
                 </div>

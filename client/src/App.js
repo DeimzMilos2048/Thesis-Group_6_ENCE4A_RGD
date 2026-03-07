@@ -4,8 +4,9 @@ import { AuthProvider } from './utils/AuthContext.jsx';
 import { ToastContainer } from "react-toastify";
 import 'react-toastify/dist/ReactToastify.css';
 import useAuthStore from "./utils/authStore.js";
-import {AdminRoute, UserRoute } from './utils/ProtectedRoute.js';
+import { AdminRoute, UserRoute } from './utils/ProtectedRoute.js';
 import { SocketProvider } from './contexts/SocketContext.js';
+import { DryingProvider } from './contexts/DryingContext';
 
 // Page Components
 import Home from "./LandingPage/Home";
@@ -21,7 +22,7 @@ import Profile from './components/dashboard/Profile';
 import Notification from './components/dashboard/Notification';
 
 
-export default function App(){
+export default function App() {
   const initializeAuth = useAuthStore((state) => state.initializeAuth);
 
   useEffect(() => {
@@ -29,123 +30,67 @@ export default function App(){
   }, [initializeAuth]);
 
   return (
-      <div className="App">
-        <AuthProvider>
-          <Routes>
-            {/* Public Routes */}
-            <Route path="/" element={<Navigate to="/home" replace />} />
-            <Route path="/home" element={<Home />} />
-            <Route path="/about" element={<About />} />
-            <Route path="/gallery" element={<Gallery />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/signup" element={<SignUp />} />
+    <div className="App">
+      <AuthProvider>
+        <Routes>
+          {/* Public Routes */}
+          <Route path="/" element={<Navigate to="/home" replace />} />
+          <Route path="/home"    element={<Home />} />
+          <Route path="/about"   element={<About />} />
+          <Route path="/gallery" element={<Gallery />} />
+          <Route path="/login"   element={<Login />} />
+          <Route path="/signup"  element={<SignUp />} />
 
-            {/* Protected User Routes */}
-            <Route
-              path="/dashboard"
-              element={
-                <SocketProvider>
-                  <UserRoute>
-                    <Dashboard />
-                  </UserRoute>
-                </SocketProvider>
-              }
-            />
-          
-            {/* Protected Admin Routes */}
-            <Route
-              path="/admindashboard"
-              element={
-                <SocketProvider>
-                  <AdminRoute>
-                    <AdminDashboard />
-                  </AdminRoute>
-                </SocketProvider>
-              }
-            />
-            <Route
-              path="/admindashboard/settings"
-              element={
-                <SocketProvider>
-                  <AdminRoute>
-                    <AdminDashboard view="settings" />
-                  </AdminRoute>
-                </SocketProvider>
-              }
-            />
+          {/* ── All user routes share ONE SocketProvider + DryingProvider ──
+              This keeps the socket connection and drying state alive
+              when navigating between Dashboard, Analytics, History,
+              Notification and Profile — no resets on tab switch.        */}
+          <Route
+            path="/*"
+            element={
+              <SocketProvider>
+                <DryingProvider>
+                  <Routes>
+                    {/* User Routes */}
+                    <Route path="/dashboard"    element={<UserRoute><Dashboard /></UserRoute>} />
+                    <Route path="/analytics"    element={<UserRoute><Analytics /></UserRoute>} />
+                    <Route path="/history"      element={<UserRoute><History /></UserRoute>} />
+                    <Route path="/profile"      element={<UserRoute><Profile /></UserRoute>} />
+                    <Route path="/notification" element={<UserRoute><Notification /></UserRoute>} />
 
-            {/* Analytics Route */}
-            <Route
-              path="/analytics"
-              element={
-                <SocketProvider>
-                  <UserRoute>
-                    <Analytics />
-                  </UserRoute>
-                </SocketProvider>
-              }
-            />
-
-            {/* History Route */}
-            <Route 
-              path="/history"
-              element={
-                <SocketProvider>
-                  <UserRoute>
-                    <History />
-                  </UserRoute>
-                </SocketProvider>
-              }
-            />
-
-           {/* Profile Route */}
-           <Route path ="/profile"
-            element ={
-                <SocketProvider>
-                  <UserRoute>
-                    <Profile />
-                  </UserRoute>
-                </SocketProvider>
+                    {/* Admin Routes */}
+                    <Route path="/admindashboard"          element={<AdminRoute><AdminDashboard /></AdminRoute>} />
+                    <Route path="/admindashboard/settings" element={<AdminRoute><AdminDashboard view="settings" /></AdminRoute>} />
+                  </Routes>
+                </DryingProvider>
+              </SocketProvider>
             }
-            />
+          />
 
-            {/* Notification Route */}
-            <Route
-              path="/notification"
-              element={
-                <SocketProvider>
-                  <UserRoute>
-                    <Notification />
-                  </UserRoute>
-                </SocketProvider>
-              }
-            />
+          {/* Unauthorized */}
+          <Route
+            path="/unauthorized"
+            element={
+              <div className="unauthorized">
+                <h1>Unauthorized Access</h1>
+                <p>You don't have permission to access this page.</p>
+              </div>
+            }
+          />
 
-            {/* Unauthorized Route */}
-            <Route
-              path="/unauthorized"
-              element={
-                <div className="unauthorized">
-                  <h1>Unauthorized Access</h1>
-                  <p>You don't have permission to access this page.</p>
-                </div>
-              }
-            />
-
-            {/* Catch-all route for 404 */}
-            <Route
-              path="*"
-              element={
-                <div className="not-found">
-                  <h1>Error: 404 - Page Not Found</h1>
-                  <p>The page you're looking for doesn't exist.</p>
-                </div>
-              }
-            />
-          </Routes>
-          <ToastContainer />
-        </AuthProvider>
-      </div>
-  )
+          {/* 404 */}
+          <Route
+            path="*"
+            element={
+              <div className="not-found">
+                <h1>Error: 404 - Page Not Found</h1>
+                <p>The page you're looking for doesn't exist.</p>
+              </div>
+            }
+          />
+        </Routes>
+        <ToastContainer />
+      </AuthProvider>
+    </div>
+  );
 }
-

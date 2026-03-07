@@ -92,6 +92,23 @@
   color: #ef4444;
 }
 
+/* Unread notification badge on nav bell */
+.notif-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  background-color: #ef4444;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  border-radius: 999px;
+  line-height: 1;
+  margin-left: 2px;
+}
+
 .profile-dropdown-wrapper {
   position: relative;
   display: flex;
@@ -744,6 +761,45 @@
 }
 
 .modal-button.confirm:hover { background-color: #dc2626; }
+
+/* Weight Before/After per tray */
+.weight-before-after {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  margin: 3px 0 4px;
+}
+
+.weight-ba-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  flex: 1;
+}
+
+.weight-ba-label {
+  font-size: 14px;
+  font-weight: 700;
+  color: #6b7280;
+  background-color: #f3f4f6;
+  border-radius: 3px;
+  padding: 1px 4px;
+  letter-spacing: 0.3px;
+}
+
+.weight-ba-label.after {
+  color: #059669;
+  background-color: #d1fae5;
+}
+
+.weight-ba-divider {
+  width: 1px;
+  height: 28px;
+  background-color: #e5e7eb;
+  flex-shrink: 0;
+}
 
 /* Next Tray for Weighing */
 .tray-weighing-row {
