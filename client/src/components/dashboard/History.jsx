@@ -1,3 +1,5 @@
+// history
+
 import { useState, useEffect } from 'react';
 import { Activity, BarChart2, Bell, CircleUser, Clock, AlertTriangle, LogOut, ChevronDown, ChevronUp, User, HelpCircle, Settings } from 'lucide-react';
 import './Dashboard.css';
@@ -61,7 +63,8 @@ export default function History({ view }) {
           return;
         }
 
-        const response = await fetch('http://localhost:5001/api/sensor/history', {
+        const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001';
+        const response = await fetch(`${API_URL}/api/sensor/history`, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
@@ -173,21 +176,21 @@ export default function History({ view }) {
               temperature: item.temperature !== undefined ? `${item.temperature}°` : 'N/A',
               humidity: item.humidity !== undefined ? item.humidity.toString() : 'N/A',
 
-              // Before Weight per tray (T1–T6) — matches dashboard field names
-              beforeWeightT1: safeToString(item.beforeWeightT1 ?? item.weightBeforeT1 ?? item.weight1T1),
-              beforeWeightT2: safeToString(item.beforeWeightT2 ?? item.weightBeforeT2 ?? item.weight1T2),
-              beforeWeightT3: safeToString(item.beforeWeightT3 ?? item.weightBeforeT3 ?? item.weight1T3),
-              beforeWeightT4: safeToString(item.beforeWeightT4 ?? item.weightBeforeT4 ?? item.weight1T4),
-              beforeWeightT5: safeToString(item.beforeWeightT5 ?? item.weightBeforeT5 ?? item.weight1T5),
-              beforeWeightT6: safeToString(item.beforeWeightT6 ?? item.weightBeforeT6 ?? item.weight1T6),
+              // Before Weight — single value (weight1) spread across T1-T6 to keep table structure
+              beforeWeightT1: safeToString(item.weight1),
+              beforeWeightT2: safeToString(item.weight1),
+              beforeWeightT3: safeToString(item.weight1),
+              beforeWeightT4: safeToString(item.weight1),
+              beforeWeightT5: safeToString(item.weight1),
+              beforeWeightT6: safeToString(item.weight1),
 
-              // Final Weight per tray (T1–T6) — matches dashboard field names
-              finalWeightT1: safeToString(item.finalWeightT1 ?? item.weightFinalT1 ?? item.weight2T1),
-              finalWeightT2: safeToString(item.finalWeightT2 ?? item.weightFinalT2 ?? item.weight2T2),
-              finalWeightT3: safeToString(item.finalWeightT3 ?? item.weightFinalT3 ?? item.weight2T3),
-              finalWeightT4: safeToString(item.finalWeightT4 ?? item.weightFinalT4 ?? item.weight2T4),
-              finalWeightT5: safeToString(item.finalWeightT5 ?? item.weightFinalT5 ?? item.weight2T5),
-              finalWeightT6: safeToString(item.finalWeightT6 ?? item.weightFinalT6 ?? item.weight2T6),
+              // Final Weight — single value (weight2) spread across T1-T6 to keep table structure
+              finalWeightT1: safeToString(item.weight2),
+              finalWeightT2: safeToString(item.weight2),
+              finalWeightT3: safeToString(item.weight2),
+              finalWeightT4: safeToString(item.weight2),
+              finalWeightT5: safeToString(item.weight2),
+              finalWeightT6: safeToString(item.weight2),
 
               // Status — sent from dashboard as status
               status: item.status || 'Idle',

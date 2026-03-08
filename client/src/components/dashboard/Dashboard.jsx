@@ -6,6 +6,9 @@ import authService from '../../api/authService';
 import logo from "../../assets/images/logo2.png";
 import { useSocket } from '../../contexts/SocketContext.js';
 import { useDrying } from '../../contexts/DryingContext.js';
+import { useWeight } from '../../contexts/WeightContext.js';
+import { useToast } from '../../contexts/ToastContext.js';
+import { setTemperature, setMoisture, setTray } from '../../api/systemService'; // ← from doc8
 
 export default function RiceDryingDashboard({ view }) {
   const [loading, setLoading] = useState(false);
@@ -13,7 +16,6 @@ export default function RiceDryingDashboard({ view }) {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
-  const [toast, setToast] = useState(null);
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -33,6 +35,9 @@ export default function RiceDryingDashboard({ view }) {
 
   // ── Weight state from shared context — persists across all page navigation ──
   const { savedWeights, savedAfterWeights, saveBeforeWeight, saveAfterWeight } = useWeight();
+
+  // ── Persistent toast — survives tab/route changes via ToastContext ──────────
+  const { showToast } = useToast();
 
   useEffect(() => {
     const path = location.pathname;
@@ -66,11 +71,6 @@ export default function RiceDryingDashboard({ view }) {
   const handleLogoutClick = () => setShowLogoutConfirm(true);
   const handleLogoutCancel = () => setShowLogoutConfirm(false);
   const handleLogoutConfirm = () => { authService.logout(); navigate('/login'); };
-
-  const showToast = (type, message) => {
-    setToast({ type, message });
-    setTimeout(() => setToast(null), 10000);
-  };
 
   const handleApply = () => {
     if (!selectedTemp && !selectedMoisture) { showToast('error', 'Please select a target temperature and moisture before starting.'); return; }
@@ -121,17 +121,7 @@ export default function RiceDryingDashboard({ view }) {
         </div>
       )}
 
-      {toast && (
-        <div className={`toast-notification toast-${toast.type}`}>
-          <span className="toast-icon">
-            {toast.type === 'success' && <CheckCircle size={18} />}
-            {toast.type === 'error' && <AlertTriangle size={18} />}
-            {toast.type === 'info' && <StopCircle size={18} />}
-          </span>
-          <span className="toast-message">{toast.message}</span>
-          <button className="toast-close" onClick={() => setToast(null)}>×</button>
-        </div>
-      )}
+      {/* Toast rendered globally by GlobalToastDisplay in App.jsx */}
 
       <header className="topbar">
         <div className="topbar-logo-section"><img src={logo} alt="Logo" className="topbar-logo" /></div>
@@ -286,6 +276,7 @@ export default function RiceDryingDashboard({ view }) {
               <div className="system-controls">
                 <div className="controls-header"><h2>System Controls</h2></div>
 
+                {/* Temperature Selector — sets local state + sends to backend */}
                 <div className="control-group">
                   <label className="control-group-label"><Thermometer size={14} style={{ color: '#f97316' }} /> Target Temperature (°C)</label>
                   <div className="selector-buttons temp-grid">
@@ -293,7 +284,15 @@ export default function RiceDryingDashboard({ view }) {
                       <button
                         key={temp}
                         className={`selector-btn temp-btn ${selectedTemp === temp ? 'selected-temp' : ''}`}
-                        onClick={() => setSelectedTemp(temp)}
+                        onClick={async () => {
+                          try {
+                            setSelectedTemp(temp);
+                            await setTemperature(temp);
+                            console.log('Temperature sent to backend:', temp);
+                          } catch (err) {
+                            console.error('Temperature update failed:', err);
+                          }
+                        }}
                       >
                         {temp}°
                       </button>
@@ -301,6 +300,7 @@ export default function RiceDryingDashboard({ view }) {
                   </div>
                 </div>
 
+                {/* Moisture Selector — sets local state + sends to backend */}
                 <div className="control-group">
                   <label className="control-group-label"><Waves size={14} style={{ color: '#06b6d4' }} /> Target Moisture (%)</label>
                   <div className="selector-buttons">
@@ -308,7 +308,15 @@ export default function RiceDryingDashboard({ view }) {
                       <button
                         key={moisture}
                         className={`selector-btn moisture-btn ${selectedMoisture === moisture ? 'selected-moisture' : ''}`}
-                        onClick={() => setSelectedMoisture(moisture)}
+                        onClick={async () => {
+                          try {
+                            setSelectedMoisture(moisture);
+                            await setMoisture(moisture);
+                            console.log('Moisture sent to backend:', moisture);
+                          } catch (err) {
+                            console.error('Moisture update failed:', err);
+                          }
+                        }}
                       >
                         {moisture}%
                       </button>
@@ -316,6 +324,7 @@ export default function RiceDryingDashboard({ view }) {
                   </div>
                 </div>
 
+                {/* Tray Selector — sets local state + sends to backend */}
                 <div className="control-group">
                   <label className="control-group-label"><Weight size={14} style={{ color: '#10b981' }} /> Tray for Weighing</label>
                   <div className="selector-buttons temp-grid">
@@ -323,10 +332,17 @@ export default function RiceDryingDashboard({ view }) {
                       <button
                         key={tray}
                         className={`selector-btn tray-btn ${currentTray === tray ? 'selected-tray' : ''} ${savedWeights[tray]?.frozen ? 'tray-btn-frozen' : ''}`}
-                        onClick={() => setCurrentTray(tray)}
+                        onClick={async () => {
+                          try {
+                            setCurrentTray(tray);
+                            await setTray(tray);
+                            console.log('Tray sent to backend:', tray);
+                          } catch (err) {
+                            console.error('Tray update failed:', err);
+                          }
+                        }}
                       >
-                        T{tray}
-                        {savedWeights[tray]?.frozen && <span className="tray-frozen-dot" />}
+                        T{tray}{savedWeights[tray]?.frozen && <span className="tray-frozen-dot" />}
                       </button>
                     ))}
                   </div>

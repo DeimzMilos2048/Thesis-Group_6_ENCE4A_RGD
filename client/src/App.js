@@ -8,6 +8,8 @@ import { AdminRoute, UserRoute } from './utils/ProtectedRoute.js';
 import { SocketProvider } from './contexts/SocketContext.js';
 import { DryingProvider } from './contexts/DryingContext';
 import { WeightProvider } from './contexts/WeightContext.js';
+import { ToastProvider }  from './contexts/ToastContext';
+import GlobalToastDisplay from './components/GlobalToastDisplay';
 
 // Page Components
 import Home from "./LandingPage/Home";
@@ -32,6 +34,8 @@ export default function App() {
 
   return (
     <div className="App">
+      <ToastProvider>
+        <GlobalToastDisplay/>
       <AuthProvider>
         <Routes>
           {/* Public Routes */}
@@ -90,6 +94,7 @@ export default function App() {
         </Routes>
         <ToastContainer />
       </AuthProvider>
+      </ToastProvider>
     </div>
   );
 }
