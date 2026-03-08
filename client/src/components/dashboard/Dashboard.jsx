@@ -6,6 +6,7 @@ import authService from '../../api/authService';
 import logo from "../../assets/images/logo2.png";
 import { useSocket } from '../../contexts/SocketContext.js';
 import { useDrying } from '../../contexts/DryingContext.js';
+import { setTemperature, setMoisture, setTray } from "../../api/systemService";
 
 export default function RiceDryingDashboard({ view }) {
   const [loading, setLoading] = useState(false);
@@ -421,7 +422,15 @@ export default function RiceDryingDashboard({ view }) {
                       <button
                         key={temp}
                         className={`selector-btn temp-btn ${selectedTemp === temp ? 'selected-temp' : ''}`}
-                        onClick={() => setSelectedTemp(temp)}
+                        onClick={async () => {
+                              try {
+                               setSelectedTemp(temp);
+                               await setTemperature(temp);
+                              console.log("Temperature sent to backend:", temp);
+                              } catch (err) {
+                              console.error("Temperature update failed:", err);
+                            }
+                        }}
                       >
                         {temp}°
                       </button>
@@ -440,7 +449,15 @@ export default function RiceDryingDashboard({ view }) {
                       <button
                         key={moisture}
                         className={`selector-btn moisture-btn ${selectedMoisture === moisture ? 'selected-moisture' : ''}`}
-                        onClick={() => setSelectedMoisture(moisture)}
+                        onClick={async () => {
+                        try {
+                        setSelectedMoisture(moisture);
+                        await setMoisture(moisture);
+                         console.log("Moisture sent to backend:", moisture);
+                          } catch (err) {
+                        console.error("Moisture update failed:", err);
+                        }
+                        }}
                       >
                         {moisture}%
                       </button>
@@ -459,7 +476,15 @@ export default function RiceDryingDashboard({ view }) {
                       <button
                         key={tray}
                         className={`selector-btn tray-btn ${currentTray === tray ? 'selected-tray' : ''} ${savedWeights[tray]?.frozen ? 'tray-btn-frozen' : ''}`}
-                        onClick={() => setCurrentTray(tray)}
+                        onClick={async () => {
+                        try {
+                         setCurrentTray(tray);
+                        await setTray(tray);
+                        console.log("Tray sent to backend:", tray);
+                        } catch (err) {
+                        console.error("Tray update failed:", err);
+                        }
+                        }}
                       >
                         T{tray}
                         {savedWeights[tray]?.frozen && <span className="tray-frozen-dot" />}
