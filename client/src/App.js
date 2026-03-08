@@ -7,6 +7,7 @@ import useAuthStore from "./utils/authStore.js";
 import { AdminRoute, UserRoute } from './utils/ProtectedRoute.js';
 import { SocketProvider } from './contexts/SocketContext.js';
 import { DryingProvider } from './contexts/DryingContext';
+import { WeightProvider } from './contexts/WeightContext.js';
 
 // Page Components
 import Home from "./LandingPage/Home";
@@ -41,15 +42,12 @@ export default function App() {
           <Route path="/login"   element={<Login />} />
           <Route path="/signup"  element={<SignUp />} />
 
-          {/* ── All user routes share ONE SocketProvider + DryingProvider ──
-              This keeps the socket connection and drying state alive
-              when navigating between Dashboard, Analytics, History,
-              Notification and Profile — no resets on tab switch.        */}
           <Route
             path="/*"
             element={
               <SocketProvider>
                 <DryingProvider>
+                  <WeightProvider>
                   <Routes>
                     {/* User Routes */}
                     <Route path="/dashboard"    element={<UserRoute><Dashboard /></UserRoute>} />
@@ -62,6 +60,7 @@ export default function App() {
                     <Route path="/admindashboard"          element={<AdminRoute><AdminDashboard /></AdminRoute>} />
                     <Route path="/admindashboard/settings" element={<AdminRoute><AdminDashboard view="settings" /></AdminRoute>} />
                   </Routes>
+                  </WeightProvider>
                 </DryingProvider>
               </SocketProvider>
             }

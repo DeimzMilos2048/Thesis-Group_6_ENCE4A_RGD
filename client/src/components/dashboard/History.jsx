@@ -18,7 +18,6 @@ export default function History({ view }) {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Update active tab based on current route
   useEffect(() => {
     const path = location.pathname;
     if (path.includes('/analytics')) {
@@ -42,7 +41,6 @@ export default function History({ view }) {
           if (isMounted) setLoading(true);
         }, 300);
 
-        // Get auth token
         const token = localStorage.getItem('token');
         if (!token) {
           setError('Authentication required. Please login to access history.');
@@ -50,7 +48,6 @@ export default function History({ view }) {
           return;
         }
 
-        // Validate token
         try {
           const tokenPayload = JSON.parse(atob(token.split('.')[1]));
           if (!tokenPayload || tokenPayload.exp < Date.now() / 1000) {
@@ -64,26 +61,21 @@ export default function History({ view }) {
           return;
         }
 
-        // Fetch sensor history data from backend API with auth
         const response = await fetch('http://localhost:5001/api/sensor/history', {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
           }
         });
-        
-        // Debug: Check response type and status
+
         console.log('Response status:', response.status);
         console.log('Response headers:', response.headers.get('content-type'));
-        
+
         if (!response.ok) {
-          // If response is HTML (error page), provide better error message
           const contentType = response.headers.get('content-type');
           if (contentType && contentType.includes('text/html')) {
             throw new Error('Server is not running or API endpoint not found. Please start the backend server.');
           }
-          
-          // Handle specific HTTP errors
           if (response.status === 404) {
             throw new Error('API endpoint not found. Please ensure the backend server is running on port 5001 and the /api/sensor/history route exists.');
           } else if (response.status === 401) {
@@ -94,21 +86,19 @@ export default function History({ view }) {
             throw new Error(`HTTP ${response.status}: Failed to fetch history data`);
           }
         }
-        
-        // Check if response is JSON
+
         const contentType = response.headers.get('content-type');
         if (!contentType || !contentType.includes('application/json')) {
           const text = await response.text();
           console.error('Non-JSON response:', text.substring(0, 200));
           throw new Error('Server returned non-JSON response. Backend server may not be running correctly.');
         }
-        
+
         const result = await response.json();
-        
+
         if (isMounted) {
           console.log('History API Response:', result);
-          
-          // Handle different response structures
+
           let sensorData = [];
           if (result.success && result.data) {
             sensorData = result.data;
@@ -120,28 +110,22 @@ export default function History({ view }) {
             console.warn('Unexpected response structure:', result);
             sensorData = [];
           }
-          
-          // Validate data is an array
+
           if (!Array.isArray(sensorData)) {
             console.error('History API: Expected array but got:', typeof sensorData, sensorData);
             setError('Invalid data format received from server');
             setLoading(false);
             return;
           }
-          
-          // Transform database data to match table format
+
+          const safeToString = (value, fallback = 'N/A') =>
+            value !== undefined && value !== null ? value.toString() : fallback;
+
           const formattedData = sensorData.map((item, index) => {
-            const beforeWeightValue =
-              item.weightBefore ??
-              item.initialWeight ??
-              item.weight1 ??
-              item.weight;
-
-            const safeToString = (value, fallback = 'N/A') =>
-              value !== undefined && value !== null ? value.toString() : fallback;
-
             return {
               id: item._id || item.id || index + 1,
+
+              // Date & Time
               date: item.timestamp
                 ? new Date(item.timestamp).toLocaleDateString('en-US', {
                     month: '2-digit',
@@ -149,7 +133,6 @@ export default function History({ view }) {
                     year: 'numeric',
                   })
                 : 'N/A',
-              // Starting time of the session
               startTime:
                 item.startTime ||
                 (item.timestamp
@@ -159,7 +142,6 @@ export default function History({ view }) {
                       hour12: true,
                     })
                   : 'N/A'),
-              // End time of the session (if provided by backend)
               endTime: item.endTime
                 ? new Date(item.endTime).toLocaleTimeString('en-US', {
                     hour: '2-digit',
@@ -167,53 +149,51 @@ export default function History({ view }) {
                     hour12: true,
                   })
                 : 'N/A',
-              // Initial moisture per tray (1–6)
+
+              // Initial Moisture per tray (T1–T6) — matches dashboard field names
               initialMoistureT1: safeToString(item.moisture1),
               initialMoistureT2: safeToString(item.moisture2),
               initialMoistureT3: safeToString(item.moisture3),
               initialMoistureT4: safeToString(item.moisture4),
               initialMoistureT5: safeToString(item.moisture5),
               initialMoistureT6: safeToString(item.moisture6),
-              // Final moisture per tray (1–6) – uses dedicated fields if backend provides them
-              finalMoistureT1: safeToString(
-                item.finalMoisture1 ?? item.moisture1End
-              ),
-              finalMoistureT2: safeToString(
-                item.finalMoisture2 ?? item.moisture2End
-              ),
-              finalMoistureT3: safeToString(
-                item.finalMoisture3 ?? item.moisture3End
-              ),
-              finalMoistureT4: safeToString(
-                item.finalMoisture4 ?? item.moisture4End
-              ),
-              finalMoistureT5: safeToString(
-                item.finalMoisture5 ?? item.moisture5End
-              ),
-              finalMoistureT6: safeToString(
-                item.finalMoisture6 ?? item.moisture6End
-              ),
-              // Average moisture across trays (from sensorDataModel.js moistureavg)
+
+              // Final Moisture per tray (T1–T6) — matches dashboard field names
+              finalMoistureT1: safeToString(item.finalMoisture1 ?? item.moisture1End),
+              finalMoistureT2: safeToString(item.finalMoisture2 ?? item.moisture2End),
+              finalMoistureT3: safeToString(item.finalMoisture3 ?? item.moisture3End),
+              finalMoistureT4: safeToString(item.finalMoisture4 ?? item.moisture4End),
+              finalMoistureT5: safeToString(item.finalMoisture5 ?? item.moisture5End),
+              finalMoistureT6: safeToString(item.finalMoisture6 ?? item.moisture6End),
+
+              // Moisture average — sent from dashboard as moistureavg
               moistureavg: safeToString(item.moistureavg),
-              temperature:
-                item.temperature !== undefined ? `${item.temperature}°` : '0°',
-              humidity:
-                item.humidity !== undefined ? item.humidity.toString() : '0',
-              // Before drying weight
-              beforeWeight:
-                beforeWeightValue !== undefined && beforeWeightValue !== null
-                  ? beforeWeightValue.toString()
-                  : '0',
-              // Final weight after drying
-              finalWeight:
-                item.weightFinal ??
-                item.finalWeight ??
-                item.weight2 ??
-                'N/A',
+
+              // Temperature & Humidity — sent from dashboard as temperature / humidity
+              temperature: item.temperature !== undefined ? `${item.temperature}°` : 'N/A',
+              humidity: item.humidity !== undefined ? item.humidity.toString() : 'N/A',
+
+              // Before Weight per tray (T1–T6) — matches dashboard field names
+              beforeWeightT1: safeToString(item.beforeWeightT1 ?? item.weightBeforeT1 ?? item.weight1T1),
+              beforeWeightT2: safeToString(item.beforeWeightT2 ?? item.weightBeforeT2 ?? item.weight1T2),
+              beforeWeightT3: safeToString(item.beforeWeightT3 ?? item.weightBeforeT3 ?? item.weight1T3),
+              beforeWeightT4: safeToString(item.beforeWeightT4 ?? item.weightBeforeT4 ?? item.weight1T4),
+              beforeWeightT5: safeToString(item.beforeWeightT5 ?? item.weightBeforeT5 ?? item.weight1T5),
+              beforeWeightT6: safeToString(item.beforeWeightT6 ?? item.weightBeforeT6 ?? item.weight1T6),
+
+              // Final Weight per tray (T1–T6) — matches dashboard field names
+              finalWeightT1: safeToString(item.finalWeightT1 ?? item.weightFinalT1 ?? item.weight2T1),
+              finalWeightT2: safeToString(item.finalWeightT2 ?? item.weightFinalT2 ?? item.weight2T2),
+              finalWeightT3: safeToString(item.finalWeightT3 ?? item.weightFinalT3 ?? item.weight2T3),
+              finalWeightT4: safeToString(item.finalWeightT4 ?? item.weightFinalT4 ?? item.weight2T4),
+              finalWeightT5: safeToString(item.finalWeightT5 ?? item.weightFinalT5 ?? item.weight2T5),
+              finalWeightT6: safeToString(item.finalWeightT6 ?? item.weightFinalT6 ?? item.weight2T6),
+
+              // Status — sent from dashboard as status
               status: item.status || 'Idle',
             };
           });
-          
+
           console.log('Formatted History Data:', formattedData);
           setHistoryData(formattedData);
           setError(null);
@@ -228,15 +208,11 @@ export default function History({ view }) {
       }
     };
 
-    // Initial fetch
     fetchHistoryData();
-    
-    // Set up polling interval: 1 hour and 30 minutes = 90 minutes = 5,400,000 milliseconds
-    const pollingInterval = setInterval(fetchHistoryData, 90 * 60 * 1000); // 90 minutes
-    
+    const pollingInterval = setInterval(fetchHistoryData, 90 * 60 * 1000);
     return () => {
       isMounted = false;
-      clearInterval(pollingInterval); // Clean up interval on unmount
+      clearInterval(pollingInterval);
     };
   }, [navigate]);
 
@@ -245,18 +221,9 @@ export default function History({ view }) {
     navigate(path);
   };
 
-  const handleLogoutClick = () => {
-    setShowLogoutConfirm(true);
-  };
-
-  const handleLogoutConfirm = () => {
-    authService.logout();
-    navigate('/login');
-  };
-
-  const handleLogoutCancel = () => {
-    setShowLogoutConfirm(false);
-  };
+  const handleLogoutClick = () => setShowLogoutConfirm(true);
+  const handleLogoutConfirm = () => { authService.logout(); navigate('/login'); };
+  const handleLogoutCancel = () => setShowLogoutConfirm(false);
 
   const handleDownloadExcel = () => {
     const worksheet = XLSX.utils.json_to_sheet(historyData);
@@ -279,7 +246,7 @@ export default function History({ view }) {
           <p>Loading History...</p>
         </div>
       )}
-      
+
       {/* Logout Confirmation Modal */}
       {showLogoutConfirm && (
         <div className="modal-overlay" onClick={handleLogoutCancel}>
@@ -292,12 +259,8 @@ export default function History({ view }) {
               <p>Are you sure, you want to log out?</p>
             </div>
             <div className="modal-footer">
-              <button className="modal-button cancel" onClick={handleLogoutCancel}>
-                Cancel
-              </button>
-              <button className="modal-button confirm" onClick={handleLogoutConfirm}>
-                Log Out
-              </button>
+              <button className="modal-button cancel" onClick={handleLogoutCancel}>Cancel</button>
+              <button className="modal-button confirm" onClick={handleLogoutConfirm}>Log Out</button>
             </div>
           </div>
         </div>
@@ -308,156 +271,151 @@ export default function History({ view }) {
         <div className="topbar-logo-section">
           <img src={logo} alt="Logo" className="topbar-logo" />
         </div>
-
         <nav className="topbar-nav">
-          <button
-            className={`nav-item ${activeTab === 'dashboard' ? 'active' : ''}`}
-            onClick={() => handleNavigation('/dashboard', 'dashboard')}
-          >
-            <BarChart2 size={16} />
-            <span>Dashboard</span>
+          <button className={`nav-item ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => handleNavigation('/dashboard', 'dashboard')}>
+            <BarChart2 size={16} /><span>Dashboard</span>
           </button>
-          <button
-            className={`nav-item ${activeTab === 'analytics' ? 'active' : ''}`}
-            onClick={() => handleNavigation('/analytics', 'analytics')}
-          >
-            <Activity size={16} />
-            <span>Analytics</span>
+          <button className={`nav-item ${activeTab === 'analytics' ? 'active' : ''}`} onClick={() => handleNavigation('/analytics', 'analytics')}>
+            <Activity size={16} /><span>Analytics</span>
           </button>
-          <button
-            className={`nav-item ${activeTab === 'history' ? 'active' : ''}`}
-            onClick={() => handleNavigation('/history', 'history')}
-          >
-            <Clock size={16} />
-            <span>History</span>
+          <button className={`nav-item ${activeTab === 'history' ? 'active' : ''}`} onClick={() => handleNavigation('/history', 'history')}>
+            <Clock size={16} /><span>History</span>
           </button>
-          <button
-            className={`nav-item ${activeTab === 'notification' ? 'active' : ''}`}
-            onClick={() => handleNavigation('/notification', 'notification')}
-          >
-            <Bell size={16} />
-            <span>Notification</span>
+          <button className={`nav-item ${activeTab === 'notification' ? 'active' : ''}`} onClick={() => handleNavigation('/notification', 'notification')}>
+            <Bell size={16} /><span>Notification</span>
           </button>
         </nav>
-
         <div className="topbar-right">
           <div className="profile-dropdown-wrapper">
-            <button
-              className={`nav-item ${activeTab === 'profile' ? 'active' : ''}`}
-              onClick={() => {
-                setProfileDropdownOpen(prev => !prev);
-              }}
-            >
-              <CircleUser size={16} />
-              <span>Profile</span>
+            <button className={`nav-item ${activeTab === 'profile' ? 'active' : ''}`} onClick={() => setProfileDropdownOpen(prev => !prev)}>
+              <CircleUser size={16} /><span>Profile</span>
               {profileDropdownOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
             </button>
-
             {profileDropdownOpen && (
               <div className="profile-submenu">
-                <button className="submenu-item" onClick={() => handleNavigation('/profile', 'profile')}>
-                  <User size={14} /><span>Edit Profile</span>
-                </button>
-                <button className="submenu-item" onClick={() => handleNavigation('/profile', 'profile')}>
-                  <Bell size={14} /><span>Edit Notification</span>
-                </button>
-                <button className="submenu-item" onClick={() => handleNavigation('/profile', 'profile')}>
-                  <HelpCircle size={14} /><span>Help Center</span>
-                </button>
-                <button className="submenu-item" onClick={() => handleNavigation('/profile', 'profile')}>
-                  <Settings size={14} /><span>Settings</span>
-                </button>
+                <button className="submenu-item" onClick={() => handleNavigation('/profile', 'profile')}><User size={14} /><span>Edit Profile</span></button>
+                <button className="submenu-item" onClick={() => handleNavigation('/profile', 'profile')}><Bell size={14} /><span>Edit Notification</span></button>
+                <button className="submenu-item" onClick={() => handleNavigation('/profile', 'profile')}><HelpCircle size={14} /><span>Help Center</span></button>
+                <button className="submenu-item" onClick={() => handleNavigation('/profile', 'profile')}><Settings size={14} /><span>Settings</span></button>
               </div>
             )}
           </div>
-
           <button className="nav-item logout" onClick={handleLogoutClick}>
-            <LogOut size={16} />
-            <span>Log Out</span>
+            <LogOut size={16} /><span>Log Out</span>
           </button>
         </div>
       </header>
 
-      {/* Main Content for History*/}
+      {/* Main Content */}
       <div className="main-content">
         <div className="unified-dashboard">
-          {/* Header */}
           <div className="dashboard-header history-header">
             <div className="history-header-text">
               <h1>History</h1>
               <p>Review past drying sessions and activity.</p>
             </div>
-            <button className="download-btn" onClick={handleDownloadExcel}>
-              Export Excel
-            </button>
+            <button className="download-btn" onClick={handleDownloadExcel}>Export Excel</button>
           </div>
 
-           <div className="table-wrapper">
-        <table className="history-table">
-          <thead>
-            <tr>
-              <th rowSpan="2">Date</th>
-              <th rowSpan="2">Starting Time</th>
-              <th rowSpan="2">End Time</th>
-              <th colSpan="6">Initial Moisture</th>
-              <th colSpan="7">Final Moisture</th>
-              <th rowSpan="2">Temperature</th>
-              <th rowSpan="2">Humidity</th>
-              <th rowSpan="2">Before Weight</th>
-              <th rowSpan="2">Final Weight</th>
-              <th rowSpan="2">Status</th>
-            </tr>
-            <tr>
-              <th>T1</th>
-              <th>T2</th>
-              <th>T3</th>
-              <th>T4</th>
-              <th>T5</th>
-              <th>T6</th>
-              <th>T1</th>
-              <th>T2</th>
-              <th>T3</th>
-              <th>T4</th>
-              <th>T5</th>
-              <th>T6</th>
-              <th>AVG</th>
-            </tr>
-          </thead>
+          <div className="table-wrapper">
+            <table className="history-table">
+              <thead>
+                <tr>
+                  {/* ── Fixed columns ── */}
+                  <th rowSpan="2">Date</th>
+                  <th rowSpan="2">Starting Time</th>
+                  <th rowSpan="2">End Time</th>
 
-          <tbody>
-            {historyData.map((item) => (
-              <tr key={item.id}>
-                <td>{item.date}</td>
-                <td>{item.startTime}</td>
-                <td>{item.endTime}</td>
-                <td>{item.initialMoistureT1}</td>
-                <td>{item.initialMoistureT2}</td>
-                <td>{item.initialMoistureT3}</td>
-                <td>{item.initialMoistureT4}</td>
-                <td>{item.initialMoistureT5}</td>
-                <td>{item.initialMoistureT6}</td>
-                <td>{item.finalMoistureT1}</td>
-                <td>{item.finalMoistureT2}</td>
-                <td>{item.finalMoistureT3}</td>
-                <td>{item.finalMoistureT4}</td>
-                <td>{item.finalMoistureT5}</td>
-                <td>{item.finalMoistureT6}</td>
-                <td>{item.moistureavg}</td>
-                <td>{item.temperature}</td>
-                <td>{item.humidity}</td>
-                <td>{item.beforeWeight}</td>
-                <td>{item.finalWeight}</td>
-                <td>
-                  <span className={`status ${item.status.toLowerCase()}`}>
-                    {item.status}
-                  </span>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+                  {/* ── Moisture groups ── */}
+                  <th colSpan="6">Initial Moisture</th>
+                  <th colSpan="7">Final Moisture</th>
 
+                  {/* ── Env columns ── */}
+                  <th rowSpan="2">Temperature</th>
+                  <th rowSpan="2">Humidity</th>
+
+                  {/* ── Weight groups (no AVG) ── */}
+                  <th colSpan="6">Before Weight</th>
+                  <th colSpan="6">Final Weight</th>
+
+                  <th rowSpan="2">Status</th>
+                </tr>
+                <tr>
+                  {/* Initial Moisture sub-headers */}
+                  <th>T1</th><th>T2</th><th>T3</th><th>T4</th><th>T5</th><th>T6</th>
+                  {/* Final Moisture sub-headers + AVG */}
+                  <th>T1</th><th>T2</th><th>T3</th><th>T4</th><th>T5</th><th>T6</th><th>AVG</th>
+                  {/* Before Weight sub-headers (no AVG) */}
+                  <th>T1</th><th>T2</th><th>T3</th><th>T4</th><th>T5</th><th>T6</th>
+                  {/* Final Weight sub-headers (no AVG) */}
+                  <th>T1</th><th>T2</th><th>T3</th><th>T4</th><th>T5</th><th>T6</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {historyData.length === 0 ? (
+                  <tr>
+                    <td colSpan="33" style={{ textAlign: 'center', padding: '2rem', color: '#888' }}>
+                      No history data available.
+                    </td>
+                  </tr>
+                ) : (
+                  historyData.map((item) => (
+                    <tr key={item.id}>
+                      {/* Fixed */}
+                      <td>{item.date}</td>
+                      <td>{item.startTime}</td>
+                      <td>{item.endTime}</td>
+
+                      {/* Initial Moisture */}
+                      <td>{item.initialMoistureT1}</td>
+                      <td>{item.initialMoistureT2}</td>
+                      <td>{item.initialMoistureT3}</td>
+                      <td>{item.initialMoistureT4}</td>
+                      <td>{item.initialMoistureT5}</td>
+                      <td>{item.initialMoistureT6}</td>
+
+                      {/* Final Moisture + AVG */}
+                      <td>{item.finalMoistureT1}</td>
+                      <td>{item.finalMoistureT2}</td>
+                      <td>{item.finalMoistureT3}</td>
+                      <td>{item.finalMoistureT4}</td>
+                      <td>{item.finalMoistureT5}</td>
+                      <td>{item.finalMoistureT6}</td>
+                      <td>{item.moistureavg}</td>
+
+                      {/* Env */}
+                      <td>{item.temperature}</td>
+                      <td>{item.humidity}</td>
+
+                      {/* Before Weight (no AVG) */}
+                      <td>{item.beforeWeightT1}</td>
+                      <td>{item.beforeWeightT2}</td>
+                      <td>{item.beforeWeightT3}</td>
+                      <td>{item.beforeWeightT4}</td>
+                      <td>{item.beforeWeightT5}</td>
+                      <td>{item.beforeWeightT6}</td>
+
+                      {/* Final Weight (no AVG) */}
+                      <td>{item.finalWeightT1}</td>
+                      <td>{item.finalWeightT2}</td>
+                      <td>{item.finalWeightT3}</td>
+                      <td>{item.finalWeightT4}</td>
+                      <td>{item.finalWeightT5}</td>
+                      <td>{item.finalWeightT6}</td>
+
+                      {/* Status */}
+                      <td>
+                        <span className={`status ${item.status.toLowerCase()}`}>
+                          {item.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>

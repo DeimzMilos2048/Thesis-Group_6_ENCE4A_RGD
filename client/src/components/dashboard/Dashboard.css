@@ -398,6 +398,7 @@
 .sensor-avg-label {
   font-size: 13px;
   font-weight: 600;
+  padding-bottom: 10px;
   color: #4b5563;
 }
 
@@ -416,7 +417,7 @@
 
 .progress-bar {
   min-height: 6px;
-  height: 10px;
+  height: 13px;
   background-color: #e5e7eb;
   border-radius: 9999px;
   overflow: hidden;
@@ -601,6 +602,52 @@
   color: #10b981;
   cursor: not-allowed;
   opacity: 0.85;
+}
+
+/* Save After Weight Button — blue theme */
+.save-after-weight-btn {
+  margin-top: 8px;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1.5px solid #3b82f6;
+  background-color: #eff6ff;
+  color: #1d4ed8;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s, box-shadow 0.15s, transform 0.1s;
+  white-space: nowrap;
+}
+
+.save-after-weight-btn:hover:not(:disabled) {
+  background-color: #dbeafe;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+  transform: translateY(-1px);
+}
+
+.save-after-weight-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.save-after-weight-btn.save-after-weight-btn-frozen {
+  background-color: #eff6ff;
+  border-color: #93c5fd;
+  color: #3b82f6;
+  cursor: not-allowed;
+  opacity: 0.85;
+}
+
+.save-after-weight-btn.save-after-weight-btn-disabled {
+  background-color: #f9fafb;
+  border-color: #e5e7eb;
+  color: #9ca3af;
+  cursor: not-allowed;
+  opacity: 0.6;
 }
 
 /* Tray weight detail panel */
