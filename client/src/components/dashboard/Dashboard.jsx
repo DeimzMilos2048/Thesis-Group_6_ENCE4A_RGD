@@ -6,7 +6,6 @@ import authService from '../../api/authService';
 import logo from "../../assets/images/logo2.png";
 import { useSocket } from '../../contexts/SocketContext.js';
 import { useDrying } from '../../contexts/DryingContext.js';
-import { useWeight } from '../../contexts/WeightContext.js';
 
 export default function RiceDryingDashboard({ view }) {
   const [loading, setLoading] = useState(false);
@@ -291,7 +290,13 @@ export default function RiceDryingDashboard({ view }) {
                   <label className="control-group-label"><Thermometer size={14} style={{ color: '#f97316' }} /> Target Temperature (°C)</label>
                   <div className="selector-buttons temp-grid">
                     {[40, 41, 42, 43, 44, 45].map(temp => (
-                      <button key={temp} className={`selector-btn temp-btn ${selectedTemp === temp ? 'selected-temp' : ''}`} onClick={() => setSelectedTemp(temp)}>{temp}°</button>
+                      <button
+                        key={temp}
+                        className={`selector-btn temp-btn ${selectedTemp === temp ? 'selected-temp' : ''}`}
+                        onClick={() => setSelectedTemp(temp)}
+                      >
+                        {temp}°
+                      </button>
                     ))}
                   </div>
                 </div>
@@ -300,7 +305,13 @@ export default function RiceDryingDashboard({ view }) {
                   <label className="control-group-label"><Waves size={14} style={{ color: '#06b6d4' }} /> Target Moisture (%)</label>
                   <div className="selector-buttons">
                     {[13, 14].map(moisture => (
-                      <button key={moisture} className={`selector-btn moisture-btn ${selectedMoisture === moisture ? 'selected-moisture' : ''}`} onClick={() => setSelectedMoisture(moisture)}>{moisture}%</button>
+                      <button
+                        key={moisture}
+                        className={`selector-btn moisture-btn ${selectedMoisture === moisture ? 'selected-moisture' : ''}`}
+                        onClick={() => setSelectedMoisture(moisture)}
+                      >
+                        {moisture}%
+                      </button>
                     ))}
                   </div>
                 </div>
@@ -309,8 +320,13 @@ export default function RiceDryingDashboard({ view }) {
                   <label className="control-group-label"><Weight size={14} style={{ color: '#10b981' }} /> Tray for Weighing</label>
                   <div className="selector-buttons temp-grid">
                     {[1, 2, 3, 4, 5, 6].map(tray => (
-                      <button key={tray} className={`selector-btn tray-btn ${currentTray === tray ? 'selected-tray' : ''} ${savedWeights[tray]?.frozen ? 'tray-btn-frozen' : ''}`} onClick={() => setCurrentTray(tray)}>
-                        T{tray}{savedWeights[tray]?.frozen && <span className="tray-frozen-dot" />}
+                      <button
+                        key={tray}
+                        className={`selector-btn tray-btn ${currentTray === tray ? 'selected-tray' : ''} ${savedWeights[tray]?.frozen ? 'tray-btn-frozen' : ''}`}
+                        onClick={() => setCurrentTray(tray)}
+                      >
+                        T{tray}
+                        {savedWeights[tray]?.frozen && <span className="tray-frozen-dot" />}
                       </button>
                     ))}
                   </div>
