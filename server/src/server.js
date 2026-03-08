@@ -14,6 +14,7 @@ import { initializeSocket, startSensorPolling } from "./socketHandler.js";
 import SensorData from "./models/sensorDataModel.js";
 import { checkSensorThresholds } from "./utils/thresholdChecker.js"; // Add this utility
 import createDefaultAdmin from "./scripts/createDefaultAdmin.js";
+import systemRoutes from "./routes/systemRoutes.js";
 
 const app = express();
 const server = http.createServer(app);
@@ -84,6 +85,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/profile", profileRoutes);
 app.use("/notifications", notificationRoutes);
 app.use("/api/sensor", sensorRoutes);
+app.use("/api/system", systemRoutes);
 
 
 // ESP32 sensor data endpoint with notification checking
