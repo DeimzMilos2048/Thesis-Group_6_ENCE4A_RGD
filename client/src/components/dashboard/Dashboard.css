@@ -529,6 +529,20 @@
   transform: translateY(0);
 }
 
+.selector-btn:disabled {
+  background-color: #e5e7eb;
+  color: #9ca3af;
+  border-color: #d1d5db;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.selector-btn:disabled:hover {
+  background-color: #e5e7eb;
+  border-color: #d1d5db;
+  transform: none;
+}
+
 /* Temperature selected state — orange theme */
 .temp-btn.selected-temp {
   background-color: #fff7ed;

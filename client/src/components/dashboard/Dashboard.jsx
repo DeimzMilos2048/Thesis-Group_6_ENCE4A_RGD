@@ -324,6 +324,7 @@ export default function RiceDryingDashboard({ view }) {
                           try { setSelectedTemp(temp); await setTemperature(temp); }
                           catch (err) { console.error('Temperature update failed:', err); }
                         }}
+                        disabled={isProcessing}
                       >
                         {temp}°
                       </button>
@@ -343,6 +344,7 @@ export default function RiceDryingDashboard({ view }) {
                           try { setSelectedMoisture(moisture); await setMoisture(moisture); }
                           catch (err) { console.error('Moisture update failed:', err); }
                         }}
+                        disabled={isProcessing}
                       >
                         {moisture}%
                       </button>
@@ -362,6 +364,7 @@ export default function RiceDryingDashboard({ view }) {
                           try { setCurrentTray(tray); await setTray(tray); }
                           catch (err) { console.error('Tray update failed:', err); }
                         }}
+                        disabled={isProcessing}
                       >
                         T{tray}{savedWeights[tray]?.frozen && <span className="tray-frozen-dot" />}
                       </button>
@@ -373,7 +376,7 @@ export default function RiceDryingDashboard({ view }) {
                     <button
                       className={`selector-btn weight-save-btn before-btn ${savedWeights[currentTray]?.frozen ? 'weight-save-frozen' : ''}`}
                       onClick={handleSaveWeight}
-                      disabled={savedWeights[currentTray]?.frozen}
+                      disabled={savedWeights[currentTray]?.frozen || isProcessing}
                     >
                       {savedWeights[currentTray]?.frozen
                         ? <>✓ Before<br /><span className="weight-save-val">{savedWeights[currentTray].before.toFixed(2)} kg</span></>
@@ -383,7 +386,7 @@ export default function RiceDryingDashboard({ view }) {
                     <button
                       className={`selector-btn weight-save-btn after-btn ${savedAfterWeights[currentTray]?.frozen ? 'weight-save-frozen after-frozen' : ''} ${!savedWeights[currentTray]?.frozen ? 'weight-save-disabled' : ''}`}
                       onClick={handleSaveAfterWeight}
-                      disabled={savedAfterWeights[currentTray]?.frozen || !savedWeights[currentTray]?.frozen}
+                      disabled={!savedWeights[currentTray]?.frozen || savedAfterWeights[currentTray]?.frozen || isProcessing}
                     >
                       {savedAfterWeights[currentTray]?.frozen
                         ? <>✓ After<br /><span className="weight-save-val">{savedAfterWeights[currentTray].after.toFixed(2)} kg</span></>
@@ -396,7 +399,7 @@ export default function RiceDryingDashboard({ view }) {
                     <button
                       className={`selector-btn weight-reset-btn ${!savedWeights[currentTray]?.frozen ? 'weight-reset-disabled' : ''}`}
                       onClick={() => { resetBeforeWeight(currentTray); showToast('info', `Tray ${currentTray} before weight reset.`); }}
-                      disabled={!savedWeights[currentTray]?.frozen}
+                      disabled={!savedWeights[currentTray]?.frozen || isProcessing}
                     >
                       Reset<br />Before
                     </button>
@@ -404,7 +407,7 @@ export default function RiceDryingDashboard({ view }) {
                     <button
                       className={`selector-btn weight-reset-btn ${!savedAfterWeights[currentTray]?.frozen ? 'weight-reset-disabled' : ''}`}
                       onClick={() => { resetAfterWeight(currentTray); showToast('info', `Tray ${currentTray} after weight reset.`); }}
-                      disabled={!savedAfterWeights[currentTray]?.frozen}
+                      disabled={!savedAfterWeights[currentTray]?.frozen || isProcessing}
                     >
                       Reset<br />After
                     </button>
