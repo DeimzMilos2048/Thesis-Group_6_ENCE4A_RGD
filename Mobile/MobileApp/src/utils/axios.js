@@ -7,7 +7,7 @@ const getBaseURL = () => {
     // Use the same URL as socket.io to maintain consistency
     return [
       'http://192.168.0.109:5001',      
-      'http://192/168/86/181:5001',
+      'http://192.168.86.181:5001',
       'http://10.0.2.2:5001',           
       'http://localhost:5001',          
       'http://127.0.0.1:5001',          
@@ -75,7 +75,7 @@ api.interceptors.response.use(
       currentURLIndex = 0;
       api.defaults.baseURL = BASE_URLS[0];
 
-      const errorMsg = `Unable to reach backend. Tried: ${BASE_URLS.join(', ')}. Make sure your backend server is running and check your network connection.`;
+      const errorMsg = `Unable to reach backend. Make sure your backend server is running and check your network connection.`;
       console.error(errorMsg);
       return Promise.reject(new Error(errorMsg));
 

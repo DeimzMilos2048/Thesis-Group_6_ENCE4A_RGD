@@ -87,7 +87,8 @@ export function DryingProvider({ children }) {
       if (response.success) {
         const elapsedSeconds = response.data?.elapsedSeconds || dryingSeconds;
         setIsProcessing(false);
-        setDryingSeconds(elapsedSeconds);
+        // Reset to zero after stop
+        setDryingSeconds(0);
         
         // Emit socket event to synchronize with mobile and broadcast notifications
         if (socket && socket.connected) {
