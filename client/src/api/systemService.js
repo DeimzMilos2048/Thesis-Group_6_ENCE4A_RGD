@@ -1,31 +1,23 @@
 const API = "https://objurgatory-darrell-nonconversantly.ngrok-free.dev/api/system";
 
+export const startDrying = async (temperature, moisture) => {
 
-export const setTemperature = async (value) => {
-  const res = await fetch(`${API}/temperature`, {
+  const res = await fetch(`${API}/start`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ value })
+    body: JSON.stringify({
+      temperature,
+      moisture
+    })
   });
 
   return res.json();
 };
 
-export const setMoisture = async (value) => {
-  const res = await fetch(`${API}/moisture`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ value })
-  });
+export const stopDrying = async () => {
 
-  return res.json();
-};
-
-export const setTray = async (value) => {
-  const res = await fetch(`${API}/tray`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ value })
+  const res = await fetch(`${API}/stop`, {
+    method: "POST"
   });
 
   return res.json();
