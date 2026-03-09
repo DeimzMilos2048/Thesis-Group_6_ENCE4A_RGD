@@ -193,6 +193,11 @@ const useNotificationServiceNative = (
           `Warning: Temperature is approaching threshold (${temp.toFixed(1)}°C).`, current);
       }
     }
+    // Check for low temperature - below 36°C
+    if (temp < 36 && prevTemp >= 36) {
+      triggerNotification('WARNING', '⚠️ Low Temperature Alert',
+        'Please put some rice husk', current);
+    }
 
     // HUMIDITY
     if (humidity >= THRESHOLDS.humidity.criticalMax && prevHumidity < THRESHOLDS.humidity.criticalMax) {

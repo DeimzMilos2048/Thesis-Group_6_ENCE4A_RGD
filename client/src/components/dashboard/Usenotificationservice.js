@@ -143,6 +143,13 @@ const useNotificationService = (sensorData = null, pollingIntervalMs = 15000) =>
         `Warning: Temperature is approaching threshold (${temp.toFixed(1)}°C).`,
         current
       );
+    } else if (temp < 36 && prevTemp >= 36) {
+      triggerNotification(
+        'WARNING',
+        'Low Temperature Alert',
+        'Please put some rice husk',
+        current
+      );
     }
 
     // ── HUMIDITY ──

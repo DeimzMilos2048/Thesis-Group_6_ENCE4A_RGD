@@ -193,6 +193,35 @@ app.set('io', io);
 // Initialize Socket.io connection handlers
 initializeSocket(io);
 
+// ── Real-time online user tracking ──
+const onlineUsers = new Set();
+
+io.on('connection', (socket) => {
+
+  socket.on('user_online', (userId) => {
+    socket.userId = String(userId);
+    onlineUsers.add(socket.userId);
+    io.emit('online_users', Array.from(onlineUsers));
+    console.log(`[Online] User ${socket.userId} connected. Total: ${onlineUsers.size}`);
+  });
+
+  socket.on('user_offline', (userId) => {
+    const id = String(userId);
+    onlineUsers.delete(id);
+    io.emit('online_users', Array.from(onlineUsers));
+    console.log(`[Offline] User ${id} manually signed out. Total: ${onlineUsers.size}`);
+  });
+
+  socket.on('disconnect', () => {
+    if (socket.userId) {
+      onlineUsers.delete(socket.userId);
+      io.emit('online_users', Array.from(onlineUsers));
+      console.log(`[Offline] User ${socket.userId} disconnected. Total: ${onlineUsers.size}`);
+    }
+  });
+
+});
+
 // Start real-time sensor data polling (every 5 seconds)
 startSensorPolling(io, 5000);
 
