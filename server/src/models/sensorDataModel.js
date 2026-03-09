@@ -72,7 +72,21 @@ const sensorDataSchema = new mongoose.Schema(
       type: Date,
       default: Date.now,
       index: true
-    }
+    },
+    weight1_t1: { type: Number, default: null },
+    weight1_t2: { type: Number, default: null },
+    weight1_t3: { type: Number, default: null },
+    weight1_t4: { type: Number, default: null },
+    weight1_t5: { type: Number, default: null },
+    weight1_t6: { type: Number, default: null },
+
+    weight2_t1: { type: Number, default: null },
+    weight2_t2: { type: Number, default: null },
+    weight2_t3: { type: Number, default: null },
+    weight2_t4: { type: Number, default: null },
+    weight2_t5: { type: Number, default: null },
+    weight2_t6: { type: Number, default: null },
+
   },
   { timestamps: true }
 );

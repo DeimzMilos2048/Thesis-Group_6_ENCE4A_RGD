@@ -553,7 +553,7 @@ export default function Profile({ view }) {
                       
                       <div className="faq-item">
                         <strong>How do I set target temperature?</strong>
-                        <p>Navigate to the Dashboard and use the System Controls panel to set your desired target temperature between 40°C - 50°C.</p>
+                        <p>Navigate to the Dashboard and use the System Controls panel to set your desired target temperature between 40°C - 45°C.</p>
                       </div>
 
                       <div className="faq-item">

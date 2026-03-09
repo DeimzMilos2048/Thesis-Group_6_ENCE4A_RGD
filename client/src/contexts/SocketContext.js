@@ -168,6 +168,19 @@ export const SocketProvider = ({ children }) => {
       });
     });
 
+    // Listen for drying time updates from other clients
+    newSocket.on('drying_started', (data) => {
+      console.log('Drying started event received:', data);
+    });
+
+    newSocket.on('drying_stopped', (data) => {
+      console.log('Drying stopped event received:', data);
+    });
+
+    newSocket.on('drying_time_update', (data) => {
+      console.log('Drying time update received:', data);
+    });
+
     newSocket.on('error', (error) => {
       console.error('Socket error:', error);
     });

@@ -1,10 +1,16 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const USE_LOCAL = false;
-const BASE_URL = USE_LOCAL
-  ? 'http://192.168.1.5:5001'
-  : 'https://mala-luin.onrender.com';
+// Get the correct base URL based on environment
+const getBaseUrl = () => {
+  if (__DEV__) {
+    return 'http://192.168.0.109:5001';  // Development: same IP as other services
+  } else {
+    return 'https://mala-backend-q03k.onrender.com';  // Production
+  }
+};
+
+const BASE_URL = getBaseUrl();
 
 const notificationApi = axios.create({
   baseURL: BASE_URL,

@@ -87,8 +87,13 @@
   font-weight: 500;
 }
 
+.nav-item.logout {
+  background-color: #ef4444;
+  color: #ffffff;
+}
+
 .nav-item.logout:hover {
-  background-color: #fee2e2;
+  background-color: #ffffff;
   color: #ef4444;
 }
 
@@ -1129,3 +1134,110 @@
 }
 
 .toast-close:hover { opacity: 1; }
+
+.weight-save-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.weight-save-btn {
+  padding: 10px 4px;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.4;
+  text-align: center;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s, transform 0.1s, box-shadow 0.15s;
+}
+
+/* Before = green theme (matches existing tray/before style) */
+.before-btn {
+  border: 1.5px solid #10b981;
+  background-color: #ecfdf5;
+  color: #059669;
+}
+
+.before-btn:hover:not(:disabled) {
+  background-color: #d1fae5;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
+  transform: translateY(-1px);
+}
+
+/* After = blue theme */
+.after-btn {
+  border: 1.5px solid #3b82f6;
+  background-color: #eff6ff;
+  color: #1d4ed8;
+}
+
+.after-btn:hover:not(:disabled) {
+  background-color: #dbeafe;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+  transform: translateY(-1px);
+}
+
+/* Frozen states */
+.weight-save-frozen {
+  cursor: not-allowed !important;
+  opacity: 0.85;
+  transform: none !important;
+}
+
+.weight-save-frozen.before-btn {
+  background-color: #f0fdf4;
+  border-color: #6ee7b7;
+  color: #10b981;
+}
+
+.weight-save-frozen.after-frozen {
+  background-color: #eff6ff;
+  border-color: #93c5fd;
+  color: #3b82f6;
+}
+
+.weight-save-disabled {
+  background-color: #f9fafb !important;
+  border-color: #e5e7eb !important;
+  color: #9ca3af !important;
+  cursor: not-allowed !important;
+  opacity: 0.6;
+  transform: none !important;
+}
+
+/* Saved weight value shown inside the button */
+.weight-save-val {
+  font-size: 11px;
+  font-weight: 600;
+  opacity: 0.85;
+  display: block;
+}
+
+/* Reset buttons — neutral/muted style */
+.weight-reset-btn {
+  padding: 8px 4px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+  text-align: center;
+  border-radius: 8px;
+  border: 1.5px solid #e5e7eb;
+  background-color: #f9fafb;
+  color: #6b7280;
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s, transform 0.1s;
+}
+
+.weight-reset-btn:hover:not(:disabled) {
+  background-color: #fee2e2;
+  border-color: #fca5a5;
+  color: #dc2626;
+  transform: translateY(-1px);
+}
+
+.weight-reset-disabled {
+  opacity: 0.4;
+  cursor: not-allowed !important;
+  transform: none !important;
+}

@@ -8,6 +8,7 @@ export function DryingProvider({ children }) {
   const [selectedTemp,   setSelectedTemp]   = useState(null);
   const [selectedMoisture, setSelectedMoisture] = useState(null);
   const [currentTray,    setCurrentTray]    = useState(1);
+  const [socket, setSocket] = useState(null);
   const intervalRef = useRef(null);
 
   // Timer keeps running regardless of which tab is active
@@ -27,10 +28,27 @@ export function DryingProvider({ children }) {
     setSelectedTemp(temp);
     setSelectedMoisture(moisture);
     setIsProcessing(true);
+    
+    // Emit socket event to synchronize with mobile and broadcast notifications
+    if (socket && socket.connected) {
+      socket.emit('drying_started', {
+        temperature: temp,
+        moisture: moisture,
+        timestamp: new Date().toISOString(),
+      });
+    }
   };
 
   const stopDrying = () => {
     setIsProcessing(false);
+    
+    // Emit socket event to synchronize with mobile and broadcast notifications
+    if (socket && socket.connected) {
+      socket.emit('drying_stopped', {
+        dryingSeconds: dryingSeconds,
+        timestamp: new Date().toISOString(),
+      });
+    }
   };
 
   const formatDryingTime = (seconds) => {
@@ -50,6 +68,7 @@ export function DryingProvider({ children }) {
       startDrying,
       stopDrying,
       formatDryingTime,
+      setSocket,
     }}>
       {children}
     </DryingContext.Provider>

@@ -17,6 +17,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Ionicons from "react-native-vector-icons/Ionicons";
 import React, { useState, useEffect } from 'react';
 import { io } from 'socket.io-client';
+import { useSystemControl } from '../../contexts/SystemControlContext';
 
 type RootStackParmList = {
   LandingPage: undefined;
@@ -46,6 +47,15 @@ const Header: React.FC<{ onNotificationPress: () => void }> = ({ onNotificationP
 
 const DashboardPageScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
+  const { systemData, isConnected } = useSystemControl();
+
+  useEffect(() => {
+    console.log('[Dashboard] systemData updated:', {
+      isDrying: systemData.isDrying,
+      dryingSeconds: systemData.dryingSeconds,
+      dryingTime: systemData.dryingTime,
+    });
+  }, [systemData.dryingSeconds]);
 
   const handleNotificationPress = () => {
     navigation.navigate('NotificationScreen');
@@ -60,28 +70,50 @@ const DashboardPageScreen: React.FC = () => {
     moisture4: 0,
     moisture5: 0,
     moisture6: 0,
+    moistureavg: 0,
     weight1: 0,
     weight2: 0,
     weight3: 0,
     weight4: 0,
     weight5: 0,
     weight6: 0,
+    weightbefore1: 0,
+    weightbefore2: 0,
+    weightbefore3: 0,
+    weightbefore4: 0,
+    weightbefore5: 0,
+    weightbefore6: 0,
+    weightafter1: 0,
+    weightafter2: 0,
+    weightafter3: 0,
+    weightafter4: 0,
+    weightafter5: 0,
+    weightafter6: 0,
+    dryingSeconds: 0,
     status: 'Idle'
   });
 
-  useEffect(() => {
-     const SOCKET_URL = __DEV__ 
-      ? 'http://192.168.86.172:5001'        
-       : 'https://mala-backend-q03k.onrender.com'; 
+  const formatDryingTime = (seconds: number): string => {
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = seconds % 60;
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  };
 
-    const socket = io(SOCKET_URL,{
-      transports: ['websocket'],
+  useEffect(() => {
+    const SOCKET_URL = __DEV__ 
+      ? 'http://192.168.0.109:5001'        
+      : 'https://mala-backend-q03k.onrender.com'; 
+
+    const socket = io(SOCKET_URL, {
+      transports: ['websocket', 'polling'],
       reconnection: true,
       reconnectionDelay: 1000,
       reconnectionAttempts: Infinity,
       timeout: 60000,
       forceNew: true,
       autoConnect: true,
+      upgrade: true,
     });
 
     socket.on('connect', () => {
@@ -92,25 +124,83 @@ const DashboardPageScreen: React.FC = () => {
       console.error('Connection error:', err);
     });
 
-    socket.on('sensor_readings_table', (data) => {
+    // helper to safely parse a number field with fallback keys
+    const num = (data: any, ...keys: string[]): number => {
+      for (const key of keys) {
+        if (typeof data[key] === 'number' && !isNaN(data[key])) return data[key];
+      }
+      return 0;
+    };
+
+    const handleSensorData = (data: any) => {
       console.log('Sensor data received:', data);
       setSensorData({
-        temperature: typeof data.temperature === 'number' ? data.temperature :  0,
-        humidity: typeof data.humidity === 'number' ? data.humidity : 0,
-        moisture1: typeof data.moisture1 === 'number' ? data.moisture1 : 0,
-        moisture2: typeof data.moisture2 === 'number' ? data.moisture2 : 0,
-        moisture3: typeof data.moisture3 === 'number' ? data.moisture3 : 0,
-        moisture4: typeof data.moisture4 === 'number' ? data.moisture4 : 0,
-        moisture5: typeof data.moisture5 === 'number' ? data.moisture5 : 0,
-        moisture6: typeof data.moisture6 === 'number' ? data.moisture6 : 0,
-        weight1: typeof data.weight1 === 'number' ? data.weight1 : 0,
-        weight2: typeof data.weight2 === 'number' ? data.weight2 : 0,
-        weight3: typeof data.weight3 === 'number' ? data.weight3 : 0,
-        weight4: typeof data.weight4 === 'number' ? data.weight4 : 0,
-        weight5: typeof data.weight5 === 'number' ? data.weight5 : 0,
-        weight6: typeof data.weight6 === 'number' ? data.weight6 : 0,
-        status: data.status || 'Idle'
+        temperature:  num(data, 'temperature'),
+        humidity:     num(data, 'humidity'),
+        moisture1:    num(data, 'moisture1'),
+        moisture2:    num(data, 'moisture2'),
+        moisture3:    num(data, 'moisture3'),
+        moisture4:    num(data, 'moisture4'),
+        moisture5:    num(data, 'moisture5'),
+        moisture6:    num(data, 'moisture6'),
+        moistureavg:  num(data, 'moistureavg'),
+        
+        weight1:      num(data, 'weight1', 'weightbefore1'),
+        weight2:      num(data, 'weight2', 'weightbefore2'),
+        weight3:      num(data, 'weight3', 'weightbefore3'),
+        weight4:      num(data, 'weight4', 'weightbefore4'),
+        weight5:      num(data, 'weight5', 'weightbefore5'),
+        weight6:      num(data, 'weight6', 'weightbefore6'),
+        weightbefore1: num(data, 'weightbefore1'),
+        weightbefore2: num(data, 'weightbefore2'),
+        weightbefore3: num(data, 'weightbefore3'),
+        weightbefore4: num(data, 'weightbefore4'),
+        weightbefore5: num(data, 'weightbefore5'),
+        weightbefore6: num(data, 'weightbefore6'),
+        weightafter1:  num(data, 'weightafter1'),
+        weightafter2:  num(data, 'weightafter2'),
+        weightafter3:  num(data, 'weightafter3'),
+        weightafter4:  num(data, 'weightafter4'),
+        weightafter5:  num(data, 'weightafter5'),
+        weightafter6:  num(data, 'weightafter6'),
+        dryingSeconds: num(data, 'dryingSeconds', 'drying_seconds'),
+        status: data.status || data.system_status || 'Idle',
       });
+    };
+
+    socket.on('sensor_readings_table', handleSensorData);
+    socket.on('sensor_data', handleSensorData);
+    socket.on('sensorData', handleSensorData);
+
+    socket.on('drying_started', (data: any) => {
+      console.log('Drying started from web dashboard:', data);
+      setSensorData(prev => ({
+        ...prev,
+        status: 'Drying',
+        dryingSeconds: 0,
+      }));
+      Alert.alert(
+        'Drying Started',
+        `Target: ${data.temperature}°C, Moisture: ${data.moisture}%`,
+        [{ text: 'OK' }]
+      );
+    });
+
+    // Listen for drying stopped event from web dashboard
+    socket.on('drying_stopped', (data: any) => {
+      console.log('Drying stopped from web dashboard:', data);
+      setSensorData(prev => ({
+        ...prev,
+        status: 'Idle',
+        dryingSeconds: data.dryingSeconds || 0,
+      }));
+      const hours = Math.floor((data.dryingSeconds || 0) / 3600);
+      const minutes = Math.floor(((data.dryingSeconds || 0) % 3600) / 60);
+      Alert.alert(
+        'Drying Completed',
+        `Total drying time: ${hours}h ${minutes}m`,
+        [{ text: 'OK' }]
+      );
     });
 
     socket.on('disconnect', () => {
@@ -128,10 +218,17 @@ const DashboardPageScreen: React.FC = () => {
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
 
+        {/* Status Row: System Status + Drying Time */}
         <View style={styles.statusGrid}>
           <View style={styles.statusCard}>
             <Text style={styles.statusTitle}>System Status</Text>
             <Text style={styles.statusValue}>{sensorData.status || 'Idle'}</Text>
+          </View>
+          <View style={styles.statusCard}>
+            <Text style={styles.statusTitle}>Drying Time</Text>
+            <Text style={[styles.statusValue, styles.statusValueMono]}>
+              {formatDryingTime(systemData.dryingSeconds || 0)}
+            </Text>
           </View>
         </View>
         
@@ -145,7 +242,7 @@ const DashboardPageScreen: React.FC = () => {
             </View>
             <Text style={styles.label}>Temperature</Text>
             <Text style={styles.value}>{(sensorData.temperature || 0).toFixed(1)}°C</Text>
-            <Text style={styles.sub}>Normal (40–50 °C)</Text>
+            <Text style={styles.sub}>Normal (40–45 °C)</Text>
           </View>
           <View style={styles.card}>
             <View style={[styles.iconContainer, styles.iconCyan]}>
@@ -171,18 +268,48 @@ const DashboardPageScreen: React.FC = () => {
             </View>
           ))}
         </View>
-
-        {/* Weight - 1 sensor */}
-        <Text style={styles.sectionTitle}>Weight</Text>
         <View style={styles.statusGrid}>
           <View style={styles.card}>
-            <View style={[styles.iconContainer, styles.iconGray]}>
-              <Ionicons name="scale-outline" size={28} color="#FFFFFF" />
+            <View style={[styles.iconContainer, styles.iconGreen]}>
+              <Ionicons name="bar-chart-outline" size={28} color="#FFFFFF" />
             </View>
-            <Text style={styles.label}>Sensor 1</Text>
-            <Text style={styles.value}>{(sensorData.weight1 || 0).toFixed(1)}kg</Text>
-            <Text style={styles.sub}>Initial 5 kg</Text>
+            <Text style={styles.label}>Average</Text>
+            <Text style={styles.value}>{(sensorData.moistureavg || 0).toFixed(1)}%</Text>
+            <Text style={styles.sub}>Mean moisture</Text>
           </View>
+        </View>
+
+        {/* Weight - 6 trays with Before & After */}
+        <Text style={styles.sectionTitle}>Weight</Text>
+        <View style={styles.statusGrid}>
+          {[1, 2, 3, 4, 5, 6].map(i => {
+            const beforeVal = sensorData[`weightbefore${i}` as keyof typeof sensorData] as number || 0;
+            const afterVal  = sensorData[`weightafter${i}`  as keyof typeof sensorData] as number || 0;
+            return (
+              <View style={styles.weightCard} key={`weight-tray-${i}`}>
+                <View style={[styles.iconContainer, styles.iconGray]}>
+                  <Ionicons name="scale-outline" size={28} color="#FFFFFF" />
+                </View>
+                <Text style={styles.label}>Tray {i}</Text>
+                <View style={styles.weightRow}>
+                  <View style={styles.weightCol}>
+                    <Text style={styles.weightBadgeBefore}>B</Text>
+                    <Text style={styles.weightVal}>
+                      {beforeVal > 0 ? `${beforeVal.toFixed(2)} kg` : '—'}
+                    </Text>
+                  </View>
+                  <View style={styles.weightDivider} />
+                  <View style={styles.weightCol}>
+                    <Text style={styles.weightBadgeAfter}>A</Text>
+                    <Text style={styles.weightVal}>
+                      {afterVal > 0 ? `${afterVal.toFixed(2)} kg` : '—'}
+                    </Text>
+                  </View>
+                </View>
+                <Text style={styles.sub}>B = Before · A = After</Text>
+              </View>
+            );
+          })}
         </View>
 
       </ScrollView>
@@ -201,6 +328,7 @@ interface Styles {
   statusCard: ViewStyle;
   statusTitle: TextStyle;
   statusValue: TextStyle;
+  statusValueMono: TextStyle;
   sectionTitle: TextStyle;
   card: ViewStyle;
   label: TextStyle;
@@ -216,6 +344,13 @@ interface Styles {
   iconCyan: ViewStyle;
   iconGreen: ViewStyle;
   iconGray: ViewStyle;
+  weightCard: ViewStyle;
+  weightRow: ViewStyle;
+  weightCol: ViewStyle;
+  weightDivider: ViewStyle;
+  weightVal: TextStyle;
+  weightBadgeBefore: TextStyle;
+  weightBadgeAfter: TextStyle;
 }
 
 
@@ -263,7 +398,7 @@ const styles = StyleSheet.create<Styles>({
     paddingHorizontal: 15,
   },
   statusCard: {
-    width: '100%',
+    width: '48%',
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
     padding: 10,
@@ -276,14 +411,19 @@ const styles = StyleSheet.create<Styles>({
     shadowRadius: 2,
   },
   statusTitle: {
-    fontSize: 12,
+    fontSize: 14,
     color: "#6b7280",
     marginBottom: 4,
   },
   statusValue: {
-    fontSize: 16,
-    fontWeight: "600",
+    fontSize: 18,
+    fontWeight: "700",
     color: "#27AE60",
+  },
+  statusValueMono: {
+    fontFamily: 'monospace',
+    fontSize: 18,
+    color: '#f59e0b',
   },
   sectionTitle: {
     fontSize: 18,
@@ -318,8 +458,10 @@ const styles = StyleSheet.create<Styles>({
     color: "#000",
   },
   sub: {
-    fontSize: 12,
+    fontSize: 11,
     color: "#6b7280",
+    marginTop: 4,
+    textAlign: 'center',
   },
   notificationButton: {
     width: 44,
@@ -353,6 +495,60 @@ const styles = StyleSheet.create<Styles>({
   },
   iconGray: {
     backgroundColor: '#9CA3AF',
+  },
+  weightCard: {
+    width: '48%',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 10,
+    marginVertical: 6,
+    alignItems: 'center',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+  },
+  weightRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 6,
+    gap: 8,
+  },
+  weightCol: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  weightDivider: {
+    width: 1,
+    height: 36,
+    backgroundColor: '#e5e7eb',
+  },
+  weightVal: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#111',
+    marginTop: 2,
+  },
+  weightBadgeBefore: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#10b981',
+    backgroundColor: '#d1fae5',
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  weightBadgeAfter: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#3b82f6',
+    backgroundColor: '#dbeafe',
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: 4,
+    overflow: 'hidden',
   },
 });
 

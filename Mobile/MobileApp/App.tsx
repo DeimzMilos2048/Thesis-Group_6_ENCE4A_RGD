@@ -8,6 +8,7 @@ import Entypo from "react-native-vector-icons/Entypo";
 import Ionicons from "react-native-vector-icons/Ionicons";
 //import FontAwesome5 from "react-native-vector-icons/FontAwesome5";
 import useAuthStore from "./src/store/authStore";
+import { SystemControlProvider } from "./src/contexts/SystemControlContext";
 
 // import LandingScreen from "./src/screens/landingpagescreen";
 import IntroductionUserScreen from "./src/screens/tabs/introductionUserScreen";
@@ -94,8 +95,9 @@ export default function App() {
   
   return (
     <SafeAreaProvider> 
-      <NavigationContainer>
-        <Stack.Navigator>
+      <SystemControlProvider>
+        <NavigationContainer>
+          <Stack.Navigator>
           <Stack.Screen
             name="LoadingScreen"
             component={LoadingScreen}
@@ -147,8 +149,9 @@ export default function App() {
             options={{ headerShown: false }}
           />   
           
-        </Stack.Navigator>
-      </NavigationContainer>
+          </Stack.Navigator>
+        </NavigationContainer>
+      </SystemControlProvider>
     </SafeAreaProvider>
   );
 }

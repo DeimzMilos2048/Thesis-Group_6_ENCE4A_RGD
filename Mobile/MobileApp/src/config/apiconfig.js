@@ -1,13 +1,13 @@
 // API Configuration for React Native Mobile App
 
-// IMPORTANT: Replace this with your actual backend URL
-export const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001/api';
+// Development URL: Use the same IP as socket.io connections
+const DEV_API_URL = 'http://192.168.0.109:5001/api';
 
-// For development
-// export const API_BASE_URL = 'http://192.168.1.100:5001/api'; // Replace with your computer's IP
+// Production URL
+const PROD_API_URL = 'https://mala-backend-q03k.onrender.com/api';
 
-// For production
-// export const API_BASE_URL = 'https://mala-luin.onrender.com/api';
+// Select based on environment
+export const API_BASE_URL = __DEV__ ? DEV_API_URL : PROD_API_URL;
 
 export default {
   API_BASE_URL,

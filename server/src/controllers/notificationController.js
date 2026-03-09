@@ -144,4 +144,84 @@ const sendNotificationToMultiple = async (userIds, notificationData) => {
   }
 };
 
-export { sendNotification, sendNotificationToMultiple };
+/**
+ * Send drying event notification to all users
+ * @param {Object} dryingData - Drying event details
+ * @param {String} dryingData.eventType - 'started' or 'stopped'
+ * @param {Number} dryingData.temperature - Target temperature
+ * @param {Number} dryingData.moisture - Target moisture
+ * @param {Number} dryingData.dryingSeconds - Duration in seconds
+ */
+const sendDryingNotification = async (dryingData) => {
+  try {
+    const { eventType, temperature, moisture, dryingSeconds } = dryingData;
+
+    let title, message;
+    if (eventType === 'started') {
+      title = '🌾 Drying Process Started';
+      message = `Target: ${temperature}°C, Moisture: ${moisture}%`;
+    } else {
+      const hours = Math.floor(dryingSeconds / 3600);
+      const minutes = Math.floor((dryingSeconds % 3600) / 60);
+      title = '✅ Drying Process Completed';
+      message = `Duration: ${hours}h ${minutes}m`;
+    }
+
+    // Get all users and collect valid FCM tokens
+    const users = await User.find({});
+    const tokens = users
+      .map(user => user.fcmToken)
+      .filter(token => token);
+
+    if (tokens.length === 0) {
+      console.warn("No valid FCM tokens found for drying notification");
+    }
+
+    // Save notification to database
+    const dbNotification = new Notification({
+      type: `drying_${eventType}`,
+      title,
+      message,
+      sensorData: {
+        temperature,
+        moisture,
+        dryingSeconds
+      },
+      system: "Rice Grain Dryer",
+      isRead: false
+    });
+
+    await dbNotification.save();
+
+    // Send multicast notification
+    if (tokens.length > 0) {
+      const fcmMessage = {
+        notification: {
+          title,
+          body: message
+        },
+        data: {
+          type: `drying_${eventType}`,
+          notificationId: dbNotification._id.toString(),
+          timestamp: new Date().toISOString()
+        },
+        tokens
+      };
+
+      const response = await admin.messaging().sendEachForMulticast(fcmMessage);
+      console.log(`Drying ${eventType} notification - Successfully sent: ${response.successCount}, Failed: ${response.failureCount}`);
+    }
+
+    return {
+      success: true,
+      notification: dbNotification,
+      sentCount: tokens.length
+    };
+
+  } catch (error) {
+    console.error("Error sending drying notification:", error);
+    throw error;
+  }
+};
+
+export { sendNotification, sendNotificationToMultiple, sendDryingNotification };

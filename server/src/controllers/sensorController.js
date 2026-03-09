@@ -1,5 +1,37 @@
-import Sensor from '../models/sensorModel.js';
+import SensorData from '../models/sensorDataModel.js';
 import sendNotification from './notificationController.js';
+
+// Helper function to build complete sensor data payload
+const buildSensorDataPayload = (reading) => {
+  return {
+    temperature: reading.temperature || 0,
+    humidity: reading.humidity || 0,
+    moisture1: reading.moisture1 || 0,
+    moisture2: reading.moisture2 || 0,
+    moisture3: reading.moisture3 || 0,
+    moisture4: reading.moisture4 || 0,
+    moisture5: reading.moisture5 || 0,
+    moisture6: reading.moisture6 || 0,
+    moistureavg: reading.moistureavg || 0,
+    weight1: reading.weight1 || 0,
+    weight2: reading.weight2 || 0,
+    status: reading.status || 'Idle',
+    timestamp: reading.timestamp,
+    // Per-tray weight data (before/after)
+    weightbefore1: reading.weight1_t1 || 0,
+    weightbefore2: reading.weight1_t2 || 0,
+    weightbefore3: reading.weight1_t3 || 0,
+    weightbefore4: reading.weight1_t4 || 0,
+    weightbefore5: reading.weight1_t5 || 0,
+    weightbefore6: reading.weight1_t6 || 0,
+    weightafter1: reading.weight2_t1 || 0,
+    weightafter2: reading.weight2_t2 || 0,
+    weightafter3: reading.weight2_t3 || 0,
+    weightafter4: reading.weight2_t4 || 0,
+    weightafter5: reading.weight2_t5 || 0,
+    weightafter6: reading.weight2_t6 || 0,
+  };
+};
 
 export const updateSensor = async (req, res) => {
     try {
@@ -34,7 +66,7 @@ export const updateSensor = async (req, res) => {
             ? parseFloat((moistureValues.reduce((sum, v) => sum + v, 0) / moistureValues.length).toFixed(2))
             : 0;
 
-        const sensorData = await Sensor.create({
+        const sensorData = await SensorData.create({
             deviceId,
             powerStatus,
             temperature,
@@ -53,21 +85,8 @@ export const updateSensor = async (req, res) => {
 
         const io = req.app.get('io');
         if (io) {
-            io.emit('sensor_readings_table', {
-                temperature: sensorData.temperature,
-                humidity: sensorData.humidity,
-                moisture1: sensorData.moisture1,
-                moisture2: sensorData.moisture2,
-                moisture3: sensorData.moisture3,
-                moisture4: sensorData.moisture4,
-                moisture5: sensorData.moisture5,
-                moisture6: sensorData.moisture6,
-                moistureavg: sensorData.moistureavg,
-                weight1: sensorData.weight1,
-                weight2: sensorData.weight2,
-                status: sensorData.status,
-                timestamp: sensorData.timestamp
-            });
+            const payload = buildSensorDataPayload(sensorData);
+            io.emit('sensor_readings_table', payload);
         }
 
         // Notifications

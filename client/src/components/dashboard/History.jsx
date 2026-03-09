@@ -153,7 +153,7 @@ export default function History({ view }) {
                   })
                 : 'N/A',
 
-              // Initial Moisture per tray (T1–T6) — matches dashboard field names
+              // Initial Moisture per tray (T1–T6)
               initialMoistureT1: safeToString(item.moisture1),
               initialMoistureT2: safeToString(item.moisture2),
               initialMoistureT3: safeToString(item.moisture3),
@@ -161,7 +161,7 @@ export default function History({ view }) {
               initialMoistureT5: safeToString(item.moisture5),
               initialMoistureT6: safeToString(item.moisture6),
 
-              // Final Moisture per tray (T1–T6) — matches dashboard field names
+              // Final Moisture per tray (T1–T6)
               finalMoistureT1: safeToString(item.finalMoisture1 ?? item.moisture1End),
               finalMoistureT2: safeToString(item.finalMoisture2 ?? item.moisture2End),
               finalMoistureT3: safeToString(item.finalMoisture3 ?? item.moisture3End),
@@ -169,30 +169,30 @@ export default function History({ view }) {
               finalMoistureT5: safeToString(item.finalMoisture5 ?? item.moisture5End),
               finalMoistureT6: safeToString(item.finalMoisture6 ?? item.moisture6End),
 
-              // Moisture average — sent from dashboard as moistureavg
+              // Moisture average
               moistureavg: safeToString(item.moistureavg),
 
-              // Temperature & Humidity — sent from dashboard as temperature / humidity
+              // Temperature & Humidity
               temperature: item.temperature !== undefined ? `${item.temperature}°` : 'N/A',
               humidity: item.humidity !== undefined ? item.humidity.toString() : 'N/A',
 
-              // Before Weight — single value (weight1) spread across T1-T6 to keep table structure
-              beforeWeightT1: safeToString(item.weight1),
-              beforeWeightT2: safeToString(item.weight1),
-              beforeWeightT3: safeToString(item.weight1),
-              beforeWeightT4: safeToString(item.weight1),
-              beforeWeightT5: safeToString(item.weight1),
-              beforeWeightT6: safeToString(item.weight1),
+              // Before Weight — per tray from backend
+              beforeWeightT1: safeToString(item.weight1_t1 ?? item.weight1),
+              beforeWeightT2: safeToString(item.weight1_t2 ?? item.weight1),
+              beforeWeightT3: safeToString(item.weight1_t3 ?? item.weight1),
+              beforeWeightT4: safeToString(item.weight1_t4 ?? item.weight1),
+              beforeWeightT5: safeToString(item.weight1_t5 ?? item.weight1),
+              beforeWeightT6: safeToString(item.weight1_t6 ?? item.weight1),
 
-              // Final Weight — single value (weight2) spread across T1-T6 to keep table structure
-              finalWeightT1: safeToString(item.weight2),
-              finalWeightT2: safeToString(item.weight2),
-              finalWeightT3: safeToString(item.weight2),
-              finalWeightT4: safeToString(item.weight2),
-              finalWeightT5: safeToString(item.weight2),
-              finalWeightT6: safeToString(item.weight2),
+              // After Weight — per tray from backend
+              afterWeightT1: safeToString(item.weight2_t1 ?? item.weight2),
+              afterWeightT2: safeToString(item.weight2_t2 ?? item.weight2),
+              afterWeightT3: safeToString(item.weight2_t3 ?? item.weight2),
+              afterWeightT4: safeToString(item.weight2_t4 ?? item.weight2),
+              afterWeightT5: safeToString(item.weight2_t5 ?? item.weight2),
+              afterWeightT6: safeToString(item.weight2_t6 ?? item.weight2),
 
-              // Status — sent from dashboard as status
+              // Status
               status: item.status || 'Idle',
             };
           });
@@ -337,9 +337,9 @@ export default function History({ view }) {
                   <th rowSpan="2">Temperature</th>
                   <th rowSpan="2">Humidity</th>
 
-                  {/* ── Weight groups (no AVG) ── */}
+                  {/* ── Weight groups ── */}
                   <th colSpan="6">Before Weight</th>
-                  <th colSpan="6">Final Weight</th>
+                  <th colSpan="6">After Weight</th>{/* ← RENAMED */}
 
                   <th rowSpan="2">Status</th>
                 </tr>
@@ -348,9 +348,9 @@ export default function History({ view }) {
                   <th>T1</th><th>T2</th><th>T3</th><th>T4</th><th>T5</th><th>T6</th>
                   {/* Final Moisture sub-headers + AVG */}
                   <th>T1</th><th>T2</th><th>T3</th><th>T4</th><th>T5</th><th>T6</th><th>AVG</th>
-                  {/* Before Weight sub-headers (no AVG) */}
+                  {/* Before Weight sub-headers */}
                   <th>T1</th><th>T2</th><th>T3</th><th>T4</th><th>T5</th><th>T6</th>
-                  {/* Final Weight sub-headers (no AVG) */}
+                  {/* After Weight sub-headers */}{/* ← RENAMED */}
                   <th>T1</th><th>T2</th><th>T3</th><th>T4</th><th>T5</th><th>T6</th>
                 </tr>
               </thead>
@@ -391,7 +391,7 @@ export default function History({ view }) {
                       <td>{item.temperature}</td>
                       <td>{item.humidity}</td>
 
-                      {/* Before Weight (no AVG) */}
+                      {/* Before Weight */}
                       <td>{item.beforeWeightT1}</td>
                       <td>{item.beforeWeightT2}</td>
                       <td>{item.beforeWeightT3}</td>
@@ -399,13 +399,13 @@ export default function History({ view }) {
                       <td>{item.beforeWeightT5}</td>
                       <td>{item.beforeWeightT6}</td>
 
-                      {/* Final Weight (no AVG) */}
-                      <td>{item.finalWeightT1}</td>
-                      <td>{item.finalWeightT2}</td>
-                      <td>{item.finalWeightT3}</td>
-                      <td>{item.finalWeightT4}</td>
-                      <td>{item.finalWeightT5}</td>
-                      <td>{item.finalWeightT6}</td>
+                      {/* After Weight */}{/* ← RENAMED */}
+                      <td>{item.afterWeightT1}</td>
+                      <td>{item.afterWeightT2}</td>
+                      <td>{item.afterWeightT3}</td>
+                      <td>{item.afterWeightT4}</td>
+                      <td>{item.afterWeightT5}</td>
+                      <td>{item.afterWeightT6}</td>
 
                       {/* Status */}
                       <td>

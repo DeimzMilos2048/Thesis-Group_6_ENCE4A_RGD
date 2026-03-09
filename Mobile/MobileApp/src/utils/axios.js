@@ -3,12 +3,13 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const getBaseURL = () => {
   if (__DEV__) {
+    // For development on physical device or emulator
+    // Use the same URL as socket.io to maintain consistency
     return [
-      'http://10.0.2.2:5001',
-      'http://localhost:5001',
-      'http://192.168.0.109:5001',
-      'http://127.0.0.1:5001',
-      'http://10.103.40.83:5001'
+      'http://192.168.0.109:5001',      // Primary: actual machine IP for real devices
+      'http://10.0.2.2:5001',           // Fallback: Android emulator special IP
+      'http://localhost:5001',          // Fallback: localhost
+      'http://127.0.0.1:5001',          // Fallback: 127.0.0.1
     ];
   } else {
     return ['https://mala-backend-q03k.onrender.com'];
@@ -48,17 +49,17 @@ api.interceptors.response.use(
   async (error) => {
     if (error.response) {
       // Server responded with a non-2xx status — don't fallback, this is a real error
-      console.error('Response error:', error.response.data);
+      console.error('Response error:', error.response.status, error.response.data);
       return Promise.reject(error);
 
     } else if (error.request) {
       // No response received — try next URL
-      console.error('Request error:', error.request);
+      console.warn(`Request failed with URL: ${BASE_URLS[currentURLIndex]}`);
 
       if (currentURLIndex < BASE_URLS.length - 1) {
         currentURLIndex++;
         api.defaults.baseURL = BASE_URLS[currentURLIndex];
-        console.log('Trying next URL:', BASE_URLS[currentURLIndex]);
+        console.log(`Attempting fallback URL: ${BASE_URLS[currentURLIndex]}`);
 
         // Retry the request with the new base URL
         const retryConfig = {
@@ -69,11 +70,13 @@ api.interceptors.response.use(
         return api.request(retryConfig);
       }
 
-      // All URLs exhausted — reset for next time
+      // All URLs exhausted
       currentURLIndex = 0;
       api.defaults.baseURL = BASE_URLS[0];
 
-      return Promise.reject(new Error('No response from server. Make sure your backend is running.'));
+      const errorMsg = `Unable to reach backend. Tried: ${BASE_URLS.join(', ')}. Make sure your backend server is running and check your network connection.`;
+      console.error(errorMsg);
+      return Promise.reject(new Error(errorMsg));
 
     } else {
       console.error('Error:', error.message);

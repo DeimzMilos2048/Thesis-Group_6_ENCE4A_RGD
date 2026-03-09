@@ -8,7 +8,7 @@ import { useSocket } from '../../contexts/SocketContext.js';
 import { useDrying } from '../../contexts/DryingContext.js';
 import { useWeight } from '../../contexts/WeightContext.js';
 import { useToast } from '../../contexts/ToastContext.js';
-import { setTemperature, setMoisture, setTray } from '../../api/systemService'; // ← from doc8
+import { setTemperature, setMoisture, setTray } from '../../api/systemService';
 
 export default function RiceDryingDashboard({ view }) {
   const [loading, setLoading] = useState(false);
@@ -31,13 +31,18 @@ export default function RiceDryingDashboard({ view }) {
     startDrying,
     stopDrying,
     formatDryingTime,
+    setSocket: setSocketInDrying,
   } = useDrying();
 
-  // ── Weight state from shared context — persists across all page navigation ──
-  const { savedWeights, savedAfterWeights, saveBeforeWeight, saveAfterWeight } = useWeight();
-
-  // ── Persistent toast — survives tab/route changes via ToastContext ──────────
+  const { savedWeights, savedAfterWeights, saveBeforeWeight, saveAfterWeight, resetBeforeWeight, resetAfterWeight } = useWeight();
   const { showToast } = useToast();
+
+  // Pass socket to DryingProvider for drying time sync
+  useEffect(() => {
+    if (socket && setSocketInDrying) {
+      setSocketInDrying(socket);
+    }
+  }, [socket, setSocketInDrying]);
 
   useEffect(() => {
     const path = location.pathname;
@@ -120,8 +125,6 @@ export default function RiceDryingDashboard({ view }) {
           </div>
         </div>
       )}
-
-      {/* Toast rendered globally by GlobalToastDisplay in App.jsx */}
 
       <header className="topbar">
         <div className="topbar-logo-section"><img src={logo} alt="Logo" className="topbar-logo" /></div>
@@ -276,7 +279,7 @@ export default function RiceDryingDashboard({ view }) {
               <div className="system-controls">
                 <div className="controls-header"><h2>System Controls</h2></div>
 
-                {/* Temperature Selector — sets local state + sends to backend */}
+                {/* Temperature Selector */}
                 <div className="control-group">
                   <label className="control-group-label"><Thermometer size={14} style={{ color: '#f97316' }} /> Target Temperature (°C)</label>
                   <div className="selector-buttons temp-grid">
@@ -285,13 +288,8 @@ export default function RiceDryingDashboard({ view }) {
                         key={temp}
                         className={`selector-btn temp-btn ${selectedTemp === temp ? 'selected-temp' : ''}`}
                         onClick={async () => {
-                          try {
-                            setSelectedTemp(temp);
-                            await setTemperature(temp);
-                            console.log('Temperature sent to backend:', temp);
-                          } catch (err) {
-                            console.error('Temperature update failed:', err);
-                          }
+                          try { setSelectedTemp(temp); await setTemperature(temp); }
+                          catch (err) { console.error('Temperature update failed:', err); }
                         }}
                       >
                         {temp}°
@@ -300,7 +298,7 @@ export default function RiceDryingDashboard({ view }) {
                   </div>
                 </div>
 
-                {/* Moisture Selector — sets local state + sends to backend */}
+                {/* Moisture Selector */}
                 <div className="control-group">
                   <label className="control-group-label"><Waves size={14} style={{ color: '#06b6d4' }} /> Target Moisture (%)</label>
                   <div className="selector-buttons">
@@ -309,13 +307,8 @@ export default function RiceDryingDashboard({ view }) {
                         key={moisture}
                         className={`selector-btn moisture-btn ${selectedMoisture === moisture ? 'selected-moisture' : ''}`}
                         onClick={async () => {
-                          try {
-                            setSelectedMoisture(moisture);
-                            await setMoisture(moisture);
-                            console.log('Moisture sent to backend:', moisture);
-                          } catch (err) {
-                            console.error('Moisture update failed:', err);
-                          }
+                          try { setSelectedMoisture(moisture); await setMoisture(moisture); }
+                          catch (err) { console.error('Moisture update failed:', err); }
                         }}
                       >
                         {moisture}%
@@ -324,7 +317,7 @@ export default function RiceDryingDashboard({ view }) {
                   </div>
                 </div>
 
-                {/* Tray Selector — sets local state + sends to backend */}
+                {/* Tray Selector + Save/Reset Weight Buttons */}
                 <div className="control-group">
                   <label className="control-group-label"><Weight size={14} style={{ color: '#10b981' }} /> Tray for Weighing</label>
                   <div className="selector-buttons temp-grid">
@@ -333,13 +326,8 @@ export default function RiceDryingDashboard({ view }) {
                         key={tray}
                         className={`selector-btn tray-btn ${currentTray === tray ? 'selected-tray' : ''} ${savedWeights[tray]?.frozen ? 'tray-btn-frozen' : ''}`}
                         onClick={async () => {
-                          try {
-                            setCurrentTray(tray);
-                            await setTray(tray);
-                            console.log('Tray sent to backend:', tray);
-                          } catch (err) {
-                            console.error('Tray update failed:', err);
-                          }
+                          try { setCurrentTray(tray); await setTray(tray); }
+                          catch (err) { console.error('Tray update failed:', err); }
                         }}
                       >
                         T{tray}{savedWeights[tray]?.frozen && <span className="tray-frozen-dot" />}
@@ -347,25 +335,47 @@ export default function RiceDryingDashboard({ view }) {
                     ))}
                   </div>
 
-                  <button className={`save-weight-btn ${savedWeights[currentTray]?.frozen ? 'save-weight-btn-frozen' : ''}`} onClick={handleSaveWeight} disabled={savedWeights[currentTray]?.frozen}>
-                    {savedWeights[currentTray]?.frozen ? (
-                      <><CheckCircle size={15} /> Tray {currentTray} Before — {savedWeights[currentTray].before.toFixed(2)} kg</>
-                    ) : (
-                      <><Weight size={15} /> Save Before · Tray {currentTray}
-                        {(() => { const liveW = sensorData.weight1 ?? sensorData.weightbefore1 ?? null; return liveW > 0 ? <span style={{ marginLeft: 4, fontWeight: 400, opacity: 0.75 }}>({liveW.toFixed(2)} kg)</span> : <span style={{ marginLeft: 4, fontWeight: 400, opacity: 0.5 }}>(no data)</span>; })()}
-                      </>
-                    )}
-                  </button>
+                  {/* Save Before / Save After */}
+                  <div className="weight-save-row" style={{ marginTop: '10px' }}>
+                    <button
+                      className={`selector-btn weight-save-btn before-btn ${savedWeights[currentTray]?.frozen ? 'weight-save-frozen' : ''}`}
+                      onClick={handleSaveWeight}
+                      disabled={savedWeights[currentTray]?.frozen}
+                    >
+                      {savedWeights[currentTray]?.frozen
+                        ? <>✓ Before<br /><span className="weight-save-val">{savedWeights[currentTray].before.toFixed(2)} kg</span></>
+                        : <>Save<br />Before</>}
+                    </button>
 
-                  <button className={`save-after-weight-btn ${savedAfterWeights[currentTray]?.frozen ? 'save-after-weight-btn-frozen' : ''} ${!savedWeights[currentTray]?.frozen ? 'save-after-weight-btn-disabled' : ''}`} onClick={handleSaveAfterWeight} disabled={savedAfterWeights[currentTray]?.frozen || !savedWeights[currentTray]?.frozen}>
-                    {savedAfterWeights[currentTray]?.frozen ? (
-                      <><CheckCircle size={15} /> Tray {currentTray} After — {savedAfterWeights[currentTray].after.toFixed(2)} kg</>
-                    ) : (
-                      <><Weight size={15} /> Save After · Tray {currentTray}
-                        {(() => { const liveW = sensorData.weight1 ?? sensorData.weightbefore1 ?? null; return savedWeights[currentTray]?.frozen ? liveW > 0 ? <span style={{ marginLeft: 4, fontWeight: 400, opacity: 0.75 }}>({liveW.toFixed(2)} kg)</span> : <span style={{ marginLeft: 4, fontWeight: 400, opacity: 0.5 }}>(no data)</span> : <span style={{ marginLeft: 4, fontWeight: 400, opacity: 0.5 }}>(save before first)</span>; })()}
-                      </>
-                    )}
-                  </button>
+                    <button
+                      className={`selector-btn weight-save-btn after-btn ${savedAfterWeights[currentTray]?.frozen ? 'weight-save-frozen after-frozen' : ''} ${!savedWeights[currentTray]?.frozen ? 'weight-save-disabled' : ''}`}
+                      onClick={handleSaveAfterWeight}
+                      disabled={savedAfterWeights[currentTray]?.frozen || !savedWeights[currentTray]?.frozen}
+                    >
+                      {savedAfterWeights[currentTray]?.frozen
+                        ? <>✓ After<br /><span className="weight-save-val">{savedAfterWeights[currentTray].after.toFixed(2)} kg</span></>
+                        : <>Save<br />After</>}
+                    </button>
+                  </div>
+
+                  {/* Reset Before / Reset After */}
+                  <div className="weight-save-row" style={{ marginTop: '6px' }}>
+                    <button
+                      className={`selector-btn weight-reset-btn ${!savedWeights[currentTray]?.frozen ? 'weight-reset-disabled' : ''}`}
+                      onClick={() => { resetBeforeWeight(currentTray); showToast('info', `Tray ${currentTray} before weight reset.`); }}
+                      disabled={!savedWeights[currentTray]?.frozen}
+                    >
+                      Reset<br />Before
+                    </button>
+
+                    <button
+                      className={`selector-btn weight-reset-btn ${!savedAfterWeights[currentTray]?.frozen ? 'weight-reset-disabled' : ''}`}
+                      onClick={() => { resetAfterWeight(currentTray); showToast('info', `Tray ${currentTray} after weight reset.`); }}
+                      disabled={!savedAfterWeights[currentTray]?.frozen}
+                    >
+                      Reset<br />After
+                    </button>
+                  </div>
                 </div>
 
                 <div className="control-buttons">

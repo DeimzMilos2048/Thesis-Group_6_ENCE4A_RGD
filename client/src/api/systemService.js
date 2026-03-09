@@ -1,4 +1,5 @@
-const API = "http://10.42.0.1:5001/api/system";
+const API = `${process.env.REACT_APP_API_URL || 'http://10.42.0.1:5001'}/api/system`;
+
 
 export const setTemperature = async (value) => {
   const res = await fetch(`${API}/temperature`, {
