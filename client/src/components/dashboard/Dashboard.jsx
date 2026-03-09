@@ -112,11 +112,9 @@ export default function RiceDryingDashboard({ view }) {
       // Stop moisture monitoring
       stopMoistureMonitoringService();
       
-      // Call backend API
-      const response = await dryerService.stopDrying();
-      if (response.success) {
-        showToast('info', 'Drying process has been stopped.');
-      }
+      // Call context's stopDrying which resets timer to 0
+      await stopDrying();
+      showToast('info', 'Drying process has been stopped.');
     } catch (error) {
       console.error('Error stopping drying:', error);
       showToast('error', 'Failed to stop drying. Please try again.');

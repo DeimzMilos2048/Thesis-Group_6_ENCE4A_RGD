@@ -119,7 +119,7 @@ const useNotificationServiceNative = (
   const refresh = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await axios.get(`${apiBaseUrl}/notifications`);
+      const res = await axios.get(`${apiBaseUrl}/api/notifications`);
       const data: NotificationItem[] = Array.isArray(res.data) ? res.data : [];
       setNotifications(data);
       setError(null);
@@ -142,7 +142,7 @@ const useNotificationServiceNative = (
 
     // 2. Persist to backend
     try {
-      await axios.post(`${apiBaseUrl}/notifications`, {
+      await axios.post(`${apiBaseUrl}/api/notifications`, {
         type,
         title,
         message,
@@ -221,7 +221,7 @@ const useNotificationServiceNative = (
   // ── acknowledge ──────────────────────────────────────────────────────────
   const acknowledgeOne = useCallback(async (id: string) => {
     try {
-      await axios.patch(`${apiBaseUrl}/notifications/${id}/read`);
+      await axios.patch(`${apiBaseUrl}/api/notifications/${id}/read`);
       setNotifications(prev => prev.map(n => n._id === id ? { ...n, isRead: true } : n));
     } catch (err) {
       console.error('[acknowledgeOne] failed:', err);
@@ -230,7 +230,7 @@ const useNotificationServiceNative = (
 
   const acknowledgeAll = useCallback(async () => {
     try {
-      await axios.patch(`${apiBaseUrl}/notifications/read-all`);
+      await axios.patch(`${apiBaseUrl}/api/notifications/read-all`);
       setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
     } catch (err) {
       console.error('[acknowledgeAll] failed:', err);

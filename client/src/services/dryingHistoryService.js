@@ -30,7 +30,7 @@ export const startMoistureMonitoringService = (onMoistureUpdate) => {
   monitoringState.isActive = true;
   monitoringState.onMoistureUpdate = onMoistureUpdate;
 
-  console.log('🔍 Started moisture monitoring service');
+  console.log('Started moisture monitoring service');
 
   const checkMoisture = async () => {
     try {
@@ -62,7 +62,7 @@ export const startMoistureMonitoringService = (onMoistureUpdate) => {
 
         // Check if target reached
         if (avgMoisture <= monitoringState.targetMoisture) {
-          console.log(`✅ Target moisture (${monitoringState.targetMoisture}%) reached!`);
+          console.log(`Target moisture (${monitoringState.targetMoisture}%) reached!`);
           stopMoistureMonitoringService();
 
           // Auto-stop drying
@@ -105,7 +105,7 @@ export const stopMoistureMonitoringService = () => {
   monitoringState.isActive = false;
   monitoringState.onMoistureUpdate = null;
   monitoringState.onTargetReached = null;
-  console.log('⏹ Stopped moisture monitoring service');
+  console.log('Stopped moisture monitoring service');
 };
 
 /**

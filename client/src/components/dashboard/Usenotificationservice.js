@@ -55,7 +55,7 @@ const useNotificationService = (sensorData = null, pollingIntervalMs = 15000) =>
   const fetchNotifications = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await axios.get('/notifications');
+      const res = await axios.get('/api/notifications');
       const data = Array.isArray(res.data) ? res.data : [];
       setAlerts(data);
       setUnreadCount(data.filter(a => !a.isRead).length);
@@ -73,7 +73,7 @@ const useNotificationService = (sensorData = null, pollingIntervalMs = 15000) =>
     addToast(type.toLowerCase(), message, title);
 
     try {
-      await axios.post('/notifications', {
+      await axios.post('/api/notifications', {
         type,           // 'CRITICAL' | 'WARNING' | 'STABLE'
         title,
         message,
@@ -216,7 +216,7 @@ const useNotificationService = (sensorData = null, pollingIntervalMs = 15000) =>
 
   const acknowledgeOne = useCallback(async (id) => {
     try {
-      await axios.patch(`/notifications/${id}/read`);
+      await axios.patch(`/api/notifications/${id}/read`);
       setAlerts(prev => prev.map(a => a._id === id ? { ...a, isRead: true } : a));
       setUnreadCount(prev => Math.max(0, prev - 1));
     } catch (err) {
@@ -226,7 +226,7 @@ const useNotificationService = (sensorData = null, pollingIntervalMs = 15000) =>
 
   const acknowledgeAll = useCallback(async () => {
     try {
-      await axios.patch('/notifications/read-all');
+      await axios.patch('/api/notifications/read-all');
       setAlerts(prev => prev.map(a => ({ ...a, isRead: true })));
       setUnreadCount(0);
     } catch (err) {
