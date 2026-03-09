@@ -1,5 +1,7 @@
 import express from 'express';
 import SensorData from '../models/sensorDataModel.js';
+import { evaluateSensorData, saveNotificationIfNew } from '../utils/notificationGenerator.js';
+import { broadcastNotification } from '../utils/firebaseNotificationService.js';
 
 const router = express.Router();
 
@@ -54,12 +56,70 @@ router.post('/insert', async (req, res) => {
       ? parseFloat((activeMoistures.reduce((sum, v) => sum + v, 0) / activeMoistures.length).toFixed(2))
       : 0;
 
+    // Build complete payload
+    const payload = buildSensorDataPayload(saved);
+    
+    // Broadcast via Socket.io to web dashboard
     const io = req.app.get('io');
     if (io) {
-      const payload = buildSensorDataPayload(saved);
       io.emit('sensor_readings_table', payload);
     } else {
       console.warn('Socket.IO instance not found on app');
+    }
+
+    // EVALUATE THRESHOLDS AND GENERATE NOTIFICATIONS
+    try {
+      const sensorPayload = {
+        temperature: parseFloat(saved.temperature) || 0,
+        humidity: parseFloat(saved.humidity) || 0,
+        moisture1: parseFloat(saved.moisture1) || 0,
+        moisture2: parseFloat(saved.moisture2) || 0,
+        moisture3: parseFloat(saved.moisture3) || 0,
+        moisture4: parseFloat(saved.moisture4) || 0,
+        moisture5: parseFloat(saved.moisture5) || 0,
+        moisture6: parseFloat(saved.moisture6) || 0,
+        moistureavg,
+      };
+
+      // Evaluate thresholds and generate notifications
+      const generatedNotifications = await evaluateSensorData(sensorPayload);
+
+      // Save and broadcast each notification
+      for (const notifData of generatedNotifications) {
+        try {
+          // Add sensor context to notification
+          notifData.sensorData = sensorPayload;
+          notifData.thresholds = {
+            temperature: { critical: 50, warning: 45, stable: 40 },
+            humidity: { warning: 75, stable: 60 },
+            moisture: { target: 14, safe: 13 }
+          };
+
+          // Save notification to database (avoids duplicates)
+          const savedNotif = await saveNotificationIfNew(notifData);
+
+          if (savedNotif) {
+            // Broadcast notification to web dashboard via Socket.io
+            if (io) {
+              io.emit('notification:new', savedNotif);
+            }
+
+            // Send push notification to mobile devices
+            try {
+              await broadcastNotification(savedNotif);
+            } catch (fcmError) {
+              console.error('FCM broadcast failed (non-critical):', fcmError.message);
+              // Don't block sensor insert if FCM fails
+            }
+          }
+        } catch (notifError) {
+          console.error('Error processing individual notification:', notifError);
+          // Continue processing other notifications if one fails
+        }
+      }
+    } catch (thresholdError) {
+      console.error('Error evaluating thresholds:', thresholdError);
+      // Don't block sensor insert if threshold evaluation fails
     }
 
     res.status(201).json(saved);

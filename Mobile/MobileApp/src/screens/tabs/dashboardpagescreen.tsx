@@ -47,7 +47,10 @@ const Header: React.FC<{ onNotificationPress: () => void }> = ({ onNotificationP
 
 const DashboardPageScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
-  const { systemData, isConnected } = useSystemControl();
+  const { systemData, isConnected, startDrying, stopDrying } = useSystemControl();
+  const [selectedTemp, setSelectedTemp] = useState<number>(40);
+  const [selectedMoisture, setSelectedMoisture] = useState<number>(13);
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     console.log('[Dashboard] systemData updated:', {
@@ -59,6 +62,32 @@ const DashboardPageScreen: React.FC = () => {
 
   const handleNotificationPress = () => {
     navigation.navigate('NotificationScreen');
+  };
+
+  const handleStartDrying = async () => {
+    if (!selectedTemp || !selectedMoisture) {
+      Alert.alert('Error', 'Please select temperature and moisture before starting');
+      return;
+    }
+    try {
+      setIsLoading(true);
+      await startDrying(selectedTemp, selectedMoisture);
+    } catch (error) {
+      Alert.alert('Error', 'Failed to start drying');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleStopDrying = async () => {
+    try {
+      setIsLoading(true);
+      await stopDrying();
+    } catch (error) {
+      Alert.alert('Error', 'Failed to stop drying');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const [sensorData, setSensorData] = useState({
@@ -102,11 +131,11 @@ const DashboardPageScreen: React.FC = () => {
 
   useEffect(() => {
     const SOCKET_URL = __DEV__ 
-      ? 'http://192.168.0.109:5001'        
+      ? 'http://192.168.86.181:5001'        
       : 'https://mala-backend-q03k.onrender.com'; 
 
     const socket = io(SOCKET_URL, {
-      transports: ['websocket', 'polling'],
+      transports: ['polling','websocket'],
       reconnection: true,
       reconnectionDelay: 1000,
       reconnectionAttempts: Infinity,
@@ -312,13 +341,74 @@ const DashboardPageScreen: React.FC = () => {
           })}
         </View>
 
+        {/* System Controls Section */}
+        <Text style={styles.sectionTitle}>System Controls</Text>
+        
+        <View style={styles.controlsContainer}>
+          <View style={styles.controlGroup}>
+            <Text style={styles.controlLabel}>Target Temperature (°C)</Text>
+            <View style={styles.tempGrid}>
+              {[40, 41, 42, 43, 44, 45].map(temp => (
+                <TouchableOpacity
+                  key={temp}
+                  style={[styles.tempButton, selectedTemp === temp && styles.tempButtonSelected]}
+                  onPress={() => setSelectedTemp(temp)}
+                >
+                  <Text style={[styles.tempButtonText, selectedTemp === temp && styles.tempButtonTextSelected]}>
+                    {temp}°
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          <View style={styles.controlGroup}>
+            <Text style={styles.controlLabel}>Target Moisture (%)</Text>
+            <View style={styles.moistureGrid}>
+              {[13, 14].map(moisture => (
+                <TouchableOpacity
+                  key={moisture}
+                  style={[styles.moistureButton, selectedMoisture === moisture && styles.moistureButtonSelected]}
+                  onPress={() => setSelectedMoisture(moisture)}
+                >
+                  <Text style={[styles.moistureButtonText, selectedMoisture === moisture && styles.moistureButtonTextSelected]}>
+                    {moisture}%
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          <View style={styles.actionButtonsContainer}>
+            <TouchableOpacity
+              style={[styles.startButton, systemData.isDrying && styles.startButtonDisabled]}
+              onPress={handleStartDrying}
+              disabled={systemData.isDrying || isLoading}
+            >
+              <Ionicons name="play-circle" size={20} color="#FFFFFF" />
+              <Text style={styles.startButtonText}>
+                {isLoading ? 'Starting...' : 'Start Drying'}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.stopButton, !systemData.isDrying && styles.stopButtonDisabled]}
+              onPress={handleStopDrying}
+              disabled={!systemData.isDrying || isLoading}
+            >
+              <Ionicons name="stop-circle" size={20} color="#FFFFFF" />
+              <Text style={styles.stopButtonText}>
+                {isLoading ? 'Stopping...' : 'Stop Drying'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
       </ScrollView>
     
     </SafeAreaView>
   );
 };
-
-
 
 interface Styles {
   safeArea: ViewStyle;
@@ -351,9 +441,27 @@ interface Styles {
   weightVal: TextStyle;
   weightBadgeBefore: TextStyle;
   weightBadgeAfter: TextStyle;
+  controlsContainer: ViewStyle;
+  controlGroup: ViewStyle;
+  controlLabel: TextStyle;
+  tempGrid: ViewStyle;
+  tempButton: ViewStyle;
+  tempButtonSelected: ViewStyle;
+  tempButtonText: TextStyle;
+  tempButtonTextSelected: TextStyle;
+  moistureGrid: ViewStyle;
+  moistureButton: ViewStyle;
+  moistureButtonSelected: ViewStyle;
+  moistureButtonText: TextStyle;
+  moistureButtonTextSelected: TextStyle;
+  actionButtonsContainer: ViewStyle;
+  startButton: ViewStyle;
+  startButtonDisabled: ViewStyle;
+  startButtonText: TextStyle;
+  stopButton: ViewStyle;
+  stopButtonDisabled: ViewStyle;
+  stopButtonText: TextStyle;
 }
-
-
 
 const styles = StyleSheet.create<Styles>({
   safeArea: {
@@ -549,6 +657,127 @@ const styles = StyleSheet.create<Styles>({
     paddingVertical: 1,
     borderRadius: 4,
     overflow: 'hidden',
+  },
+  controlsContainer: {
+    marginVertical: 12,
+    paddingHorizontal: 15,
+  },
+  controlGroup: {
+    marginBottom: 16,
+  },
+  controlLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 8,
+  },
+  tempGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    justifyContent: 'space-between',
+  },
+  tempButton: {
+    width: '30%',
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+    backgroundColor: '#f3f4f6',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  tempButtonSelected: {
+    backgroundColor: '#FF6B35',
+    borderColor: '#FF6B35',
+  },
+  tempButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#666',
+  },
+  tempButtonTextSelected: {
+    color: '#FFFFFF',
+  },
+  moistureGrid: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  moistureButton: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 8,
+    backgroundColor: '#f3f4f6',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  moistureButtonSelected: {
+    backgroundColor: '#06B6D4',
+    borderColor: '#06B6D4',
+  },
+  moistureButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#666',
+  },
+  moistureButtonTextSelected: {
+    color: '#FFFFFF',
+  },
+  actionButtonsContainer: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 16,
+  },
+  startButton: {
+    flex: 1,
+    flexDirection: 'row',
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    backgroundColor: '#27AE60',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 8,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+  },
+  startButtonDisabled: {
+    backgroundColor: '#d1d5db',
+    opacity: 0.5,
+  },
+  startButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  stopButton: {
+    flex: 1,
+    flexDirection: 'row',
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    backgroundColor: '#EF4444',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 8,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+  },
+  stopButtonDisabled: {
+    backgroundColor: '#d1d5db',
+    opacity: 0.5,
+  },
+  stopButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
 });
 

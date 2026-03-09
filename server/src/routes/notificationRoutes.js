@@ -57,22 +57,58 @@ router.patch("/read-all", async (req, res) => {
   }
 });
 
-// MARK single notification as read
-router.patch("/:id/read", async (req, res) => {
+// GET notifications by type
+// e.g., /api/notifications/type/CRITICAL
+router.get("/type/:type", async (req, res) => {
   try {
-    const updated = await Notification.findByIdAndUpdate(
-      req.params.id,
-      { isRead: true },
-      { new: true }
-    );
-    
-    if (!updated) {
-      return res.status(404).json({ error: "Notification not found" });
+    const { type } = req.params;
+    const { limit = 50 } = req.query;
+
+    if (!['CRITICAL', 'WARNING', 'STABLE'].includes(type)) {
+      return res.status(400).json({ error: 'Invalid notification type' });
     }
-    
-    res.json(updated);
+
+    const notifications = await Notification.find({ type })
+      .sort({ createdAt: -1 })
+      .limit(parseInt(limit));
+
+    res.json({
+      success: true,
+      type,
+      count: notifications.length,
+      data: notifications
+    });
   } catch (err) {
-    res.status(400).json({ error: err.message });
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET notification statistics
+// Shows count of notifications by type and unread count
+router.get("/stats", async (req, res) => {
+  try {
+    const criticalCount = await Notification.countDocuments({ type: 'CRITICAL' });
+    const warningCount = await Notification.countDocuments({ type: 'WARNING' });
+    const stableCount = await Notification.countDocuments({ type: 'STABLE' });
+    const unreadCount = await Notification.countDocuments({ isRead: false });
+
+    const latestNotifications = await Notification.find()
+      .sort({ createdAt: -1 })
+      .limit(5);
+
+    res.json({
+      success: true,
+      stats: {
+        criticalCount,
+        warningCount,
+        stableCount,
+        unreadCount,
+        totalCount: criticalCount + warningCount + stableCount
+      },
+      latest: latestNotifications
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
@@ -91,6 +127,25 @@ router.delete("/cleanup", async (req, res) => {
     res.json({ deletedCount: result.deletedCount });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+// MARK single notification as read
+router.patch("/:id/read", async (req, res) => {
+  try {
+    const updated = await Notification.findByIdAndUpdate(
+      req.params.id,
+      { isRead: true },
+      { new: true }
+    );
+    
+    if (!updated) {
+      return res.status(404).json({ error: "Notification not found" });
+    }
+    
+    res.json(updated);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
   }
 });
 

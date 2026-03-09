@@ -7,6 +7,7 @@ import './History.css';
 import * as XLSX from 'xlsx';
 import { useNavigate, useLocation } from 'react-router-dom';
 import authService from '../../api/authService';
+import dryerService from '../../api/dryerService';
 import logo from "../../assets/images/logo2.png";
 
 export default function History({ view }) {
@@ -17,6 +18,9 @@ export default function History({ view }) {
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const [historyData, setHistoryData] = useState([]);
+  const [isMonitoringMoisture, setIsMonitoringMoisture] = useState(false);
+  const [targetMoistureReached, setTargetMoistureReached] = useState(false);
+  const [currentMoisture, setCurrentMoisture] = useState(null);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -219,6 +223,71 @@ export default function History({ view }) {
     };
   }, [navigate]);
 
+  // Monitor moisture content and auto-stop when reaching 14%
+  useEffect(() => {
+    if (!isMonitoringMoisture || targetMoistureReached) {
+      return; // Don't monitor if not active or already reached target
+    }
+
+    const monitorMoisture = async () => {
+      try {
+        const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001';
+        const token = localStorage.getItem('token');
+        
+        // Fetch latest sensor data
+        const response = await fetch(`${API_URL}/api/sensor/latest`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (!response.ok) {
+          console.warn('Failed to fetch latest sensor data:', response.status);
+          return;
+        }
+
+        const result = await response.json();
+        const sensorData = Array.isArray(result.data) ? result.data[0] : result.data;
+
+        if (sensorData && sensorData.moistureavg !== undefined) {
+          const avgMoisture = parseFloat(sensorData.moistureavg);
+          setCurrentMoisture(avgMoisture);
+
+          // Check if moisture reached target (14%)
+          // Trigger: Consider it "reached" when <= 14
+          if (avgMoisture <= 14 && !targetMoistureReached) {
+            console.log(`✓ Target moisture reached! Average: ${avgMoisture}%`);
+            setTargetMoistureReached(true);
+            setIsMonitoringMoisture(false);
+
+            // Auto-stop drying when target reached
+            try {
+              const stopResponse = await dryerService.stopDrying();
+              if (stopResponse.success) {
+                console.log('Drying automatically stopped at target moisture');
+                // Reload history to show new record with end time
+                setTimeout(() => {
+                  window.location.reload();
+                }, 1000);
+              }
+            } catch (err) {
+              console.error('Error auto-stopping drying:', err);
+            }
+          }
+        }
+      } catch (error) {
+        console.warn('Moisture monitoring error:', error);
+      }
+    };
+
+    // Monitor every 10 seconds during active drying
+    const monitoringInterval = setInterval(monitorMoisture, 10000);
+    monitorMoisture(); // Initial check
+
+    return () => clearInterval(monitoringInterval);
+  }, [isMonitoringMoisture, targetMoistureReached]);
+
   const handleNavigation = (path, tab) => {
     setActiveTab(tab);
     navigate(path);
@@ -227,6 +296,20 @@ export default function History({ view }) {
   const handleLogoutClick = () => setShowLogoutConfirm(true);
   const handleLogoutConfirm = () => { authService.logout(); navigate('/login'); };
   const handleLogoutCancel = () => setShowLogoutConfirm(false);
+
+  // Function to start monitoring moisture (can be called from Dashboard when drying starts)
+  const startMoistureMonitoring = () => {
+    setIsMonitoringMoisture(true);
+    setTargetMoistureReached(false);
+    setCurrentMoisture(null);
+    console.log('Started monitoring moisture for auto-stop at 14%');
+  };
+
+  // Function to stop monitoring moisture manually
+  const stopMoistureMonitoring = () => {
+    setIsMonitoringMoisture(false);
+    console.log('Stopped monitoring moisture');
+  };
 
   const handleDownloadExcel = () => {
     const worksheet = XLSX.utils.json_to_sheet(historyData);
@@ -320,6 +403,58 @@ export default function History({ view }) {
             <button className="download-btn" onClick={handleDownloadExcel}>Export Excel</button>
           </div>
 
+          {/* Moisture Monitoring Status Bar */}
+          {isMonitoringMoisture && (
+            <div style={{
+              backgroundColor: '#FEF3C7',
+              border: '1px solid #FCD34D',
+              borderRadius: '8px',
+              padding: '12px 16px',
+              marginBottom: '16px',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center'
+            }}>
+              <div>
+                <span style={{ fontWeight: '600', color: '#92400E' }}>
+                  ◐ Monitoring Moisture • Current: {currentMoisture !== null ? `${currentMoisture.toFixed(2)}%` : 'Loading...'}
+                </span>
+                <p style={{ fontSize: '12px', color: '#78350F', margin: '4px 0 0 0' }}>
+                  Drying will automatically stop when moisture reaches 14%
+                </p>
+              </div>
+              <button
+                onClick={stopMoistureMonitoring}
+                style={{
+                  padding: '6px 12px',
+                  backgroundColor: '#EF4444',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  fontSize: '12px',
+                  fontWeight: '600'
+                }}
+              >
+                Stop Monitoring
+              </button>
+            </div>
+          )}
+
+          {targetMoistureReached && (
+            <div style={{
+              backgroundColor: '#D1FAE5',
+              border: '1px solid #6EE7B7',
+              borderRadius: '8px',
+              padding: '12px 16px',
+              marginBottom: '16px',
+              color: '#065F46',
+              fontWeight: '600'
+            }}>
+              ✓ Target moisture (14%) reached! Drying session has been completed and saved.
+            </div>
+          )}
+
           <div className="table-wrapper">
             <table className="history-table">
               <thead>
@@ -328,6 +463,7 @@ export default function History({ view }) {
                   <th rowSpan="2">Date</th>
                   <th rowSpan="2">Starting Time</th>
                   <th rowSpan="2">End Time</th>
+                  <th rowSpan="2" title="Auto-stopped when moisture reached 14%">Completion Status</th>
 
                   {/* ── Moisture groups ── */}
                   <th colSpan="6">Initial Moisture</th>
@@ -358,63 +494,90 @@ export default function History({ view }) {
               <tbody>
                 {historyData.length === 0 ? (
                   <tr>
-                    <td colSpan="33" style={{ textAlign: 'center', padding: '2rem', color: '#888' }}>
+                    <td colSpan="34" style={{ textAlign: 'center', padding: '2rem', color: '#888' }}>
                       No history data available.
                     </td>
                   </tr>
                 ) : (
-                  historyData.map((item) => (
-                    <tr key={item.id}>
-                      {/* Fixed */}
-                      <td>{item.date}</td>
-                      <td>{item.startTime}</td>
-                      <td>{item.endTime}</td>
+                  historyData.map((item) => {
+                    // Determine completion status based on final moisture
+                    const finalMoistureAvg = parseFloat(item.moistureavg);
+                    const isTargetReached = finalMoistureAvg <= 14;
+                    
+                    return (
+                      <tr key={item.id}>
+                        {/* Fixed */}
+                        <td>{item.date}</td>
+                        <td>{item.startTime}</td>
+                        <td>{item.endTime}</td>
+                        
+                        {/* Completion Status */}
+                        <td>
+                          <span 
+                            style={{
+                              padding: '4px 8px',
+                              borderRadius: '4px',
+                              fontSize: '12px',
+                              fontWeight: '600',
+                              backgroundColor: isTargetReached ? '#D1FAE5' : '#FEF3C7',
+                              color: isTargetReached ? '#065F46' : '#92400E'
+                            }}
+                            title={isTargetReached 
+                              ? 'Session ended automatically when moisture reached 14%' 
+                              : 'Session ended manually (moisture did not reach 14%)'}
+                          >
+                            {isTargetReached ? '✓ Target' : '◐ Manual'}
+                          </span>
+                        </td>
 
-                      {/* Initial Moisture */}
-                      <td>{item.initialMoistureT1}</td>
-                      <td>{item.initialMoistureT2}</td>
-                      <td>{item.initialMoistureT3}</td>
-                      <td>{item.initialMoistureT4}</td>
-                      <td>{item.initialMoistureT5}</td>
-                      <td>{item.initialMoistureT6}</td>
+                        {/* Initial Moisture */}
+                        <td>{item.initialMoistureT1}</td>
+                        <td>{item.initialMoistureT2}</td>
+                        <td>{item.initialMoistureT3}</td>
+                        <td>{item.initialMoistureT4}</td>
+                        <td>{item.initialMoistureT5}</td>
+                        <td>{item.initialMoistureT6}</td>
 
-                      {/* Final Moisture + AVG */}
-                      <td>{item.finalMoistureT1}</td>
-                      <td>{item.finalMoistureT2}</td>
-                      <td>{item.finalMoistureT3}</td>
-                      <td>{item.finalMoistureT4}</td>
-                      <td>{item.finalMoistureT5}</td>
-                      <td>{item.finalMoistureT6}</td>
-                      <td>{item.moistureavg}</td>
+                        {/* Final Moisture + AVG */}
+                        <td>{item.finalMoistureT1}</td>
+                        <td>{item.finalMoistureT2}</td>
+                        <td>{item.finalMoistureT3}</td>
+                        <td>{item.finalMoistureT4}</td>
+                        <td>{item.finalMoistureT5}</td>
+                        <td>{item.finalMoistureT6}</td>
+                        <td style={{ fontWeight: '600', color: isTargetReached ? '#059669' : '#d97706' }}>
+                          {item.moistureavg}
+                        </td>
 
-                      {/* Env */}
-                      <td>{item.temperature}</td>
-                      <td>{item.humidity}</td>
+                        {/* Env */}
+                        <td>{item.temperature}</td>
+                        <td>{item.humidity}</td>
 
-                      {/* Before Weight */}
-                      <td>{item.beforeWeightT1}</td>
-                      <td>{item.beforeWeightT2}</td>
-                      <td>{item.beforeWeightT3}</td>
-                      <td>{item.beforeWeightT4}</td>
-                      <td>{item.beforeWeightT5}</td>
-                      <td>{item.beforeWeightT6}</td>
+                        {/* Before Weight */}
+                        <td>{item.beforeWeightT1}</td>
+                        <td>{item.beforeWeightT2}</td>
+                        <td>{item.beforeWeightT3}</td>
+                        <td>{item.beforeWeightT4}</td>
+                        <td>{item.beforeWeightT5}</td>
+                        <td>{item.beforeWeightT6}</td>
 
-                      {/* After Weight */}{/* ← RENAMED */}
-                      <td>{item.afterWeightT1}</td>
-                      <td>{item.afterWeightT2}</td>
-                      <td>{item.afterWeightT3}</td>
-                      <td>{item.afterWeightT4}</td>
-                      <td>{item.afterWeightT5}</td>
-                      <td>{item.afterWeightT6}</td>
+                        {/* After Weight */}{/* ← RENAMED */}
+                        <td>{item.afterWeightT1}</td>
+                        <td>{item.afterWeightT2}</td>
+                        <td>{item.afterWeightT3}</td>
+                        <td>{item.afterWeightT4}</td>
+                        <td>{item.afterWeightT5}</td>
+                        <td>{item.afterWeightT6}</td>
 
-                      {/* Status */}
-                      <td>
-                        <span className={`status ${item.status.toLowerCase()}`}>
-                          {item.status}
-                        </span>
-                      </td>
-                    </tr>
-                  ))
+                        {/* Status */}
+                        <td>
+                          <span className={`status ${item.status.toLowerCase()}`}>
+                            {item.status}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>

@@ -10,6 +10,7 @@ const SensorDataSchema = new mongoose.Schema({
   moisture4: Number,
   moisture5: Number,
   moisture6: Number,
+  moistureavg: Number,
   weight1: Number,
 }, { _id: false });
 
@@ -36,13 +37,20 @@ const NotificationSchema = new mongoose.Schema({
   event: {
     type: String,
     enum: [
-      "SENSOR_ALERT",
-      "POWER_LOSS",
+      "TEMPERATURE_CRITICAL",
+      "TEMPERATURE_WARNING",
+      "HUMIDITY_WARNING",
+      "MOISTURE_TARGET_REACHED",
+      "TRAY_READY",
+      "POWER_OFF",
+      "POWER_ON",
+      "DRYING_STARTED",
+      "DRYING_COMPLETED",
       "DEVICE_OFFLINE",
       "DEVICE_ONLINE",
-      "SYSTEM"
+      "SYSTEM_ALERT"
     ],
-    default: "SENSOR_ALERT"
+    default: "SYSTEM_ALERT"
   },
   source: {
     type: String,
@@ -65,11 +73,20 @@ const NotificationSchema = new mongoose.Schema({
     type: String,
     default: "MALA"
   },
+  tray_number: {
+    type: Number,
+    enum: [1, 2, 3, 4, 5, 6],
+    default: null
+  },
   sensorData: SensorDataSchema,
   thresholds: ThresholdSchema,
   isRead: {
     type: Boolean,
     default: false
+  },
+  readAt: {
+    type: Date,
+    default: null
   },
   createdAt: {
     type: Date,
@@ -79,5 +96,6 @@ const NotificationSchema = new mongoose.Schema({
 
 NotificationSchema.index({ isRead: 1, createdAt: -1 });
 NotificationSchema.index({ deviceId: 1, createdAt: -1 });
+NotificationSchema.index({ type: 1, createdAt: -1 });
 
 export default notifiDB.model("NotificationDB", NotificationSchema,"alert_notification");

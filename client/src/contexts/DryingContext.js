@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, useRef } from 'react';
+import dryerService from '../api/dryerService';
 
 const DryingContext = createContext(null);
 
@@ -9,7 +10,36 @@ export function DryingProvider({ children }) {
   const [selectedMoisture, setSelectedMoisture] = useState(null);
   const [currentTray,    setCurrentTray]    = useState(1);
   const [socket, setSocket] = useState(null);
+  const [lastSyncTime, setLastSyncTime] = useState(Date.now());
   const intervalRef = useRef(null);
+  const syncIntervalRef = useRef(null);
+
+  // Fetch dryer status from backend periodically
+  const syncWithBackend = async () => {
+    try {
+      const response = await dryerService.getStatus();
+      if (response.success && response.data) {
+        const { status, isRunning, elapsedSeconds } = response.data;
+        setIsProcessing(isRunning);
+        setDryingSeconds(elapsedSeconds);
+        setLastSyncTime(Date.now());
+      }
+    } catch (error) {
+      console.error('Failed to sync drying status with backend:', error);
+    }
+  };
+
+  // Sync with backend every 5 seconds
+  useEffect(() => {
+    syncIntervalRef.current = setInterval(() => {
+      syncWithBackend();
+    }, 5000);
+
+    // Initial sync
+    syncWithBackend();
+
+    return () => clearInterval(syncIntervalRef.current);
+  }, []);
 
   // Timer keeps running regardless of which tab is active
   useEffect(() => {
@@ -19,35 +49,57 @@ export function DryingProvider({ children }) {
       }, 1000);
     } else {
       clearInterval(intervalRef.current);
-      setDryingSeconds(0);
     }
     return () => clearInterval(intervalRef.current);
   }, [isProcessing]);
 
-  const startDrying = (temp, moisture) => {
-    setSelectedTemp(temp);
-    setSelectedMoisture(moisture);
-    setIsProcessing(true);
-    
-    // Emit socket event to synchronize with mobile and broadcast notifications
-    if (socket && socket.connected) {
-      socket.emit('drying_started', {
-        temperature: temp,
-        moisture: moisture,
-        timestamp: new Date().toISOString(),
-      });
+  const startDrying = async (temp, moisture) => {
+    try {
+      setSelectedTemp(temp);
+      setSelectedMoisture(moisture);
+      
+      // Call backend API - backend is source of truth
+      const response = await dryerService.startDrying(temp, moisture);
+      if (response.success) {
+        setIsProcessing(true);
+        setDryingSeconds(0);
+        
+        // Emit socket event to synchronize with mobile and broadcast notifications
+        if (socket && socket.connected) {
+          socket.emit('drying_started', {
+            temperature: temp,
+            moisture: moisture,
+            timestamp: new Date().toISOString(),
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error starting drying:', error);
+      setIsProcessing(false);
+      throw error;
     }
   };
 
-  const stopDrying = () => {
-    setIsProcessing(false);
-    
-    // Emit socket event to synchronize with mobile and broadcast notifications
-    if (socket && socket.connected) {
-      socket.emit('drying_stopped', {
-        dryingSeconds: dryingSeconds,
-        timestamp: new Date().toISOString(),
-      });
+  const stopDrying = async () => {
+    try {
+      // Call backend API
+      const response = await dryerService.stopDrying();
+      if (response.success) {
+        const elapsedSeconds = response.data?.elapsedSeconds || dryingSeconds;
+        setIsProcessing(false);
+        setDryingSeconds(elapsedSeconds);
+        
+        // Emit socket event to synchronize with mobile and broadcast notifications
+        if (socket && socket.connected) {
+          socket.emit('drying_stopped', {
+            dryingSeconds: elapsedSeconds,
+            timestamp: new Date().toISOString(),
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error stopping drying:', error);
+      throw error;
     }
   };
 

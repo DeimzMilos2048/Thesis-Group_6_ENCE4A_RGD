@@ -3,6 +3,8 @@ import { Activity, BarChart2, Bell, CircleUser, Clock, Settings, AlertTriangle, 
 import './Dashboard.css';
 import { useNavigate, useLocation } from 'react-router-dom';
 import authService from '../../api/authService';
+import dryerService from '../../api/dryerService';
+import { startMoistureMonitoringService, stopMoistureMonitoringService } from '../../services/dryingHistoryService';
 import logo from "../../assets/images/logo2.png";
 import { useSocket } from '../../contexts/SocketContext.js';
 import { useDrying } from '../../contexts/DryingContext.js';
@@ -77,17 +79,50 @@ export default function RiceDryingDashboard({ view }) {
   const handleLogoutCancel = () => setShowLogoutConfirm(false);
   const handleLogoutConfirm = () => { authService.logout(); navigate('/login'); };
 
-  const handleApply = () => {
+  const handleApply = async () => {
     if (!selectedTemp && !selectedMoisture) { showToast('error', 'Please select a target temperature and moisture before starting.'); return; }
     if (!selectedTemp) { showToast('error', 'Please select a target temperature (40–45°C) before starting.'); return; }
     if (!selectedMoisture) { showToast('error', 'Please select a target moisture (13% or 14%) before starting.'); return; }
-    startDrying(selectedTemp, selectedMoisture);
-    showToast('success', `Drying started — Target: ${selectedTemp}°C · Moisture: ${selectedMoisture}%`);
+    
+    try {
+      setLoading(true);
+      // Call backend API - backend is source of truth
+      const response = await dryerService.startDrying(selectedTemp, selectedMoisture);
+      if (response.success) {
+        showToast('success', `Drying started — Target: ${selectedTemp}°C · Moisture: ${selectedMoisture}%`);
+        
+        // Start monitoring moisture for auto-stop at 14%
+        startMoistureMonitoringService((currentMoisture) => {
+          console.log(`Current moisture: ${currentMoisture.toFixed(2)}%`);
+        });
+        
+        console.log('✓ Moisture monitoring activated');
+      }
+    } catch (error) {
+      console.error('Error starting drying:', error);
+      showToast('error', 'Failed to start drying. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleStop = () => {
-    stopDrying();
-    showToast('info', 'Drying process has been stopped.');
+  const handleStop = async () => {
+    try {
+      setLoading(true);
+      // Stop moisture monitoring
+      stopMoistureMonitoringService();
+      
+      // Call backend API
+      const response = await dryerService.stopDrying();
+      if (response.success) {
+        showToast('info', 'Drying process has been stopped.');
+      }
+    } catch (error) {
+      console.error('Error stopping drying:', error);
+      showToast('error', 'Failed to stop drying. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSaveWeight = () => {

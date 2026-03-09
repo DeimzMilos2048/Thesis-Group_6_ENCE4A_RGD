@@ -3,6 +3,7 @@ import { io, Socket } from 'socket.io-client';
 import { Alert } from 'react-native';
 import FCMService from '../services/FCMService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import dryerService from '../services/dryerService';
 
 interface SystemControlData {
   targetTemperature?: number;
@@ -19,6 +20,8 @@ interface SystemControlContextType {
   isConnected: boolean;
   userId: string | null;
   initializeSystem: () => Promise<void>;
+  startDrying: (temperature: number, moisture: number) => Promise<void>;
+  stopDrying: () => Promise<void>;
 }
 
 const SystemControlContext = createContext<SystemControlContextType | null>(null);
@@ -97,7 +100,7 @@ export const SystemControlProvider: React.FC<{ children: React.ReactNode }> = ({
 
       // Connect to socket for real-time updates
       const SOCKET_URL = __DEV__ 
-        ? 'http://192.168.0.109:5001'        
+        ? 'http://192.168.86.181:5001'        
         : 'https://mala-backend-q03k.onrender.com';
 
       console.log('[Socket] Connecting to:', SOCKET_URL, '(__DEV__=' + __DEV__ + ')');
@@ -219,6 +222,84 @@ export const SystemControlProvider: React.FC<{ children: React.ReactNode }> = ({
     };
   }, []);
 
+  // Sync drying status from backend every 5 seconds
+  useEffect(() => {
+    const syncDryingStatus = async () => {
+      try {
+        const response = await dryerService.getStatus();
+        if (response.success && response.data) {
+          const { isRunning, elapsedSeconds } = response.data;
+          setIsDrying(isRunning);
+          setDryingSeconds(elapsedSeconds);
+        }
+      } catch (error) {
+        console.error('Failed to sync drying status from backend:', error);
+      }
+    };
+
+    const syncInterval = setInterval(syncDryingStatus, 5000);
+    syncDryingStatus(); // Initial sync
+
+    return () => clearInterval(syncInterval);
+  }, []);
+
+  // Start drying via backend API
+  const startDrying = async (temperature: number, moisture: number) => {
+    try {
+      const response = await dryerService.startDrying(temperature, moisture);
+      if (response.success) {
+        setIsDrying(true);
+        setDryingSeconds(0);
+        setSystemData(prev => ({
+          ...prev,
+          isDrying: true,
+          dryingSeconds: 0,
+          targetTemperature: temperature,
+          targetMoisture: moisture,
+          timestamp: new Date().toISOString(),
+        }));
+        Alert.alert(
+          'Drying Started',
+          `Target: ${temperature}°C, Moisture: ${moisture}%`,
+          [{ text: 'OK' }]
+        );
+      }
+    } catch (error) {
+      console.error('Error starting drying:', error);
+      Alert.alert('Error', 'Failed to start drying. Please try again.');
+      throw error;
+    }
+  };
+
+  // Stop drying via backend API
+  const stopDrying = async () => {
+    try {
+      const response = await dryerService.stopDrying();
+      if (response.success) {
+        const elapsedSeconds = response.data?.elapsedSeconds || dryingSeconds;
+        setIsDrying(false);
+        setDryingSeconds(elapsedSeconds);
+        setSystemData(prev => ({
+          ...prev,
+          isDrying: false,
+          dryingTime: elapsedSeconds,
+          timestamp: new Date().toISOString(),
+        }));
+        const hours = Math.floor(elapsedSeconds / 3600);
+        const minutes = Math.floor((elapsedSeconds % 3600) / 60);
+        Alert.alert(
+          'Drying Completed',
+          `Total drying time: ${hours}h ${minutes}m`,
+          [{ text: 'OK' }]
+        );
+      }
+    } catch (error) {
+      console.error('Error stopping drying:', error);
+      Alert.alert('Error', 'Failed to stop drying. Please try again.');
+      throw error;
+    }
+  };
+
   const value: SystemControlContextType = {
     systemData: {
       ...systemData,
@@ -228,6 +309,8 @@ export const SystemControlProvider: React.FC<{ children: React.ReactNode }> = ({
     isConnected,
     userId,
     initializeSystem,
+    startDrying,
+    stopDrying,
   };
 
   console.log('[Context] Value created with dryingSeconds=', dryingSeconds, 'isDrying=', isDrying);

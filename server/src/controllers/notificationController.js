@@ -224,4 +224,206 @@ const sendDryingNotification = async (dryingData) => {
   }
 };
 
-export { sendNotification, sendNotificationToMultiple, sendDryingNotification };
+/**
+ * Get all notifications (with pagination and filtering)
+ */
+const getNotifications = async (req, res) => {
+  try {
+    const { page = 1, limit = 50, unreadOnly = false, type } = req.query;
+
+    let query = {};
+    if (unreadOnly === 'true') {
+      query.isRead = false;
+    }
+    if (type && ['CRITICAL', 'WARNING', 'STABLE'].includes(type)) {
+      query.type = type;
+    }
+
+    const skip = (page - 1) * limit;
+
+    const notifications = await Notification.find(query)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(parseInt(limit));
+
+    const total = await Notification.countDocuments(query);
+
+    res.json({
+      success: true,
+      data: notifications,
+      pagination: {
+        total,
+        page: parseInt(page),
+        limit: parseInt(limit),
+        pages: Math.ceil(total / limit)
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching notifications:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Get unread notifications count
+ */
+const getUnreadCount = async (req, res) => {
+  try {
+    const unreadCount = await Notification.countDocuments({ isRead: false });
+
+    const unreadNotifications = await Notification.find({ isRead: false })
+      .sort({ createdAt: -1 })
+      .limit(10);
+
+    res.json({
+      success: true,
+      unreadCount,
+      latest: unreadNotifications
+    });
+  } catch (error) {
+    console.error('Error fetching unread count:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Get notifications by type
+ */
+const getNotificationsByType = async (req, res) => {
+  try {
+    const { type } = req.params;
+    const { limit = 50 } = req.query;
+
+    if (!['CRITICAL', 'WARNING', 'STABLE'].includes(type)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid notification type'
+      });
+    }
+
+    const notifications = await Notification.find({ type })
+      .sort({ createdAt: -1 })
+      .limit(parseInt(limit));
+
+    res.json({
+      success: true,
+      data: notifications
+    });
+  } catch (error) {
+    console.error('Error fetching notifications by type:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Mark single notification as read
+ */
+const markAsRead = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const notification = await Notification.findByIdAndUpdate(
+      id,
+      { isRead: true },
+      { new: true }
+    );
+
+    if (!notification) {
+      return res.status(404).json({
+        success: false,
+        error: 'Notification not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Notification marked as read',
+      data: notification
+    });
+  } catch (error) {
+    console.error('Error marking notification as read:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Mark all notifications as read
+ */
+const markAllAsRead = async (req, res) => {
+  try {
+    const result = await Notification.updateMany(
+      { isRead: false },
+      { isRead: true }
+    );
+
+    res.json({
+      success: true,
+      message: 'All notifications marked as read',
+      updatedCount: result.modifiedCount
+    });
+  } catch (error) {
+    console.error('Error marking all as read:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Get notification statistics
+ */
+const getNotificationStats = async (req, res) => {
+  try {
+    const criticalCount = await Notification.countDocuments({ type: 'CRITICAL' });
+    const warningCount = await Notification.countDocuments({ type: 'WARNING' });
+    const stableCount = await Notification.countDocuments({ type: 'STABLE' });
+    const unreadCount = await Notification.countDocuments({ isRead: false });
+
+    const latestNotifications = await Notification.find()
+      .sort({ createdAt: -1 })
+      .limit(5);
+
+    res.json({
+      success: true,
+      stats: {
+        criticalCount,
+        warningCount,
+        stableCount,
+        unreadCount,
+        totalCount: criticalCount + warningCount + stableCount
+      },
+      latest: latestNotifications
+    });
+  } catch (error) {
+    console.error('Error fetching notification stats:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+};
+
+export { 
+  sendNotification, 
+  sendNotificationToMultiple, 
+  sendDryingNotification,
+  getNotifications,
+  getUnreadCount,
+  getNotificationsByType,
+  markAsRead,
+  markAllAsRead,
+  getNotificationStats
+};

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import axios from '../../utils/axios';
+import { useSocket } from '../../contexts/SocketContext';
 
 // Thresholds for triggering notifications
 const THRESHOLDS = {
@@ -13,6 +14,7 @@ let toastIdCounter = 0;
 /**
  * Custom hook that:
  *  - Polls the backend for new notifications
+ *  - Listens to Socket.io 'notification:new' events for real-time updates
  *  - Evaluates incoming sensor data against thresholds
  *  - Returns toast state + helpers consumed by Notification.jsx / Dashboard.jsx
  */
@@ -25,6 +27,9 @@ const useNotificationService = (sensorData = null, pollingIntervalMs = 15000) =>
 
   const prevSensorRef = useRef(null);
   const pollingRef = useRef(null);
+  
+  // Get Socket.io instance from hook
+  const { socket } = useSocket();
 
   // ── helpers ────────────────────────────────────────────────────────────────
 
@@ -173,6 +178,39 @@ const useNotificationService = (sensorData = null, pollingIntervalMs = 15000) =>
     pollingRef.current = setInterval(fetchNotifications, pollingIntervalMs);
     return () => clearInterval(pollingRef.current);
   }, [fetchNotifications, pollingIntervalMs]);
+
+  // ── listen to real-time notifications via Socket.io ───────────────────────
+
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleNewNotification = (notification) => {
+      console.log('✓ Real-time notification received:', notification);
+      
+      // Add to alerts list
+      setAlerts(prev => [notification, ...prev]);
+      
+      // Update unread count
+      if (!notification.isRead) {
+        setUnreadCount(prev => prev + 1);
+      }
+      
+      // Show toast
+      const mapType = (type) => {
+        if (type === 'CRITICAL') return 'critical';
+        if (type === 'WARNING') return 'warning';
+        return 'info';
+      };
+      
+      addToast(mapType(notification.type), notification.message, notification.title);
+    };
+
+    socket.on('notification:new', handleNewNotification);
+
+    return () => {
+      socket.off('notification:new', handleNewNotification);
+    };
+  }, [socket, addToast]);
 
   // ── acknowledge helpers ───────────────────────────────────────────────────
 

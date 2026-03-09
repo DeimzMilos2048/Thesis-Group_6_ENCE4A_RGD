@@ -83,7 +83,7 @@ app.use(express.json());
 // Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/profile", profileRoutes);
-app.use("/notifications", notificationRoutes);
+app.use("/api/notifications", notificationRoutes);
 app.use("/api/sensor", sensorRoutes);
 app.use("/api/system", systemRoutes);
 
