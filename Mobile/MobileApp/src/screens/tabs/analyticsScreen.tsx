@@ -12,6 +12,8 @@ import React, { useState, useEffect } from "react";
 import { LineChart } from "react-native-chart-kit";
 import { FC } from "react";
 import { io } from 'socket.io-client';
+import { useWeight } from '../../contexts/WeightContext';
+import WeightMobileGroupedBarChart from '../../components/WeightMobileGroupedBarChart';
 
 const screenWidth = Dimensions.get("window").width;
 
@@ -97,6 +99,8 @@ interface LatestValues {
 const MAX_POINTS = 20;
 
 const AnalyticsScreen = () => {
+  const { savedWeights, savedAfterWeights } = useWeight();
+
   const [latestValuesFromSocket, setLatestValuesFromSocket] = useState<LatestValues>({
     moisture1: null, moisture2: null, moisture3: null,
     moisture4: null, moisture5: null, moisture6: null,
@@ -122,7 +126,7 @@ const AnalyticsScreen = () => {
     console.log('Analytics: Attempting to connect to socket...');
 
     const SOCKET_URL = __DEV__
-      ? 'http://192.168.86.181:5001'
+      ? 'http://192.168.0.109:5001'
       : 'https://mala-backend-q03k.onrender.com';
 
     const socket = io(SOCKET_URL, {
@@ -256,19 +260,7 @@ const AnalyticsScreen = () => {
           </View>
 
           <View style={styles.card}>
-            <View style={styles.cardHeader}>
-              <Text style={styles.title}>Weight</Text>
-              <Text style={[styles.badge, { color: '#9E9E9E' }]}>
-                S1: {fmt(latestValuesFromSocket.weight1, 'kg')}
-              </Text>
-            </View>
-            <LiveLineGraph
-              data={chartData.weight1}
-              color="#9E9E9E"
-              unit="kg"
-              minValue={0}
-              maxValue={50}
-            />
+            <WeightMobileGroupedBarChart savedWeights={savedWeights} savedAfterWeights={savedAfterWeights} />
           </View>
 
         </View>

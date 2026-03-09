@@ -9,6 +9,7 @@ import Ionicons from "react-native-vector-icons/Ionicons";
 //import FontAwesome5 from "react-native-vector-icons/FontAwesome5";
 import useAuthStore from "./src/store/authStore";
 import { SystemControlProvider } from "./src/contexts/SystemControlContext";
+import { WeightProvider } from "./src/contexts/WeightContext";
 
 // import LandingScreen from "./src/screens/landingpagescreen";
 import IntroductionUserScreen from "./src/screens/tabs/introductionUserScreen";
@@ -96,7 +97,8 @@ export default function App() {
   return (
     <SafeAreaProvider> 
       <SystemControlProvider>
-        <NavigationContainer>
+        <WeightProvider>
+          <NavigationContainer>
           <Stack.Navigator>
           <Stack.Screen
             name="LoadingScreen"
@@ -151,6 +153,7 @@ export default function App() {
           
           </Stack.Navigator>
         </NavigationContainer>
+        </WeightProvider>
       </SystemControlProvider>
     </SafeAreaProvider>
   );

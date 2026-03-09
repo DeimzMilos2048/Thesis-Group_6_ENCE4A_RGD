@@ -57,6 +57,19 @@ router.patch("/read-all", async (req, res) => {
   }
 });
 
+// MARK ALL as unread
+router.patch("/unread-all", async (req, res) => {
+  try {
+    const result = await Notification.updateMany(
+      { isRead: true },
+      { isRead: false }
+    );
+    res.json({ modifiedCount: result.modifiedCount });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
 // GET notifications by type
 // e.g., /api/notifications/type/CRITICAL
 router.get("/type/:type", async (req, res) => {

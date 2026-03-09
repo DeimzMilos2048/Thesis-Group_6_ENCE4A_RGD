@@ -241,6 +241,16 @@ const useNotificationService = (sensorData = null, pollingIntervalMs = 15000) =>
     }
   }, []);
 
+  const markAllAsUnread = useCallback(async () => {
+    try {
+      const result = await axios.patch('/api/notifications/unread-all');
+      setAlerts(prev => prev.map(a => ({ ...a, isRead: false })));
+      setUnreadCount(alerts.length);
+    } catch (err) {
+      console.error('Mark all unread failed:', err);
+    }
+  }, [alerts.length]);
+
   return {
     toasts,
     removeToast,
@@ -251,6 +261,7 @@ const useNotificationService = (sensorData = null, pollingIntervalMs = 15000) =>
     fetchNotifications,
     acknowledgeOne,
     acknowledgeAll,
+    markAllAsUnread,
   };
 };
 

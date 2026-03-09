@@ -6,6 +6,7 @@ import 'react-toastify/dist/ReactToastify.css';
 import useAuthStore from "./utils/authStore.js";
 import { AdminRoute, UserRoute } from './utils/ProtectedRoute.js';
 import { SocketProvider } from './contexts/SocketContext.js';
+import { NotificationProvider } from './contexts/NotificationContext';
 import { DryingProvider } from './contexts/DryingContext';
 import { WeightProvider } from './contexts/WeightContext.js';
 import { ToastProvider }  from './contexts/ToastContext';
@@ -50,22 +51,24 @@ export default function App() {
             path="/*"
             element={
               <SocketProvider>
-                <DryingProvider>
-                  <WeightProvider>
-                  <Routes>
-                    {/* User Routes */}
-                    <Route path="/dashboard"    element={<UserRoute><Dashboard /></UserRoute>} />
-                    <Route path="/analytics"    element={<UserRoute><Analytics /></UserRoute>} />
-                    <Route path="/history"      element={<UserRoute><History /></UserRoute>} />
-                    <Route path="/profile"      element={<UserRoute><Profile /></UserRoute>} />
-                    <Route path="/notification" element={<UserRoute><Notification /></UserRoute>} />
+                <NotificationProvider>
+                  <DryingProvider>
+                    <WeightProvider>
+                      <Routes>
+                        {/* User Routes */}
+                        <Route path="/dashboard"    element={<UserRoute><Dashboard /></UserRoute>} />
+                        <Route path="/analytics"    element={<UserRoute><Analytics /></UserRoute>} />
+                        <Route path="/history"      element={<UserRoute><History /></UserRoute>} />
+                        <Route path="/profile"      element={<UserRoute><Profile /></UserRoute>} />
+                        <Route path="/notification" element={<UserRoute><Notification /></UserRoute>} />
 
-                    {/* Admin Routes */}
-                    <Route path="/admindashboard"          element={<AdminRoute><AdminDashboard /></AdminRoute>} />
-                    <Route path="/admindashboard/settings" element={<AdminRoute><AdminDashboard view="settings" /></AdminRoute>} />
-                  </Routes>
-                  </WeightProvider>
-                </DryingProvider>
+                        {/* Admin Routes */}
+                        <Route path="/admindashboard"          element={<AdminRoute><AdminDashboard /></AdminRoute>} />
+                        <Route path="/admindashboard/settings" element={<AdminRoute><AdminDashboard view="settings" /></AdminRoute>} />
+                      </Routes>
+                    </WeightProvider>
+                  </DryingProvider>
+                </NotificationProvider>
               </SocketProvider>
             }
           />

@@ -11,94 +11,6 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import authService from '../../api/authService';
 import logo from "../../assets/images/logo2.png";
 
-const toastStyles = {
-  container: {
-    position: 'fixed', top: '80px', right: '20px', zIndex: 9999,
-    display: 'flex', flexDirection: 'column', gap: '10px',
-    maxWidth: '360px', width: '100%', pointerEvents: 'none',
-  },
-  card: (type) => ({
-    pointerEvents: 'all',
-    borderRadius: '10px',
-    overflow: 'hidden',
-    boxShadow: '0 6px 24px rgba(0,0,0,0.14)',
-    borderLeft: `4px solid ${type === 'critical' ? '#ef4444' : type === 'warning' ? '#f59e0b' : '#10b981'}`,
-    background: type === 'critical'
-      ? 'linear-gradient(135deg,#fff 0%,#fff5f5 100%)'
-      : type === 'warning'
-        ? 'linear-gradient(135deg,#fff 0%,#fffbeb 100%)'
-        : 'linear-gradient(135deg,#fff 0%,#f0fdf4 100%)',
-    animation: 'toastSlideIn 0.35s cubic-bezier(0.34,1.4,0.64,1) both',
-  }),
-  progressBar: (type) => ({
-    height: '3px',
-    background: type === 'critical' ? '#ef4444' : type === 'warning' ? '#f59e0b' : '#10b981',
-    animation: 'toastShrink 5s linear forwards',
-    transformOrigin: 'left',
-  }),
-  body: { display: 'flex', alignItems: 'flex-start', gap: '10px', padding: '12px 14px' },
-  iconWrap: (type) => ({
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-    width: '32px', height: '32px', borderRadius: '50%', flexShrink: 0, marginTop: '1px',
-    background: type === 'critical' ? '#fee2e2' : type === 'warning' ? '#fef3c7' : '#d1fae5',
-    color:      type === 'critical' ? '#ef4444' : type === 'warning' ? '#f59e0b' : '#10b981',
-  }),
-  textWrap:  { flex: 1, display: 'flex', flexDirection: 'column', gap: '2px', minWidth: 0 },
-  title:     { fontSize: '13px', fontWeight: '700', color: '#111827', lineHeight: 1.3 },
-  message:   { fontSize: '12px', color: '#4b5563', lineHeight: 1.4, wordBreak: 'break-word' },
-  time:      { fontSize: '10px', color: '#9ca3af', marginTop: '2px' },
-  dismiss:   {
-    background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af',
-    padding: '2px', display: 'flex', alignItems: 'center', borderRadius: '4px',
-    flexShrink: 0, marginTop: '1px',
-  },
-};
-
-/* inject keyframes once */
-if (typeof document !== 'undefined' && !document.getElementById('toast-kf')) {
-  const s = document.createElement('style');
-  s.id = 'toast-kf';
-  s.textContent = `
-    @keyframes toastSlideIn { from { opacity:0; transform:translateX(110%); } to { opacity:1; transform:translateX(0); } }
-    @keyframes toastShrink   { from { transform:scaleX(1); } to { transform:scaleX(0); } }
-  `;
-  document.head.appendChild(s);
-}
-
-const ToastIcon = ({ type }) => {
-  if (type === 'critical') return <AlertTriangle size={16} />;
-  if (type === 'warning')  return <AlertTriangle size={16} />;
-  return <CheckCircle size={16} />;
-};
-
-const ToastContainer = ({ toasts, removeToast }) => {
-  if (!toasts.length) return null;
-  const fmt = (d) => d ? new Date(d).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
-  return (
-    <div style={toastStyles.container}>
-      {toasts.map(t => (
-        <div key={t.id} style={toastStyles.card(t.type)} role="alert">
-          <div style={{ height: '3px', background: 'rgba(0,0,0,0.06)', overflow: 'hidden' }}>
-            <div style={toastStyles.progressBar(t.type)} />
-          </div>
-          <div style={toastStyles.body}>
-            <span style={toastStyles.iconWrap(t.type)}><ToastIcon type={t.type} /></span>
-            <div style={toastStyles.textWrap}>
-              <span style={toastStyles.title}>{t.title}</span>
-              <span style={toastStyles.message}>{t.message}</span>
-              <span style={toastStyles.time}>{fmt(t.timestamp)}</span>
-            </div>
-            <button style={toastStyles.dismiss} onClick={() => removeToast(t.id)} aria-label="Dismiss">
-              <X size={14} />
-            </button>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-};
-/* ─────────────────────────────────────────────────────────────────────────── */
-
 export default function Notification({ view }) {
 
   const [loading,            setLoading]            = useState(false);
@@ -113,9 +25,13 @@ export default function Notification({ view }) {
   const location = useLocation();
 
   const {
-    toasts, removeToast, alerts, unreadCount,
-    loading: notifLoading, error: notifError,
-    acknowledgeOne, acknowledgeAll,
+    alerts,
+    unreadCount,
+    loading: notifLoading,
+    error: notifError,
+    acknowledgeOne,
+    acknowledgeAll,
+    markAllAsUnread,
   } = useNotificationService(null, 15000);
 
   useEffect(() => {
@@ -184,9 +100,6 @@ export default function Notification({ view }) {
 
   return (
     <div className="dashboard-container">
-
-      {/* ── Toasts ── */}
-      <ToastContainer toasts={toasts} removeToast={removeToast} />
 
       {(error || notifError) && (
         <div className="error-banner"><AlertTriangle size={20}/><span>{error || notifError}</span></div>
@@ -273,11 +186,29 @@ export default function Notification({ view }) {
             <button onClick={()=>setFilter("info")}     className={filter==="info"     ?"active":""}>Stable</button>
           </div>
 
-          {unreadCount > 0 && (
-            <div className="alert-filters">
-              <button onClick={acknowledgeAll} className="mark-all-read">
-                Mark All as Read ({unreadCount})
-              </button>
+          {alerts.length > 0 && (
+            <div className="alert-filters" style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+              {unreadCount > 0 && (
+                <button onClick={acknowledgeAll} className="mark-all-read" title="Mark all as read">
+                  Mark All as Read ({unreadCount})
+                </button>
+              )}
+              {alerts.some(a => a.isRead) && (
+                <button onClick={markAllAsUnread} className="mark-all-unread" style={{
+                  backgroundColor: '#3b82f6',
+                  color: 'white',
+                  border: 'none',
+                  padding: '10px 16px',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  transition: 'background-color 0.2s',
+                  hover: { backgroundColor: '#2563eb' },
+                }} title="Mark all as unread">
+                  Mark All as Unread
+                </button>
+              )}
             </div>
           )}
 

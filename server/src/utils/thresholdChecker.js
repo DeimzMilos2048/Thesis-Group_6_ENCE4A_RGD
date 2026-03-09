@@ -119,7 +119,7 @@ export const checkSensorThresholds = async (reading, io) => {
       await notification.save();
 
       // Emit real-time notification via Socket.io
-      io.emit("newNotification", notification);
+      io.emit(\"notification:new\", notification);
 
       // Send FCM push notification to user (if userId is available)
       if (reading.userId) {

@@ -10,6 +10,7 @@ import { useSocket } from '../../contexts/SocketContext.js';
 import { useDrying } from '../../contexts/DryingContext.js';
 import { useWeight } from '../../contexts/WeightContext.js';
 import { useToast } from '../../contexts/ToastContext.js';
+import { useNotifications } from '../../contexts/NotificationContext';
 import { setTemperature, setMoisture, setTray } from '../../api/systemService';
 
 export default function RiceDryingDashboard({ view }) {
@@ -38,6 +39,7 @@ export default function RiceDryingDashboard({ view }) {
 
   const { savedWeights, savedAfterWeights, saveBeforeWeight, saveAfterWeight, resetBeforeWeight, resetAfterWeight } = useWeight();
   const { showToast } = useToast();
+  const { unreadCount } = useNotifications();
 
   // Pass socket to DryingProvider for drying time sync
   useEffect(() => {
@@ -140,6 +142,46 @@ export default function RiceDryingDashboard({ view }) {
     showToast('success', `Tray ${currentTray} after weight saved: ${currentWeight.toFixed(2)} kg`);
   };
 
+  // ─── Weight button state logic ────────────────────────────────────────────────
+  // Before drying starts (isProcessing = false):
+  //   • Save Before  → enabled (if not yet frozen)
+  //   • Reset Before → enabled (if frozen)
+  //   • Save After   → disabled
+  //   • Reset After  → disabled
+  //
+  // While drying (isProcessing = true):
+  //   • Save Before  → disabled
+  //   • Reset Before → disabled
+  //   • Save After   → disabled
+  //   • Reset After  → disabled
+  //
+  // After drying stops (isProcessing = false, but before weight was already saved):
+  //   • Save Before  → disabled (already frozen)
+  //   • Reset Before → disabled (locked during post-drying)
+  //   • Save After   → enabled (if before is frozen and after is not yet frozen)
+  //   • Reset After  → enabled (if after is frozen)
+  //
+  // Key rule: Before buttons are locked once isProcessing has ever been true
+  // We track this with a "dryingStarted" flag derived from savedWeights being frozen
+  // (since the user must save before weights before pressing Start).
+  // If before weight is frozen AND drying has stopped → unlock After buttons.
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  // Before is frozen means the user saved it before starting
+  const beforeFrozen = !!savedWeights[currentTray]?.frozen;
+  const afterFrozen  = !!savedAfterWeights[currentTray]?.frozen;
+
+  // After drying stops: isProcessing=false AND beforeFrozen=true → post-drying state
+  const isDryingFinished = !isProcessing && beforeFrozen;
+
+  // Save/Reset Before: only enabled before drying starts (not isProcessing, not beforeFrozen already)
+  const canSaveBefore  = !beforeFrozen && !isProcessing;
+  const canResetBefore = beforeFrozen && !isProcessing && !isDryingFinished; // lock reset-before after drying too
+
+  // Save/Reset After: only enabled after drying finishes
+  const canSaveAfter   = isDryingFinished && !afterFrozen;
+  const canResetAfter  = isDryingFinished && afterFrozen;
+
   return (
     <div className="dashboard-container">
 
@@ -162,10 +204,23 @@ export default function RiceDryingDashboard({ view }) {
       <header className="topbar">
         <div className="topbar-logo-section"><img src={logo} alt="Logo" className="topbar-logo" /></div>
         <nav className="topbar-nav">
-          <button className={`nav-item ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => handleNavigation('/dashboard', 'dashboard')}><BarChart2 size={16} /><span>Dashboard</span></button>
-          <button className={`nav-item ${activeTab === 'analytics' ? 'active' : ''}`} onClick={() => handleNavigation('/analytics', 'analytics')}><Activity size={16} /><span>Analytics</span></button>
-          <button className={`nav-item ${activeTab === 'history' ? 'active' : ''}`} onClick={() => handleNavigation('/history', 'history')}><Clock size={16} /><span>History</span></button>
-          <button className={`nav-item ${activeTab === 'notification' ? 'active' : ''}`} onClick={() => handleNavigation('/notification', 'notification')}><Bell size={16} /><span>Notification</span></button>
+          <button className={`nav-item ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => handleNavigation('/dashboard', 'dashboard')}>
+            <BarChart2 size={16} /><span>Dashboard</span>
+          </button>
+          <button className={`nav-item ${activeTab === 'analytics' ? 'active' : ''}`} onClick={() => handleNavigation('/analytics', 'analytics')}>
+            <Activity size={16} /><span>Analytics</span>
+          </button>
+          <button className={`nav-item ${activeTab === 'history' ? 'active' : ''}`} onClick={() => handleNavigation('/history', 'history')}>
+            <Clock size={16} /><span>History</span>
+          </button>
+          <button className={`nav-item ${activeTab === 'notification' ? 'active' : ''}`} onClick={() => handleNavigation('/notification', 'notification')}>
+            <Bell size={16} /><span>Notification</span>
+            {unreadCount > 0 && (
+              <span className="notif-badge" title={`${unreadCount} unread notification${unreadCount > 1 ? 's' : ''}`}>
+                •
+              </span>
+            )}
+          </button>
         </nav>
         <div className="topbar-right">
           <div className="profile-dropdown-wrapper">
@@ -263,13 +318,13 @@ export default function RiceDryingDashboard({ view }) {
                       {[1, 2, 3, 4, 5, 6].map(i => {
                         const isFrozen    = savedWeights[i]?.frozen;
                         const isSelected  = currentTray === i;
-                        const afterFrozen = savedAfterWeights[i]?.frozen;
+                        const afterFrozenTray = savedAfterWeights[i]?.frozen;
                         const rawLive     = isSelected ? (sensorData.weight1 ?? sensorData.weightbefore1 ?? null) : null;
                         const beforeVal   = isFrozen ? savedWeights[i].before : (rawLive ?? 0);
                         const hasBeforeVal = isFrozen || (isSelected && rawLive !== null && rawLive > 0);
                         const rawAfter    = isSelected ? (sensorData.weightafter1 ?? null) : null;
-                        const afterVal    = afterFrozen ? savedAfterWeights[i].after : (rawAfter ?? 0);
-                        const hasAfterVal = afterFrozen || (isSelected && rawAfter !== null && rawAfter > 0);
+                        const afterVal    = afterFrozenTray ? savedAfterWeights[i].after : (rawAfter ?? 0);
+                        const hasAfterVal = afterFrozenTray || (isSelected && rawAfter !== null && rawAfter > 0);
                         const maxWeight   = 2;
                         const beforePct   = hasBeforeVal ? Math.min((beforeVal / maxWeight) * 100, 100) : 0;
                         const afterPct    = hasAfterVal  ? Math.min((afterVal  / maxWeight) * 100, 100) : 0;
@@ -290,7 +345,7 @@ export default function RiceDryingDashboard({ view }) {
                             <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '4px' }}>
                               <div className="weight-ba-label after" style={{ fontSize: '10px', minWidth: '12px', flexShrink: 0 }}>A</div>
                               <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '1px' }}>
-                                <div className="sensor-value-sm" style={{ fontSize: '18px', lineHeight: 1, color: afterFrozen ? '#059669' : undefined, textAlign: 'left' }}>
+                                <div className="sensor-value-sm" style={{ fontSize: '18px', lineHeight: 1, color: afterFrozenTray ? '#059669' : undefined, textAlign: 'left' }}>
                                   {hasAfterVal ? `${afterVal.toFixed(1)}kg` : <span style={{ color: '#d1d5db' }}>—</span>}
                                 </div>
                                 <div className="progress-bar" style={{ marginBottom: 0, height: '5px', minHeight: '5px' }}><div className="progress-fill" style={{ width: `${afterPct}%`, backgroundColor: '#3b82f6' }} /></div>
@@ -373,22 +428,33 @@ export default function RiceDryingDashboard({ view }) {
 
                   {/* Save Before / Save After */}
                   <div className="weight-save-row" style={{ marginTop: '10px' }}>
+                    {/*
+                      Save Before:
+                      - Enabled only BEFORE drying starts (canSaveBefore)
+                      - Disabled once isProcessing = true OR already frozen
+                    */}
                     <button
-                      className={`selector-btn weight-save-btn before-btn ${savedWeights[currentTray]?.frozen ? 'weight-save-frozen' : ''}`}
+                      className={`selector-btn weight-save-btn before-btn ${beforeFrozen ? 'weight-save-frozen' : ''} ${!canSaveBefore ? 'weight-save-disabled' : ''}`}
                       onClick={handleSaveWeight}
-                      disabled={savedWeights[currentTray]?.frozen || isProcessing}
+                      disabled={!canSaveBefore}
                     >
-                      {savedWeights[currentTray]?.frozen
+                      {beforeFrozen
                         ? <>✓ Before<br /><span className="weight-save-val">{savedWeights[currentTray].before.toFixed(2)} kg</span></>
                         : <>Save<br />Before</>}
                     </button>
 
+                    {/*
+                      Save After:
+                      - Enabled only AFTER drying stops (canSaveAfter)
+                      - Requires before weight to be saved first
+                      - Disabled while drying is running
+                    */}
                     <button
-                      className={`selector-btn weight-save-btn after-btn ${savedAfterWeights[currentTray]?.frozen ? 'weight-save-frozen after-frozen' : ''} ${!savedWeights[currentTray]?.frozen ? 'weight-save-disabled' : ''}`}
+                      className={`selector-btn weight-save-btn after-btn ${afterFrozen ? 'weight-save-frozen after-frozen' : ''} ${!canSaveAfter ? 'weight-save-disabled' : ''}`}
                       onClick={handleSaveAfterWeight}
-                      disabled={!savedWeights[currentTray]?.frozen || savedAfterWeights[currentTray]?.frozen || isProcessing}
+                      disabled={!canSaveAfter}
                     >
-                      {savedAfterWeights[currentTray]?.frozen
+                      {afterFrozen
                         ? <>✓ After<br /><span className="weight-save-val">{savedAfterWeights[currentTray].after.toFixed(2)} kg</span></>
                         : <>Save<br />After</>}
                     </button>
@@ -396,18 +462,28 @@ export default function RiceDryingDashboard({ view }) {
 
                   {/* Reset Before / Reset After */}
                   <div className="weight-save-row" style={{ marginTop: '6px' }}>
+                    {/*
+                      Reset Before:
+                      - Disabled once drying has started (isProcessing)
+                      - Also disabled after drying finishes (isDryingFinished)
+                        so the before weight stays locked after the run
+                    */}
                     <button
-                      className={`selector-btn weight-reset-btn ${!savedWeights[currentTray]?.frozen ? 'weight-reset-disabled' : ''}`}
+                      className={`selector-btn weight-reset-btn ${!canResetBefore ? 'weight-reset-disabled' : ''}`}
                       onClick={() => { resetBeforeWeight(currentTray); showToast('info', `Tray ${currentTray} before weight reset.`); }}
-                      disabled={!savedWeights[currentTray]?.frozen || isProcessing}
+                      disabled={!canResetBefore}
                     >
                       Reset<br />Before
                     </button>
 
+                    {/*
+                      Reset After:
+                      - Enabled only AFTER drying stops AND after weight is saved
+                    */}
                     <button
-                      className={`selector-btn weight-reset-btn ${!savedAfterWeights[currentTray]?.frozen ? 'weight-reset-disabled' : ''}`}
+                      className={`selector-btn weight-reset-btn ${!canResetAfter ? 'weight-reset-disabled' : ''}`}
                       onClick={() => { resetAfterWeight(currentTray); showToast('info', `Tray ${currentTray} after weight reset.`); }}
-                      disabled={!savedAfterWeights[currentTray]?.frozen || isProcessing}
+                      disabled={!canResetAfter}
                     >
                       Reset<br />After
                     </button>

@@ -7,6 +7,8 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import authService from '../../api/authService';
 import logo from "../../assets/images/logo2.png";
 import { useSocket } from '../../contexts/SocketContext.js';
+import { useWeight } from '../../contexts/WeightContext.js';
+import WeightGroupedBarChart from './WeightGroupedBarChart.jsx';
 
 export default function Analytics({ view }) {
   const [loading, setLoading] = useState(false);
@@ -31,6 +33,8 @@ export default function Analytics({ view }) {
   latestValues: latestValuesFromSocket, 
   isConnected 
 } = useSocket();
+
+  const { savedWeights, savedAfterWeights } = useWeight();
 
   useEffect(() => {
     const path = location.pathname;
@@ -391,28 +395,7 @@ export default function Analytics({ view }) {
               </div>
             </div>
 
-            {/* ── Weight (1 sensor only) ─────────────────────────────── */}
-            <div className="analytics-cards">
-              <h3 className="analytics-card-title">
-                <div className="analytics-card-title-left">
-                  <Weight size={24} /> Weight
-                </div>
-                <div className="sensor-badges">
-                  <span className="sensor-badge" style={{ color: '#9E9E9E', backgroundColor: 'white' }}>
-                    S1: {fmt(latestValuesFromSocket.weight1, 'kg')}
-                  </span>
-                </div>
-              </h3>
-              <div className="analytics-card-status">
-                <SingleLineGraph
-                  data={Array.isArray(chartDataFromSocket.weight1) ? chartDataFromSocket.weight1 : []}
-                  color="#9E9E9E"
-                  unit="kg"
-                  minValue={0}
-                  maxValue={6}
-                />
-              </div>
-            </div>
+            <WeightGroupedBarChart savedWeights={savedWeights} savedAfterWeights={savedAfterWeights} />
 
           </div>
         </div>
