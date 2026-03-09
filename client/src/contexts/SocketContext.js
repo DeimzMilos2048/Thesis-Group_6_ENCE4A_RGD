@@ -84,8 +84,8 @@ export const SocketProvider = ({ children }) => {
       reconnectionDelay: 1000,
       reconnectionDelayMax: 5000,
       reconnectionAttempts: 5,
-      transports: ['polling'], 
-      upgrade: false 
+      transports: ['websocket', 'polling'], 
+      upgrade: true 
     });
 
     // Socket event handlers
@@ -175,6 +175,11 @@ export const SocketProvider = ({ children }) => {
 
     newSocket.on('drying_stopped', (data) => {
       console.log('Drying stopped event received:', data);
+    });
+
+    // Listen for dryer status updates from backend (for sync with mobile)
+    newSocket.on('dryer:status_updated', (data) => {
+      console.log('Dryer status updated from backend:', data);
     });
 
     newSocket.on('drying_time_update', (data) => {

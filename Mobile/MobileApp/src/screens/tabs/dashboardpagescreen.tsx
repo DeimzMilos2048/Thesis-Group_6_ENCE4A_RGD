@@ -107,11 +107,11 @@ const DashboardPageScreen: React.FC = () => {
       : 'https://mala-backend-q03k.onrender.com'; 
 
     const socket = io(SOCKET_URL, {
-      transports: ['polling','websocket'],
+      transports: ['websocket', 'polling'],
       reconnection: true,
       reconnectionDelay: 1000,
       reconnectionAttempts: Infinity,
-      timeout: 60000,
+      timeout: 10000,
       forceNew: true,
       autoConnect: true,
       upgrade: true,
@@ -173,35 +173,34 @@ const DashboardPageScreen: React.FC = () => {
     socket.on('sensor_data', handleSensorData);
     socket.on('sensorData', handleSensorData);
 
-    socket.on('drying_started', (data: any) => {
-      console.log('Drying started from web dashboard:', data);
-      setSensorData(prev => ({
-        ...prev,
-        status: 'Drying',
-        dryingSeconds: 0,
-      }));
-      Alert.alert(
-        'Drying Started',
-        `Target: ${data.temperature}°C, Moisture: ${data.moisture}%`,
-        [{ text: 'OK' }]
-      );
-    });
-
-    // Listen for drying stopped event from web dashboard
-    socket.on('drying_stopped', (data: any) => {
-      console.log('Drying stopped from web dashboard:', data);
-      setSensorData(prev => ({
-        ...prev,
-        status: 'Idle',
-        dryingSeconds: data.dryingSeconds || 0,
-      }));
-      const hours = Math.floor((data.dryingSeconds || 0) / 3600);
-      const minutes = Math.floor(((data.dryingSeconds || 0) % 3600) / 60);
-      Alert.alert(
-        'Drying Completed',
-        `Total drying time: ${hours}h ${minutes}m`,
-        [{ text: 'OK' }]
-      );
+    socket.on('dryer:status_updated', (data: any) => {
+      console.log('Dryer status updated from backend:', data);
+      
+      if (data.status === 'drying') {
+        setSensorData(prev => ({
+          ...prev,
+          status: 'Drying',
+          dryingSeconds: 0,
+        }));
+        Alert.alert(
+          'Drying Started',
+          `Target: ${data.temperature}°C, Moisture: ${data.moisture}%`,
+          [{ text: 'OK' }]
+        );
+      } else if (data.status === 'idle') {
+        setSensorData(prev => ({
+          ...prev,
+          status: 'Idle',
+          dryingSeconds: data.elapsedSeconds || 0,
+        }));
+        const hours = Math.floor((data.elapsedSeconds || 0) / 3600);
+        const minutes = Math.floor(((data.elapsedSeconds || 0) % 3600) / 60);
+        Alert.alert(
+          'Drying Completed',
+          `Total drying time: ${hours}h ${minutes}m`,
+          [{ text: 'OK' }]
+        );
+      }
     });
 
     socket.on('disconnect', () => {

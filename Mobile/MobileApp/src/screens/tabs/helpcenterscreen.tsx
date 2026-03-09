@@ -42,7 +42,7 @@ const helpcenterscreen: React.FC = () => {
                   </Text>
                   <Text style={styles.faqAnswer}>
                     Navigate to the Dashboard and use the System Controls panel in Web Browser
-                    to set your desired target temperature between 40°C - 50°C.
+                    to set your desired target temperature between 40°C - 45°C.
                   </Text>
                 </View>
 

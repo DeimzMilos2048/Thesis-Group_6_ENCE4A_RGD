@@ -59,7 +59,8 @@ export const SystemControlProvider: React.FC<{ children: React.ReactNode }> = ({
       if (dryingIntervalRef.current) {
         clearInterval(dryingIntervalRef.current);
       }
-      setDryingSeconds(0);
+      // Don't reset dryingSeconds when stopping - keep the final elapsed time
+      // It will be set by the dryer:status_updated event from backend
     }
 
     return () => {
@@ -110,7 +111,7 @@ export const SystemControlProvider: React.FC<{ children: React.ReactNode }> = ({
         reconnection: true,
         reconnectionDelay: 1000,
         reconnectionAttempts: Infinity,
-        timeout: 60000,
+        timeout: 10000,
         forceNew: true,
         autoConnect: true,
         upgrade: true,
@@ -130,50 +131,52 @@ export const SystemControlProvider: React.FC<{ children: React.ReactNode }> = ({
         console.error('[Socket] Connection error:', error);
       });
 
-      // Listen for drying started event
-      newSocket.on('drying_started', (data: any) => {
-        console.log('[Socket] Drying started event received:', data);
-        console.log('[Socket] Setting isDrying to true and dryingSeconds to 0');
-        setIsDrying(true);
-        setDryingSeconds(0);
-        setSystemData(prev => ({
-          ...prev,
-          isDrying: true,
-          dryingSeconds: 0,
-          dryingTime: undefined,
-          targetTemperature: data.temperature,
-          targetMoisture: data.moisture,
-          timestamp: new Date().toISOString(),
-        }));
+      // Listen for dryer status updates from backend
+      newSocket.on('dryer:status_updated', (data: any) => {
+        console.log('[Socket] Dryer status updated:', data);
         
-        // Send notification
-        Alert.alert(
-          'Drying Started',
-          `Target: ${data.temperature}°C, Moisture: ${data.moisture}%`,
-          [{ text: 'OK' }]
-        );
-      });
-
-      // Listen for drying stopped event
-      newSocket.on('drying_stopped', (data: any) => {
-        console.log('[Socket] Drying stopped event received:', data);
-        console.log('[Socket] Setting isDrying to false');
-        setIsDrying(false);
-        setSystemData(prev => ({
-          ...prev,
-          isDrying: false,
-          dryingTime: data.dryingSeconds,
-          timestamp: new Date().toISOString(),
-        }));
-        
-        // Send notification
-        const hours = Math.floor((data.dryingSeconds || 0) / 3600);
-        const minutes = Math.floor(((data.dryingSeconds || 0) % 3600) / 60);
-        Alert.alert(
-          'Drying Completed',
-          `Total drying time: ${hours}h ${minutes}m`,
-          [{ text: 'OK' }]
-        );
+        if (data.status === 'drying') {
+          console.log('[Socket] Drying started - Setting isDrying to true and dryingSeconds to 0');
+          setIsDrying(true);
+          setDryingSeconds(0);
+          setSystemData(prev => ({
+            ...prev,
+            isDrying: true,
+            dryingSeconds: 0,
+            dryingTime: undefined,
+            targetTemperature: data.temperature,
+            targetMoisture: data.moisture,
+            timestamp: new Date().toISOString(),
+          }));
+          
+          // Send notification
+          Alert.alert(
+            'Drying Started',
+            `Target: ${data.temperature}°C, Moisture: ${data.moisture}%`,
+            [{ text: 'OK' }]
+          );
+        } else if (data.status === 'idle') {
+          console.log('[Socket] Drying stopped - Setting isDrying to false');
+          const elapsedSeconds = data.elapsedSeconds || 0;
+          setIsDrying(false);
+          setDryingSeconds(elapsedSeconds);
+          setSystemData(prev => ({
+            ...prev,
+            isDrying: false,
+            dryingTime: elapsedSeconds,
+            dryingSeconds: elapsedSeconds,
+            timestamp: new Date().toISOString(),
+          }));
+          
+          // Send notification
+          const hours = Math.floor(elapsedSeconds / 3600);
+          const minutes = Math.floor((elapsedSeconds % 3600) / 60);
+          Alert.alert(
+            'Drying Completed',
+            `Total drying time: ${hours}h ${minutes}m`,
+            [{ text: 'OK' }]
+          );
+        }
       });
 
       // Listen for system control updates from web
@@ -222,25 +225,28 @@ export const SystemControlProvider: React.FC<{ children: React.ReactNode }> = ({
     };
   }, []);
 
-  // Sync drying status from backend every 5 seconds
+  // Sync drying status from backend only on startup and when drying state changes
   useEffect(() => {
     const syncDryingStatus = async () => {
       try {
         const response = await dryerService.getStatus();
         if (response.success && response.data) {
           const { isRunning, elapsedSeconds } = response.data;
-          setIsDrying(isRunning);
-          setDryingSeconds(elapsedSeconds);
+          console.log('[Backend Sync] isRunning=', isRunning, 'elapsedSeconds=', elapsedSeconds);
+          
+          // Only update if state differs from current state
+          if (isRunning !== isDrying || (isRunning && Math.abs(elapsedSeconds - dryingSeconds) > 2)) {
+            setIsDrying(isRunning);
+            setDryingSeconds(elapsedSeconds);
+          }
         }
       } catch (error) {
         console.error('Failed to sync drying status from backend:', error);
       }
     };
 
-    const syncInterval = setInterval(syncDryingStatus, 5000);
-    syncDryingStatus(); // Initial sync
-
-    return () => clearInterval(syncInterval);
+    // Initial sync only
+    syncDryingStatus();
   }, []);
 
   // Start drying via backend API

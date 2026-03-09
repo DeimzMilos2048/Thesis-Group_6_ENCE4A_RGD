@@ -1,5 +1,7 @@
 import express from "express";
 import SystemConfig from "../models/systemConfigModel.js";
+import DryingSession from "../models/dryingSessionModel.js";
+import SensorData from "../models/sensorDataModel.js";
 
 const router = express.Router();
 
@@ -196,7 +198,42 @@ router.post("/dryer/stop", async (req, res) => {
       );
     }
 
-    // Update status
+    // Get latest sensor data for the drying session record
+    const latestSensor = await SensorData.findOne().sort({ timestamp: -1 });
+
+    // Create a drying session record with endTime
+    const dryingSession = new DryingSession({
+      startTime: config.dryingStartTime || new Date(),
+      endTime: new Date(),
+      elapsedSeconds: elapsedSeconds,
+      temperature: config.selectedTemperature,
+      selectedMoisture: config.selectedMoisture,
+      humidity: latestSensor?.humidity || 0,
+      moisture1: latestSensor?.moisture1 || 0,
+      moisture2: latestSensor?.moisture2 || 0,
+      moisture3: latestSensor?.moisture3 || 0,
+      moisture4: latestSensor?.moisture4 || 0,
+      moisture5: latestSensor?.moisture5 || 0,
+      moisture6: latestSensor?.moisture6 || 0,
+      moistureavg: latestSensor?.moistureavg || 0,
+      weight1_t1: latestSensor?.weight1_t1 || null,
+      weight1_t2: latestSensor?.weight1_t2 || null,
+      weight1_t3: latestSensor?.weight1_t3 || null,
+      weight1_t4: latestSensor?.weight1_t4 || null,
+      weight1_t5: latestSensor?.weight1_t5 || null,
+      weight1_t6: latestSensor?.weight1_t6 || null,
+      weight2_t1: latestSensor?.weight2_t1 || null,
+      weight2_t2: latestSensor?.weight2_t2 || null,
+      weight2_t3: latestSensor?.weight2_t3 || null,
+      weight2_t4: latestSensor?.weight2_t4 || null,
+      weight2_t5: latestSensor?.weight2_t5 || null,
+      weight2_t6: latestSensor?.weight2_t6 || null,
+      status: 'Stopped'
+    });
+
+    await dryingSession.save();
+
+    // Update system config status
     config.dryerStatus = "idle";
     config.dryingElapsedSeconds = elapsedSeconds;
     config.dryingStoppedAt = new Date();
@@ -221,6 +258,7 @@ router.post("/dryer/stop", async (req, res) => {
       data: {
         status: config.dryerStatus,
         elapsedSeconds: elapsedSeconds,
+        dryingSession: dryingSession
       },
     });
   } catch (err) {

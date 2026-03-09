@@ -1,5 +1,6 @@
 import express from 'express';
 import SensorData from '../models/sensorDataModel.js';
+import DryingSession from '../models/dryingSessionModel.js';
 import { evaluateSensorData, saveNotificationIfNew } from '../utils/notificationGenerator.js';
 import { broadcastNotification } from '../utils/firebaseNotificationService.js';
 
@@ -131,13 +132,32 @@ router.post('/insert', async (req, res) => {
 // GET /api/sensor/history
 router.get('/history', async (req, res) => {
   try {
-    const history = await SensorData.find()
-      .sort({ timestamp: -1 })
-      .limit(100);
+    // Fetch both sensor data and drying sessions
+    const [sensorHistory, dryingHistory] = await Promise.all([
+      SensorData.find().sort({ timestamp: -1 }).limit(100),
+      DryingSession.find().sort({ endTime: -1 }).limit(100)
+    ]);
+
+    // Combine and sort by timestamp (using timestamp for sensor data, endTime for drying sessions)
+    const combinedHistory = [
+      ...sensorHistory.map(item => ({
+        ...item.toObject(),
+        _type: 'sensor'
+      })),
+      ...dryingHistory.map(item => ({
+        ...item.toObject(),
+        _type: 'drying',
+        timestamp: item.endTime  // Use endTime as timestamp for sorting
+      }))
+    ].sort((a, b) => {
+      const timeA = a.timestamp || a.endTime || 0;
+      const timeB = b.timestamp || b.endTime || 0;
+      return new Date(timeB) - new Date(timeA);
+    });
 
     res.json({
       success: true,
-      data: history
+      data: combinedHistory
     });
   } catch (err) {
     res.status(500).json({
