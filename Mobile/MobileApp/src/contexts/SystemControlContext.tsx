@@ -101,7 +101,7 @@ export const SystemControlProvider: React.FC<{ children: React.ReactNode }> = ({
 
       // Connect to socket for real-time updates
       const SOCKET_URL = __DEV__ 
-        ? 'http://192.168.86.181:5001'        
+        ? 'http://192.168.0.109:5001'        
         : 'https://mala-backend-q03k.onrender.com';
 
       console.log('[Socket] Connecting to:', SOCKET_URL, '(__DEV__=' + __DEV__ + ')');

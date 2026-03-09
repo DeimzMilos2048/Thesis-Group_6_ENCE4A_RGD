@@ -77,7 +77,11 @@ export const SocketProvider = ({ children }) => {
   };
 
   useEffect(() => {
-    const socketUrl = process.env.REACT_APP_API_URL || 'http://localhost:5001';
+    // Force development mode for local testing
+    const isDevelopment = process.env.NODE_ENV === 'development' || !process.env.NODE_ENV;
+    const socketUrl = isDevelopment 
+      ? 'http://192.168.0.109:5001'
+      : (process.env.REACT_APP_API_URL || 'https://mala-backend-q03k.onrender.com');
     
     const newSocket = io(socketUrl, {
       reconnection: true,

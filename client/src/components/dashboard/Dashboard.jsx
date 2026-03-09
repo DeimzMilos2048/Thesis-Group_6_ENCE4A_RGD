@@ -40,6 +40,12 @@ export default function RiceDryingDashboard({ view }) {
   const { savedWeights, savedAfterWeights, saveBeforeWeight, saveAfterWeight, resetBeforeWeight, resetAfterWeight } = useWeight();
   const { showToast } = useToast();
   const { unreadCount } = useNotifications();
+  const [tabNotifications, setTabNotifications] = useState({
+    dashboard: false,
+    analytics: false,
+    history: false,
+    notification: false
+  });
 
   // Pass socket to DryingProvider for drying time sync
   useEffect(() => {
@@ -76,7 +82,12 @@ export default function RiceDryingDashboard({ view }) {
     return () => { isMounted = false; };
   }, [navigate]);
 
-  const handleNavigation = (path, tab) => { setActiveTab(tab); navigate(path); };
+  const handleNavigation = (path, tab) => { 
+  setActiveTab(tab); 
+  navigate(path); 
+  // Clear notification dot for the active tab
+  setTabNotifications(prev => ({ ...prev, [tab]: false }));
+};
   const handleLogoutClick = () => setShowLogoutConfirm(true);
   const handleLogoutCancel = () => setShowLogoutConfirm(false);
   const handleLogoutConfirm = () => { authService.logout(); navigate('/login'); };
@@ -92,6 +103,13 @@ export default function RiceDryingDashboard({ view }) {
       const response = await dryerService.startDrying(selectedTemp, selectedMoisture);
       if (response.success) {
         showToast('success', `Drying started — Target: ${selectedTemp}°C · Moisture: ${selectedMoisture}%`);
+        
+        // Trigger notification dots for other tabs
+        setTabNotifications(prev => ({
+          ...prev,
+          analytics: true,  // New drying data available
+          history: true,     // New session started
+        }));
         
         // Start monitoring moisture for auto-stop at 14%
         startMoistureMonitoringService((currentMoisture) => {
@@ -131,6 +149,12 @@ export default function RiceDryingDashboard({ view }) {
     if (currentWeight <= 0) { showToast('error', `No weight data available for Tray ${currentTray}.`); return; }
     saveBeforeWeight(currentTray, currentWeight);
     showToast('success', `Tray ${currentTray} before weight saved: ${currentWeight.toFixed(2)} kg`);
+    
+    // Trigger notification for history tab (new weight data)
+    setTabNotifications(prev => ({
+      ...prev,
+      history: true,
+    }));
   };
 
   const handleSaveAfterWeight = () => {
@@ -140,6 +164,12 @@ export default function RiceDryingDashboard({ view }) {
     if (currentWeight <= 0) { showToast('error', `No weight data available for Tray ${currentTray}.`); return; }
     saveAfterWeight(currentTray, currentWeight);
     showToast('success', `Tray ${currentTray} after weight saved: ${currentWeight.toFixed(2)} kg`);
+    
+    // Trigger notification for history tab (completed weight data)
+    setTabNotifications(prev => ({
+      ...prev,
+      history: true,
+    }));
   };
 
   // ─── Weight button state logic ────────────────────────────────────────────────
@@ -182,6 +212,23 @@ export default function RiceDryingDashboard({ view }) {
   const canSaveAfter   = isDryingFinished && !afterFrozen;
   const canResetAfter  = isDryingFinished && afterFrozen;
 
+  // Trigger tab notifications when sensor data changes significantly
+  useEffect(() => {
+    if (!sensorData || !isProcessing) return;
+    
+    // Only trigger notifications for significant changes during drying
+    const temp = sensorData.temperature || 0;
+    const moisture = sensorData.moistureavg || 0;
+    
+    // Trigger analytics notification for significant temperature/moisture changes
+    if ((temp >= 40 && temp <= 45) || (moisture >= 13 && moisture <= 14)) {
+      setTabNotifications(prev => ({
+        ...prev,
+        analytics: true,  // New data for analytics charts
+      }));
+    }
+  }, [sensorData, isProcessing]);
+
   return (
     <div className="dashboard-container">
 
@@ -206,18 +253,27 @@ export default function RiceDryingDashboard({ view }) {
         <nav className="topbar-nav">
           <button className={`nav-item ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => handleNavigation('/dashboard', 'dashboard')}>
             <BarChart2 size={16} /><span>Dashboard</span>
+            {tabNotifications.dashboard && (
+              <span className="tab-notification-dot" title="Dashboard has new updates"></span>
+            )}
           </button>
           <button className={`nav-item ${activeTab === 'analytics' ? 'active' : ''}`} onClick={() => handleNavigation('/analytics', 'analytics')}>
             <Activity size={16} /><span>Analytics</span>
+            {tabNotifications.analytics && (
+              <span className="tab-notification-dot" title="Analytics has new data"></span>
+            )}
           </button>
           <button className={`nav-item ${activeTab === 'history' ? 'active' : ''}`} onClick={() => handleNavigation('/history', 'history')}>
             <Clock size={16} /><span>History</span>
+            {tabNotifications.history && (
+              <span className="tab-notification-dot" title="History has new records"></span>
+            )}
           </button>
           <button className={`nav-item ${activeTab === 'notification' ? 'active' : ''}`} onClick={() => handleNavigation('/notification', 'notification')}>
             <Bell size={16} /><span>Notification</span>
             {unreadCount > 0 && (
               <span className="notif-badge" title={`${unreadCount} unread notification${unreadCount > 1 ? 's' : ''}`}>
-                •
+                {unreadCount > 99 ? '99+' : unreadCount}
               </span>
             )}
           </button>

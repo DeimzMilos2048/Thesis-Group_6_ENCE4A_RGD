@@ -77,6 +77,7 @@
   cursor: pointer;
   white-space: nowrap;
   transition: background-color 0.2s, color 0.2s;
+  position: relative;
 }
 
 .nav-item:hover { background-color: #f3f4f6; }
@@ -112,6 +113,35 @@
   border-radius: 999px;
   line-height: 1;
   margin-left: 2px;
+}
+
+/* Red dot indicator for tab notifications */
+.tab-notification-dot {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 8px;
+  height: 8px;
+  background-color: #ef4444;
+  border-radius: 50%;
+  border: 2px solid #ffffff;
+  box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.3);
+  animation: pulse-dot 2s infinite;
+}
+
+@keyframes pulse-dot {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.2);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
 }
 
 .profile-dropdown-wrapper {
