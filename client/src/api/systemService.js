@@ -1,4 +1,4 @@
-const API = `${process.env.REACT_APP_API_URL || 'http://10.42.0.1:5001'}/api/system`;
+const API = "https://objurgatory-darrell-nonconversantly.ngrok-free.dev";
 
 
 export const setTemperature = async (value) => {
