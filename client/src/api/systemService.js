@@ -1,4 +1,4 @@
-const API = "https://objurgatory-darrell-nonconversantly.ngrok-free.dev";
+const API = "https://objurgatory-darrell-nonconversantly.ngrok-free.dev/api/system";
 
 
 export const setTemperature = async (value) => {
