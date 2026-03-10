@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+  <!-- ============================================
+       REQUIRED PERMISSIONS FOR NOTIFICATIONS
+       ============================================ -->
+  
+  <!-- Permission to post notifications (Android 13+) -->
+  <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+  
+  <!-- Permission for vibration -->
+  <uses-permission android:name="android.permission.VIBRATE" />
+  
+  <!-- Permission to receive boot completed events -->
+  <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+  
+  <!-- Permissions for scheduling notifications -->
+  <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+  <uses-permission android:name="android.permission.WAKE_LOCK" />
+
+  <application>
+    <!-- ============================================
+         PUSH NOTIFICATION RECEIVER SERVICE
+         ============================================ -->
+    
+    <!-- FCM/GCM Receiver - Required for receiving notifications -->
+    <receiver
+      android:name="com.google.android.gms.gcm.GcmReceiver"
+      android:exported="true"
+      android:permission="com.google.android.c2dm.permission.SEND">
+      <intent-filter>
+        <action android:name="com.google.android.c2dm.intent.RECEIVE" />
+        <category android:name="your.package.name" />
+      </intent-filter>
+    </receiver>
+
+    <!-- Notification Service (required for react-native-push-notification) -->
+    <service
+      android:name="com.dieam.reactnativepushnotification.modules.RNPushNotificationListenerService"
+      android:exported="false">
+      <intent-filter>
+        <action android:name="com.google.firebase.MESSAGING_EVENT" />
+      </intent-filter>
+    </service>
+
+    <!-- Boot Complete Receiver -->
+    <receiver
+      android:name="com.dieam.reactnativepushnotification.modules.RNPushNotificationBootEventReceiver"
+      android:exported="true">
+      <intent-filter>
+        <action android:name="android.intent.action.BOOT_COMPLETED" />
+      </intent-filter>
+    </receiver>
+
+  </application>
+
+</manifest>
