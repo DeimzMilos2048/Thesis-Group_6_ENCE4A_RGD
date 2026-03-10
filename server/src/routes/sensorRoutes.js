@@ -205,4 +205,32 @@ router.patch('/latest/weights', async (req, res) => {
   }
 });
 
+// GET /api/sensors/current
+router.get('/current', async (req, res) => {
+  try {
+    // Get latest sensor data from your database or IoT device
+    const latestSensorData = await SensorData.findOne()
+      .sort({ timestamp: -1 })
+      .limit(1);
+    
+    if (!latestSensorData) {
+      return res.status(404).json({
+        success: false,
+        message: 'No sensor data found'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: latestSensorData
+    });
+  } catch (error) {
+    console.error('Error fetching sensor data:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch sensor data'
+    });
+  }
+});
+
 export default router;

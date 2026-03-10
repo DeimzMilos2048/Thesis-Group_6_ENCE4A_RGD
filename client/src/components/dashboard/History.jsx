@@ -9,6 +9,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import authService from '../../api/authService';
 import dryerService from '../../api/dryerService';
 import logo from "../../assets/images/logo2.png";
+import useNotificationService from './Usenotificationservice.js';
 
 export default function History({ view }) {
 
@@ -23,6 +24,9 @@ export default function History({ view }) {
   const [currentMoisture, setCurrentMoisture] = useState(null);
   const navigate = useNavigate();
   const location = useLocation();
+
+  // Add notification service for badge
+  const { unreadCount } = useNotificationService(null, 15000);
 
   useEffect(() => {
     const path = location.pathname;
@@ -141,13 +145,19 @@ export default function History({ view }) {
                   })
                 : 'N/A',
               startTime:
-                item.startTime ||
-                (item.timestamp
+                item.startTime
+                ? new Date(item.startTime).toLocaleTimeString('en-US', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit',
+                    hour12: true,
+                  })
+                : (item.timestamp
                   ? new Date(item.timestamp).toLocaleTimeString('en-US', {
                       hour: '2-digit',
                       minute: '2-digit',
                       second: '2-digit',
-                      hour12: false,
+                      hour12: true,
                     })
                   : 'N/A'),
               endTime: item.endTime
@@ -155,7 +165,7 @@ export default function History({ view }) {
                     hour: '2-digit',
                     minute: '2-digit',
                     second: '2-digit',
-                    hour12: false,
+                    hour12: true,
                   })
                 : 'N/A',
 
@@ -393,6 +403,9 @@ export default function History({ view }) {
           </button>
           <button className={`nav-item ${activeTab === 'notification' ? 'active' : ''}`} onClick={() => handleNavigation('/notification', 'notification')}>
             <Bell size={16} /><span>Notification</span>
+            {unreadCount > 0 && (
+              <span className="notif-badge">{unreadCount > 99 ? '99+' : unreadCount}</span>
+            )}
           </button>
         </nav>
         <div className="topbar-right">

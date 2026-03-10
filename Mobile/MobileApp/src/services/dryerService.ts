@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const API_URL = __DEV__ 
-  ? 'http://192.168.0.109:5001'
+  ? 'http://192.168.86.181:5001'
   : 'https://mala-backend-q03k.onrender.com';
 
 /**

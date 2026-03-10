@@ -37,10 +37,10 @@ createDefaultAdmin();
 const allowedOrigins = [
   'https://mala-luin.onrender.com',
   'http://localhost:3000',
-  'http://192.168.0.109:3000',
+  'http://192.168.86.181:3000',
   'http://10.42.0.1:3000',
   'http://localhost:3001', // Added new URL
-  'http://192.168.0.109:3001', // Added new URL
+  'http://192.168.86.181:3001', // Added new URL
   'http://10.42.0.1:3001', // Added new URL
 ];
   

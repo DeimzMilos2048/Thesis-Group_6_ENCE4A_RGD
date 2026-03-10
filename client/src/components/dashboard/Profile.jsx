@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
-import { Activity, BarChart2, Bell, CircleUser, Clock, AlertTriangle, LogOut, User, Mail, Save, X, HelpCircle, Settings, ChevronDown, ChevronUp } from 'lucide-react';
+import { Activity, AlertTriangle, BarChart2, Bell, CircleUser, Clock, LogOut, Thermometer, Droplets, Waves, Weight, CheckCircle, ChevronDown, ChevronUp, User, HelpCircle, Settings, X, Save, Mail } from 'lucide-react';
 import './Dashboard.css';
 import './Profile.css';
 import { useNavigate, useLocation } from 'react-router-dom';
 import authService from '../../api/authService';
 import logo from "../../assets/images/logo2.png";
+import useNotificationService from './Usenotificationservice.js';
 import { toast } from 'react-toastify';
 
 export default function Profile({ view }) {
@@ -16,6 +17,9 @@ export default function Profile({ view }) {
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(true);
   const navigate = useNavigate();
   const location = useLocation();
+
+  // Add notification service for badge
+  const { unreadCount } = useNotificationService(null, 15000);
 
   const [editingUser, setEditingUser] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -257,6 +261,9 @@ export default function Profile({ view }) {
           >
             <Bell size={16} />
             <span>Notification</span>
+            {unreadCount > 0 && (
+              <span className="notif-badge">{unreadCount > 99 ? '99+' : unreadCount}</span>
+            )}
           </button>
         </nav>
 

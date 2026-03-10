@@ -98,6 +98,15 @@
   color: #ef4444;
 }
 
+.nav-item.test-btn {
+  background-color: #8b5cf6;
+  color: #ffffff;
+}
+
+.nav-item.test-btn:hover {
+  background-color: #7c3aed;
+}
+
 /* Unread notification badge on nav bell */
 .notif-badge {
   display: inline-flex;

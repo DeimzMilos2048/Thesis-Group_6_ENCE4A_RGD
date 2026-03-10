@@ -3,15 +3,14 @@ import { Platform, Vibration } from 'react-native';
 import PushNotification from 'react-native-push-notification';
 import axios from 'axios';
 
-// ── Threshold constants ─────────────────────────────────────────────────────
 const THRESHOLDS = {
   moisture: { critical: 18, warning: 15, stable: 14 },
   temperature: { criticalMax: 50, criticalMin: 35, warningMax: 47, warningMin: 38 },
   humidity: { criticalMax: 95, warningMax: 85 },
+  weight: { minChange: 0.5 }, 
 };
 
-// ── Types ───────────────────────────────────────────────────────────────────
-export type AlertType = 'CRITICAL' | 'WARNING' | 'STABLE';
+export type AlertType = 'CRITICAL' | 'WARNING' | 'STABLE' | 'INFO';
 
 export interface SensorSnapshot {
   temperature?: number;
@@ -47,7 +46,6 @@ interface UseNotificationServiceReturn {
   acknowledgeAll: () => Promise<void>;
 }
 
-// ── Configure PushNotification channels (call once at app startup) ──────────
 export const configurePushNotifications = () => {
   PushNotification.configure({
     onNotification: (notification) => {
@@ -58,7 +56,6 @@ export const configurePushNotifications = () => {
     requestPermissions: Platform.OS === 'ios',
   });
 
-  // Android channel
   PushNotification.createChannel(
     {
       channelId: 'iot-alerts',
@@ -72,16 +69,16 @@ export const configurePushNotifications = () => {
   );
 };
 
-// ── Local notification helpers ──────────────────────────────────────────────
 const showLocalNotification = (type: AlertType, title: string, message: string) => {
   const colorMap: Record<AlertType, string> = {
     CRITICAL: '#ef4444',
     WARNING:  '#f59e0b',
     STABLE:   '#10b981',
+    INFO:     '#3b82f6',
   };
 
   if (type === 'CRITICAL') {
-    Vibration.vibrate([0, 500, 200, 500]); // pattern: wait, on, off, on
+    Vibration.vibrate([0, 500, 200, 500]); 
   }
 
   PushNotification.localNotification({
@@ -100,7 +97,6 @@ const showLocalNotification = (type: AlertType, title: string, message: string) 
   });
 };
 
-// ── Main hook ───────────────────────────────────────────────────────────────
 const useNotificationServiceNative = (
   apiBaseUrl: string,
   sensorData: SensorSnapshot | null = null,
@@ -115,7 +111,6 @@ const useNotificationServiceNative = (
 
   const unreadCount = notifications.filter(n => !n.isRead).length;
 
-  // ── fetch from backend ───────────────────────────────────────────────────
   const refresh = useCallback(async () => {
     try {
       setLoading(true);
@@ -130,17 +125,15 @@ const useNotificationServiceNative = (
     }
   }, [apiBaseUrl]);
 
-  // ── save + push ──────────────────────────────────────────────────────────
   const triggerNotification = useCallback(async (
     type: AlertType,
     title: string,
     message: string,
     snapshot: SensorSnapshot
   ) => {
-    // 1. Local push notification (triggers OS notification + vibration if critical)
+
     showLocalNotification(type, title, message);
 
-    // 2. Persist to backend
     try {
       await axios.post(`${apiBaseUrl}/api/notifications`, {
         type,
@@ -156,55 +149,75 @@ const useNotificationServiceNative = (
     }
   }, [apiBaseUrl, refresh]);
 
-  // ── threshold evaluation ─────────────────────────────────────────────────
   const evaluateSensor = useCallback((current: SensorSnapshot) => {
     const prev = prevSensorRef.current;
 
-    const moistureAvg     = current.moistureavg     ?? 0;
-    const temp            = current.temperature      ?? 0;
-    const humidity        = current.humidity         ?? 0;
-    const prevMoistureAvg = prev?.moistureavg        ?? 0;
-    const prevTemp        = prev?.temperature         ?? 0;
-    const prevHumidity    = prev?.humidity            ?? 0;
+    const moistureAvg     = current.moistureavg     ?? null;
+    const temp            = current.temperature      ?? null;
+    const humidity        = current.humidity         ?? null;
+    const prevMoistureAvg = prev?.moistureavg        ?? null;
+    const prevTemp        = prev?.temperature         ?? null;
+    const prevHumidity    = prev?.humidity            ?? null;
 
-    // MOISTURE
-    if (moistureAvg >= THRESHOLDS.moisture.critical && prevMoistureAvg < THRESHOLDS.moisture.critical) {
-      triggerNotification('CRITICAL', '🚨 Critical Moisture Alert',
-        `Critical: Moisture level reached ${moistureAvg.toFixed(1)}%. Immediate action required.`, current);
-    } else if (moistureAvg >= THRESHOLDS.moisture.warning && prevMoistureAvg < THRESHOLDS.moisture.warning) {
-      triggerNotification('WARNING', '⚠️ Moisture Warning',
-        `Warning: Moisture level is approaching the threshold (${moistureAvg.toFixed(1)}%).`, current);
-    } else if (moistureAvg <= THRESHOLDS.moisture.stable && prevMoistureAvg > THRESHOLDS.moisture.stable) {
-      triggerNotification('STABLE', '✅ Moisture Stable',
-        `Stable: Moisture level is within the safe range (${moistureAvg.toFixed(1)}%).`, current);
+    if (moistureAvg !== null && moistureAvg >= THRESHOLDS.moisture.stable && moistureAvg <= THRESHOLDS.moisture.stable + 1 && 
+        (prevMoistureAvg === null || prevMoistureAvg < THRESHOLDS.moisture.stable || prevMoistureAvg > THRESHOLDS.moisture.stable + 1)) {
+      triggerNotification('STABLE', ' Tray Ready for Removal',
+        `Average moisture content is optimal (${moistureAvg.toFixed(1)}%). Tray is ready for removal.`, current);
+    } else if (moistureAvg !== null && moistureAvg >= THRESHOLDS.moisture.warning && 
+               (prevMoistureAvg === null || prevMoistureAvg < THRESHOLDS.moisture.warning)) {
+      triggerNotification('WARNING', ' Moisture Warning',
+        `Warning: Average moisture level is approaching threshold (${moistureAvg.toFixed(1)}%).`, current);
+    } else if (moistureAvg !== null && moistureAvg >= THRESHOLDS.moisture.critical && 
+               (prevMoistureAvg === null || prevMoistureAvg < THRESHOLDS.moisture.critical)) {
+      triggerNotification('CRITICAL', ' Critical Moisture Alert',
+        `Critical: Average moisture level reached ${moistureAvg.toFixed(1)}%. Immediate action required.`, current);
     }
 
-    // TEMPERATURE
-    const tempCritical = temp >= THRESHOLDS.temperature.criticalMax || temp <= THRESHOLDS.temperature.criticalMin;
-    const prevTempCrit = prevTemp >= THRESHOLDS.temperature.criticalMax || prevTemp <= THRESHOLDS.temperature.criticalMin;
+    const weight1 = current.weight1 ?? null;
+    const weight2 = current.weight2 ?? null;
+    const prevWeight1 = prev?.weight1 ?? null;
+    const prevWeight2 = prev?.weight2 ?? null;
+
+    if (weight1 !== null && prevWeight1 !== null && Math.abs(weight1 - prevWeight1) >= THRESHOLDS.weight.minChange) {
+      const change = weight1 - prevWeight1;
+      const direction = change > 0 ? 'increased' : 'decreased';
+      triggerNotification('INFO', ' Weight Change Detected',
+        `Scale 1 weight ${direction} by ${Math.abs(change).toFixed(1)}kg (${prevWeight1.toFixed(1)}kg → ${weight1.toFixed(1)}kg).`, current);
+    }
+
+    if (weight2 !== null && prevWeight2 !== null && Math.abs(weight2 - prevWeight2) >= THRESHOLDS.weight.minChange) {
+      const change = weight2 - prevWeight2;
+      const direction = change > 0 ? 'increased' : 'decreased';
+      triggerNotification('INFO', ' Weight Change Detected',
+        `Scale 2 weight ${direction} by ${Math.abs(change).toFixed(1)}kg (${prevWeight2.toFixed(1)}kg → ${weight2.toFixed(1)}kg).`, current);
+    }
+
+    const tempCritical = temp !== null && (temp >= THRESHOLDS.temperature.criticalMax || temp <= THRESHOLDS.temperature.criticalMin);
+    const prevTempCrit = prevTemp !== null && (prevTemp >= THRESHOLDS.temperature.criticalMax || prevTemp <= THRESHOLDS.temperature.criticalMin);
     if (tempCritical && !prevTempCrit) {
-      triggerNotification('CRITICAL', '🚨 Critical Temperature Alert',
+      triggerNotification('CRITICAL', ' Critical Temperature Alert',
         `Critical: Temperature reached ${temp.toFixed(1)}°C. Immediate action required.`, current);
     } else {
-      const tempWarn     = temp >= THRESHOLDS.temperature.warningMax || temp <= THRESHOLDS.temperature.warningMin;
-      const prevTempWarn = prevTemp >= THRESHOLDS.temperature.warningMax || prevTemp <= THRESHOLDS.temperature.warningMin;
+      const tempWarn     = temp !== null && (temp >= THRESHOLDS.temperature.warningMax || temp <= THRESHOLDS.temperature.warningMin);
+      const prevTempWarn = prevTemp !== null && (prevTemp >= THRESHOLDS.temperature.warningMax || prevTemp <= THRESHOLDS.temperature.warningMin);
       if (tempWarn && !prevTempWarn && !prevTempCrit) {
-        triggerNotification('WARNING', '⚠️ Temperature Warning',
+        triggerNotification('WARNING', ' Temperature Warning',
           `Warning: Temperature is approaching threshold (${temp.toFixed(1)}°C).`, current);
       }
     }
-    // Check for low temperature - below 36°C
-    if (temp < 36 && prevTemp >= 36) {
-      triggerNotification('WARNING', '⚠️ Low Temperature Alert',
+
+    if (temp !== null && temp < 36 && (prevTemp === null || prevTemp >= 36)) {
+      triggerNotification('WARNING', ' Low Temperature Alert',
         'Please put some rice husk', current);
     }
 
-    // HUMIDITY
-    if (humidity >= THRESHOLDS.humidity.criticalMax && prevHumidity < THRESHOLDS.humidity.criticalMax) {
-      triggerNotification('CRITICAL', '🚨 Critical Humidity Alert',
+    if (humidity !== null && humidity >= THRESHOLDS.humidity.criticalMax && 
+        (prevHumidity === null || prevHumidity < THRESHOLDS.humidity.criticalMax)) {
+      triggerNotification('CRITICAL', ' Critical Humidity Alert',
         `Critical: Humidity reached ${humidity.toFixed(1)}%. Immediate action required.`, current);
-    } else if (humidity >= THRESHOLDS.humidity.warningMax && prevHumidity < THRESHOLDS.humidity.warningMax) {
-      triggerNotification('WARNING', '⚠️ Humidity Warning',
+    } else if (humidity !== null && humidity >= THRESHOLDS.humidity.warningMax && 
+               (prevHumidity === null || prevHumidity < THRESHOLDS.humidity.warningMax)) {
+      triggerNotification('WARNING', ' Humidity Warning',
         `Warning: Humidity is approaching threshold (${humidity.toFixed(1)}%).`, current);
     }
 

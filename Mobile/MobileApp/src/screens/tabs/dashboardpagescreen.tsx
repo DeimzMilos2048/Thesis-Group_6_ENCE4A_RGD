@@ -28,7 +28,7 @@ type RootStackParmList = {
 
 type NavigationProp = NativeStackNavigationProp<RootStackParmList>;
 
-// ─── Header with red dot badge ───────────────────────────────────────────────
+// Header with red dot badge
 const Header: React.FC<{ onNotificationPress: () => void; unreadCount: number }> = ({
   onNotificationPress,
   unreadCount,
@@ -58,7 +58,7 @@ const Header: React.FC<{ onNotificationPress: () => void; unreadCount: number }>
   );
 };
 
-// ─── Main Screen ─────────────────────────────────────────────────────────────
+// Main Screen 
 const DashboardPageScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
   const { systemData, isConnected, startDrying, stopDrying } = useSystemControl();
@@ -69,7 +69,7 @@ const DashboardPageScreen: React.FC = () => {
 
   // Fetch unread count for badge
   const getAPIBaseUrl = () =>
-    __DEV__ ? 'http://192.168.0.109:5001' : 'https://mala-backend-q03k.onrender.com';
+    __DEV__ ? 'http://192.168.86.181:5001' : 'https://mala-backend-q03k.onrender.com';
 
   const fetchUnreadCount = async () => {
     try {
@@ -161,7 +161,7 @@ const DashboardPageScreen: React.FC = () => {
 
   useEffect(() => {
     const SOCKET_URL = __DEV__
-      ? 'http://192.168.0.109:5001'
+      ? 'http://192.168.86.181:5001'
       : 'https://mala-backend-q03k.onrender.com';
 
     const socket = io(SOCKET_URL, {
@@ -459,21 +459,21 @@ const styles = StyleSheet.create<Styles>({
   // Red dot badge on the bell icon
   badgeDot: {
     position: 'absolute',
-    top: 6,
-    right: 6,
-    minWidth: 14,
-    height: 14,
-    borderRadius: 7,
+    top: 2,
+    right: 2,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
     backgroundColor: '#E74C3C',
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1.5,
     borderColor: '#FFFFFF',
-    paddingHorizontal: 2,
+    paddingHorizontal: 3,
   },
   badgeText: {
-    fontSize: 8,
-    fontWeight: '700',
+    fontSize: 12,
+    fontWeight: '900',
     color: '#FFFFFF',
   },
   statusGrid: {
@@ -560,8 +560,6 @@ const styles = StyleSheet.create<Styles>({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.15,
     shadowRadius: 4,
-    borderLeftWidth: 5,
-    borderLeftColor: '#27AE60',
   },
   averageMoistureValue: { fontSize: 24, fontWeight: '700', marginVertical: 8, color: '#27AE60' },
   weightHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', width: '100%', marginBottom: 8 },

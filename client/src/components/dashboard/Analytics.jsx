@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Activity, AlertTriangle, BarChart2, Bell, CircleUser, Clock, LogOut, Thermometer, Droplets, Waves, Weight, ChevronDown, ChevronUp, User, HelpCircle, Settings } from 'lucide-react';
+import { Activity, AlertTriangle, BarChart2, Bell, CircleUser, Clock, LogOut, Thermometer, Droplets, Waves, ChevronDown, ChevronUp, User, HelpCircle, Settings } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from 'recharts';
 import './Dashboard.css';
 import './Analytics.css';
@@ -9,6 +9,7 @@ import logo from "../../assets/images/logo2.png";
 import { useSocket } from '../../contexts/SocketContext.js';
 import { useWeight } from '../../contexts/WeightContext.js';
 import WeightGroupedBarChart from './WeightGroupedBarChart.jsx';
+import useNotificationService from './Usenotificationservice.js';
 
 export default function Analytics({ view }) {
   const [loading, setLoading] = useState(false);
@@ -35,6 +36,9 @@ export default function Analytics({ view }) {
 } = useSocket();
 
   const { savedWeights, savedAfterWeights } = useWeight();
+
+  // Add notification service for badge
+  const { unreadCount } = useNotificationService(null, 15000);
 
   useEffect(() => {
     const path = location.pathname;
@@ -248,6 +252,9 @@ export default function Analytics({ view }) {
           >
             <Bell size={16} />
             <span>Notification</span>
+            {unreadCount > 0 && (
+              <span className="notif-badge">{unreadCount > 99 ? '99+' : unreadCount}</span>
+            )}
           </button>
         </nav>
 

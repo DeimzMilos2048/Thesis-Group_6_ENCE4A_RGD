@@ -519,13 +519,23 @@
   opacity: 0.6;
 }
 
-.modal-actions button:not(.acknowledge) {
+.modal-actions .delete {
+  background: #ef4444;
+  color: white;
+}
+
+.modal-actions .delete:hover {
+  background: #dc2626;
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+}
+
+.modal-actions button:not(.acknowledge):not(.delete) {
   background: #ecf0f1;
   color: #333;
   border: 1px solid #ddd;
 }
 
-.modal-actions button:not(.acknowledge):hover {
+.modal-actions button:not(.acknowledge):not(.delete):hover {
   background: #ddd;
   border-color: #999;
 }

@@ -80,6 +80,8 @@ interface Styles {
   acknowledgeButtonText: TextStyle;
   closeButton: ViewStyle;
   closeButtonText: TextStyle;
+  deleteButton: ViewStyle;
+  deleteButtonText: TextStyle;
 }
 
 const styles = StyleSheet.create<Styles>({
@@ -113,9 +115,6 @@ const styles = StyleSheet.create<Styles>({
   },
   content: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 40,
   },
   messageText: {
     fontSize: 16,
@@ -124,6 +123,7 @@ const styles = StyleSheet.create<Styles>({
     marginTop: 12,
   },
   loadingContainer: {
+    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -131,7 +131,6 @@ const styles = StyleSheet.create<Styles>({
     fontSize: 16,
     color: '#666666',
     marginTop: 12,
-    textAlign: 'center',
   },
   retryButton: {
     marginTop: 20,
@@ -149,6 +148,7 @@ const styles = StyleSheet.create<Styles>({
     width: '100%',
     paddingHorizontal: 16,
     paddingTop: 12,
+    flex: 1,
   },
   actionButtonsRow: {
     flexDirection: 'row',
@@ -186,7 +186,6 @@ const styles = StyleSheet.create<Styles>({
     padding: 16,
     marginBottom: 12,
     borderRadius: 8,
-    borderLeftWidth: 4,
     flexDirection: 'row',
     alignItems: 'center',
     shadowColor: '#000',
@@ -310,6 +309,20 @@ const styles = StyleSheet.create<Styles>({
     fontSize: 16,
     fontWeight: '600',
   },
+  deleteButton: {
+    backgroundColor: '#E74C3C',
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  deleteButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
 });
 
 const NotificationScreen: React.FC = () => {
@@ -325,7 +338,7 @@ const NotificationScreen: React.FC = () => {
 
   const getAPIBaseUrl = () => {
     if (__DEV__) {
-      return 'http://192.168.0.109:5001';
+      return 'http://192.168.86.181:5001';
     } else {
       return 'https://mala-backend-q03k.onrender.com';
     }
@@ -427,6 +440,32 @@ const NotificationScreen: React.FC = () => {
     }
   };
 
+  const deleteAlert = async (alertId: string) => {
+    try {
+      const token = await AsyncStorage.getItem('token');
+      if (!token) return;
+
+      const response = await fetch(`${getAPIBaseUrl()}/api/notifications/${alertId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        setAlerts(prev => prev.filter(alert => alert._id !== alertId && alert.id !== alertId));
+        const deletedAlert = alerts.find(alert => alert._id === alertId || alert.id === alertId);
+        if (deletedAlert && !deletedAlert.isRead) {
+          setUnreadCount(prev => Math.max(0, prev - 1));
+        }
+        setSelectedAlert(null);
+      }
+    } catch (error) {
+      console.error('Error deleting notification:', error);
+    }
+  };
+
   useFocusEffect(
     useCallback(() => {
       setLoading(true);
@@ -464,9 +503,9 @@ const NotificationScreen: React.FC = () => {
     const diffMs = Date.now() - new Date(createdAt).getTime();
     const diffMins = Math.floor(diffMs / 60000);
     if (diffMins < 1) return 'Just now';
-    if (diffMins < 60) return `${diffMins} min ago`;
+    if (diffMins < 60) return `${diffMins} mins ago`;
     const h = Math.floor(diffMins / 60);
-    if (h < 24) return `${h}h ago`;
+    if (h < 24) return `${h}hr ago`;
     return `${Math.floor(h / 24)}d ago`;
   };
 
@@ -563,7 +602,6 @@ const NotificationScreen: React.FC = () => {
                     key={alert._id || alert.id}
                     style={[
                       styles.alertCard,
-                      { borderLeftColor: getAlertColor(alert.type) },
                       !alert.isRead && styles.unreadAlert,
                     ]}
                     onPress={() => setSelectedAlert(alert)}
@@ -674,6 +712,12 @@ const NotificationScreen: React.FC = () => {
                   <Text style={styles.acknowledgeButtonText}>
                     {selectedAlert?.isRead ? 'Already Acknowledged' : 'Acknowledge'}
                   </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.deleteButton}
+                  onPress={() => selectedAlert && deleteAlert(selectedAlert._id || selectedAlert.id)}
+                >
+                  <Text style={styles.deleteButtonText}>Delete</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={styles.closeButton}

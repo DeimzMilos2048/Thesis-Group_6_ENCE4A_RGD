@@ -2,13 +2,14 @@ import React, { useState, useEffect } from 'react';
 import {
   Activity, BarChart2, Bell, CircleUser, Clock, AlertTriangle, LogOut,
   Thermometer, Droplets, Waves, Weight, CheckCircle, ChevronDown, ChevronUp,
-  User, HelpCircle, Settings, X,
+  User, HelpCircle, Settings, X, Trash2,
 } from 'lucide-react';
 import './Dashboard.css';
 import './Notification.css';
 import useNotificationService from './Usenotificationservice.js';
 import { useNavigate, useLocation } from 'react-router-dom';
 import authService from '../../api/authService';
+import axios from '../../utils/axios';
 import logo from "../../assets/images/logo2.png";
 
 export default function Notification({ view }) {
@@ -32,6 +33,7 @@ export default function Notification({ view }) {
     acknowledgeOne,
     acknowledgeAll,
     markAllAsUnread,
+    deleteOne,
   } = useNotificationService(null, 15000);
 
   useEffect(() => {
@@ -44,23 +46,27 @@ export default function Notification({ view }) {
   }, [location]);
 
   useEffect(() => {
-    let isMounted = true;
-    const fetchDashboardData = async () => {
-      try {
-        const t = setTimeout(() => { if (isMounted) setLoading(true); }, 300);
-        await authService.getDashboardData();
-        clearTimeout(t);
-        if (isMounted) { setError(null); setLoading(false); }
-      } catch (err) {
-        if (isMounted) {
-          setError(err.message);
-          if (err.message.includes('Not authorized')) navigate('/login');
+    if (location.pathname !== '/notification') {
+      let isMounted = true;
+      const fetchDashboardData = async () => {
+        try {
+          const t = setTimeout(() => { if (isMounted) setLoading(true); }, 300);
+          await authService.getDashboardData();
+          clearTimeout(t);
+          if (isMounted) { setError(null); setLoading(false); }
+        } catch (err) {
+          if (isMounted) {
+            setError(err.message);
+            if (err.message.includes('Not authorized')) navigate('/login');
+          }
         }
-      }
-    };
-    fetchDashboardData();
-    return () => { isMounted = false; };
-  }, [navigate]);
+      };
+      fetchDashboardData();
+      return () => { isMounted = false; };
+    } else {
+      setLoading(false); 
+    }
+  }, [navigate, location.pathname]);
 
   const handleNavigation    = (path, tab) => { setActiveTab(tab); navigate(path); };
   const handleLogoutClick   = ()          => setShowLogoutConfirm(true);
@@ -68,7 +74,17 @@ export default function Notification({ view }) {
   const handleLogoutConfirm = ()          => { authService.logout(); navigate('/login'); };
 
   const handleAcknowledge = async () => {
-    if (selectedAlert?._id) { await acknowledgeOne(selectedAlert._id); setSelectedAlert(null); }
+    if (selectedAlert?._id) { 
+      await acknowledgeOne(selectedAlert._id); 
+      setSelectedAlert(null); 
+    }
+  };
+
+  const handleDelete = async () => {
+    if (selectedAlert?._id) {
+      await deleteOne(selectedAlert._id);
+      setSelectedAlert(null);
+    }
   };
 
   const mapNotificationType = (type) => {
@@ -82,9 +98,9 @@ export default function Notification({ view }) {
     const diffMs   = Date.now() - new Date(createdAt).getTime();
     const diffMins = Math.floor(diffMs / 60000);
     if (diffMins < 1)  return 'Just now';
-    if (diffMins < 60) return `${diffMins} min ago`;
+    if (diffMins < 60) return `${diffMins} mins ago`;
     const h = Math.floor(diffMins / 60);
-    if (h < 24)        return `${h}h ago`;
+    if (h < 24)        return `${h}hr ago`;
     return `${Math.floor(h / 24)}d ago`;
   };
 
@@ -104,8 +120,8 @@ export default function Notification({ view }) {
       {(error || notifError) && (
         <div className="error-banner"><AlertTriangle size={20}/><span>{error || notifError}</span></div>
       )}
-      {(loading || notifLoading) && (
-        <div className="loading-overlay"><div className="loading-spinner"/><p>Loading Notification...</p></div>
+      {notifLoading && (
+        <div className="loading-overlay"><div className="loading-spinner"/><p>Loading Notifications...</p></div>
       )}
 
       {/* Logout modal */}
@@ -262,6 +278,9 @@ export default function Notification({ view }) {
                 <div className="modal-actions">
                   <button className="acknowledge" onClick={handleAcknowledge} disabled={selectedAlert.isRead}>
                     {selectedAlert.isRead ? 'Already Acknowledged' : 'Acknowledge'}
+                  </button>
+                  <button className="delete" onClick={handleDelete}>
+                    Delete
                   </button>
                   <button onClick={()=>setSelectedAlert(null)}>Close</button>
                 </div>

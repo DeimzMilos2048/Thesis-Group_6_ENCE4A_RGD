@@ -4,7 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // Get the correct base URL based on environment
 const getBaseUrl = () => {
   if (__DEV__) {
-    return 'http://192.168.0.109:5001';  // Development: same IP as other services
+    return 'http://192.168.86.181:5001';  // Development: same IP as other services
   } else {
     return 'https://mala-backend-q03k.onrender.com';  // Production
   }

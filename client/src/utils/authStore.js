@@ -3,7 +3,7 @@ import api from "./axios";
 import { io } from "socket.io-client";
 
 const SOCKET_URL = process.env.NODE_ENV === 'development'
-  ? 'http://192.168.0.109:5001'
+  ? 'http://192.168.86.181:5001'
   : 'https://mala-backend-q03k.onrender.com';
 
 // Shared socket instance
