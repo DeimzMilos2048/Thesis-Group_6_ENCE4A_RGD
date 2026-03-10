@@ -132,6 +132,25 @@ const useNotificationService = (sensorData, pollingIntervalMs = 5000, isMonitori
     const prevTemp        = prev?.temperature  ?? null;
     const prevHumidity    = prev?.humidity     ?? null;
 
+    // ── INDIVIDUAL TRAY MOISTURE THRESHOLDS (14% threshold) ──
+    [1, 2, 3, 4, 5, 6].forEach(trayNum => {
+      const trayMoisture = current[`moisture${trayNum}`] ?? null;
+      const prevTrayMoisture = prev?.[`moisture${trayNum}`] ?? null;
+      
+      // Check if individual tray reached 14% threshold
+      if (trayMoisture !== null && trayMoisture <= 14 && trayMoisture > 0 && 
+          (prevTrayMoisture === null || prevTrayMoisture > 14)) {
+        triggerNotification(
+          'SUCCESS',
+          `Tray ${trayNum} Ready for Removal`,
+          `Tray ${trayNum} moisture content reached 14% (${trayMoisture.toFixed(1)}%). Please take out the tray.`,
+          current,
+          'TRAY_READY',
+          trayNum
+        );
+      }
+    });
+
     // ── AVERAGE MOISTURE THRESHOLDS (13-14% stable) ──
     if (moistureAvg !== null && moistureAvg >= THRESHOLDS.moisture.stable && moistureAvg <= THRESHOLDS.moisture.stable + 1 && 
         (prevMoistureAvg === null || prevMoistureAvg < THRESHOLDS.moisture.stable || prevMoistureAvg > THRESHOLDS.moisture.stable + 1)) {

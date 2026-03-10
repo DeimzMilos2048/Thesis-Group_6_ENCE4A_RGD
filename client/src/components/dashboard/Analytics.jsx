@@ -108,7 +108,7 @@ export default function Analytics({ view }) {
   const fmt = (val, unit) => val === null ? 'N/A' : `${Number(val).toFixed(1)}${unit}`;
 
   const DualLineGraph = ({ data, color1, color2, unit, minValue, maxValue }) => (
-    <ResponsiveContainer width="100%" height="100%">
+    <ResponsiveContainer width="100%" height="100%" minWidth={0} aspect={undefined}>
       <LineChart data={data} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
         <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
         <XAxis dataKey="time" tick={{ fontSize: 12 }} />
@@ -122,7 +122,7 @@ export default function Analytics({ view }) {
   );
 
   const SingleLineGraph = ({ data, color, unit, minValue, maxValue }) => (
-    <ResponsiveContainer width="100%" height="100%">
+    <ResponsiveContainer width="100%" height="100%" minWidth={0} aspect={undefined}>
       <LineChart data={data} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
         <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
         <XAxis dataKey="time" tick={{ fontSize: 12 }} />
@@ -143,7 +143,7 @@ export default function Analytics({ view }) {
     });
 
     return (
-      <ResponsiveContainer width="100%" height="100%">
+      <ResponsiveContainer width="100%" height="100%" minWidth={0} aspect={undefined}>
         <LineChart data={data} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
           <XAxis dataKey="time" tick={{ fontSize: 12 }} />

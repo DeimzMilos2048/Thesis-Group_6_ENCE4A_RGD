@@ -149,14 +149,14 @@ export default function History({ view }) {
                 ? new Date(item.startTime).toLocaleTimeString('en-US', {
                     hour: '2-digit',
                     minute: '2-digit',
-                    second: '2-digit',
+                    //second: '2-digit',
                     hour12: true,
                   })
                 : (item.timestamp
                   ? new Date(item.timestamp).toLocaleTimeString('en-US', {
                       hour: '2-digit',
                       minute: '2-digit',
-                      second: '2-digit',
+                      //second: '2-digit',
                       hour12: true,
                     })
                   : 'N/A'),
@@ -164,7 +164,7 @@ export default function History({ view }) {
                 ? new Date(item.endTime).toLocaleTimeString('en-US', {
                     hour: '2-digit',
                     minute: '2-digit',
-                    second: '2-digit',
+                    //second: '2-digit',
                     hour12: true,
                   })
                 : 'N/A',

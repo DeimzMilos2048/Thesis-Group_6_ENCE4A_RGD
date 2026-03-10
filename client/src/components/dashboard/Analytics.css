@@ -7,6 +7,8 @@
   flex: 1;
   min-height: 0;
   overflow: hidden;
+  padding-bottom: 20px;
+  max-height: calc(100vh - 120px);
 }
 
 .analytics-cards {
@@ -49,6 +51,7 @@
   padding: 10px 8px;
   box-shadow: 0 4px 12px rgba(207, 13, 13, 0.08);
   overflow: hidden;
+  height: 100%;
 }
 
 /* Responsive */
@@ -57,6 +60,23 @@
     grid-template-columns: 1fr;
   }
 }
+
+@media (max-height: 800px) {
+  .analytics-content {
+    gap: 12px;
+  }
+  
+  .analytics-card-title {
+    font-size: 14px;
+    margin-bottom: 2px;
+  }
+  
+  .sensor-badge {
+    font-size: 12px;
+    padding: 1px 8px;
+  }
+}
+
 .sensor-row {
   display: flex;
   justify-content: space-between;

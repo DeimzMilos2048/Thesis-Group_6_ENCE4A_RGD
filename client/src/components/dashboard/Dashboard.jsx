@@ -169,7 +169,29 @@ export default function RiceDryingDashboard({ view }) {
     if ((temp >= 40 && temp <= 45) || (moisture >= 13 && moisture <= 14)) {
       setTabNotifications(prev => ({ ...prev, analytics: true }));
     }
-  }, [sensorData, isProcessing]);
+
+    // Check individual tray moisture thresholds for notifications
+    [1, 2, 3, 4, 5, 6].forEach(trayNum => {
+      const trayMoisture = sensorData[`moisture${trayNum}`] || 0;
+      if (trayMoisture <= 14 && trayMoisture > 0) {
+        // Trigger notification for individual tray reaching 14% threshold
+        setTabNotifications(prev => ({ ...prev, dashboard: true }));
+        
+        // Show toast notification for tray ready for removal
+        showToast('success', `Tray ${trayNum} is ready for removal! Moisture: ${trayMoisture.toFixed(1)}%`);
+        
+        // Also trigger notification service for mobile/web
+        if (socket && socket.connected) {
+          socket.emit('tray:threshold', {
+            trayNumber: trayNum,
+            moisture: trayMoisture,
+            timestamp: new Date().toISOString(),
+            message: `Tray ${trayNum} reached 14% moisture threshold - ready for removal`
+          });
+        }
+      }
+    });
+  }, [sensorData, isProcessing, socket, showToast]);
 
   return (
     <div className="dashboard-container">
@@ -287,13 +309,42 @@ export default function RiceDryingDashboard({ view }) {
                     <div className="sensor-icon cyan"><Waves size={24} /></div>
                     <div className="sensor-label">Moisture Content</div>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', marginTop: '8px', flex: 1 }}>
-                      {[1, 2, 3, 4, 5, 6].map(i => (
-                        <div key={`moisture-${i}`} style={{ textAlign: 'center', display: 'flex', flexDirection: 'column' }}>
-                          <div className="sensor-sublabel">TRAY {i}</div>
-                          <div className="sensor-value-sm">{(sensorData[`moisture${i}`] || 0).toFixed(1)}%</div>
-                          <div className="progress-bar"><div className="progress-fill cyan" style={{ width: `${Math.min(((sensorData[`moisture${i}`] || 0) / 14) * 100, 100)}%` }} /></div>
-                        </div>
-                      ))}
+                      {[1, 2, 3, 4, 5, 6].map(i => {
+                        const trayMoisture = sensorData[`moisture${i}`] || 0;
+                        const isAtThreshold = trayMoisture <= 14 && trayMoisture > 0;
+                        return (
+                          <div key={`moisture-${i}`} style={{ 
+                            textAlign: 'center', 
+                            display: 'flex', 
+                            flexDirection: 'column',
+                            backgroundColor: isAtThreshold ? '#dcfce7' : 'transparent',
+                            borderRadius: '6px',
+                            padding: '4px',
+                            border: isAtThreshold ? '2px solid #16a34a' : '1px solid #e5e7eb'
+                          }}>
+                            <div className="sensor-sublabel" style={{ color: isAtThreshold ? '#16a34a' : '#9ca3af', fontWeight: isAtThreshold ? '700' : '400' }}>
+                              TRAY {i} {isAtThreshold && '✓'}
+                            </div>
+                            <div className="sensor-value-sm" style={{ color: isAtThreshold ? '#16a34a' : undefined }}>
+                              {trayMoisture.toFixed(1)}%
+                            </div>
+                            <div className="progress-bar">
+                              <div 
+                                className="progress-fill" 
+                                style={{ 
+                                  width: `${Math.min((trayMoisture / 14) * 100, 100)}%`,
+                                  backgroundColor: isAtThreshold ? '#16a34a' : '#06b6d4'
+                                }} 
+                              />
+                            </div>
+                            {isAtThreshold && (
+                              <div style={{ fontSize: '10px', color: '#16a34a', fontWeight: '600', marginTop: '2px' }}>
+                                Ready
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                     <div className="sensor-avg-row" style={{ marginTop: '10px' }}>
                       <span className="sensor-avg-label">Average Moisture</span>
