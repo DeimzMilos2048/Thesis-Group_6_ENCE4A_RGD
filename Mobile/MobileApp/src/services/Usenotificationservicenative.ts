@@ -3,6 +3,9 @@ import { Platform, Vibration } from 'react-native';
 import PushNotification from 'react-native-push-notification';
 import axios from 'axios';
 
+// Debug flag for troubleshooting
+const DEBUG_NOTIFICATIONS = __DEV__; // True in development
+
 const THRESHOLDS = {
   moisture: { critical: 18, warning: 15, stable: 14 },
   temperature: { criticalMax: 50, criticalMin: 35, warningMax: 47, warningMin: 38 },
@@ -47,54 +50,105 @@ interface UseNotificationServiceReturn {
 }
 
 export const configurePushNotifications = () => {
-  PushNotification.configure({
-    onNotification: (notification) => {
-      console.log('[PushNotification] received:', notification);
-    },
-    permissions: { alert: true, badge: true, sound: true },
-    popInitialNotification: true,
-    requestPermissions: Platform.OS === 'ios',
-  });
+  try {
+    // Configure push notification handler
+    PushNotification.configure({
+      onNotification: (notification) => {
+        console.log('[PushNotification] Notification received:', notification);
+      },
+      onRegistrationError: (err) => {
+        console.error('[PushNotification] Registration Error:', err);
+      },
+      // Android & iOS permissions
+      permissions: {
+        alert: true,
+        badge: true,
+        sound: true,
+      },
+      // iOS: Pop the notification when it arrives
+      popInitialNotification: true,
+      // Request permissions on iOS
+      requestPermissions: true,
+    });
 
-  PushNotification.createChannel(
-    {
-      channelId: 'iot-alerts',
-      channelName: 'IoT Sensor Alerts',
-      channelDescription: 'Rice Dryer sensor threshold alerts',
-      soundName: 'default',
-      importance: 4,
-      vibrate: true,
-    },
-    (created) => console.log('[PushNotification] channel created:', created)
-  );
+    console.log('[PushNotification] Configuration successful');
+
+    // Create notification channel for Android (required for Android 8.0+)
+    if (Platform.OS === 'android') {
+      PushNotification.createChannel(
+        {
+          channelId: 'iot-alerts',
+          channelName: 'IoT Sensor Alerts',
+          channelDescription: 'Rice Dryer sensor threshold alerts',
+          soundName: 'default',
+          importance: 4,
+          vibrate: true,
+          playSound: true,
+        },
+        (created) => {
+          if (created) {
+            console.log('[PushNotification] Channel "iot-alerts" created successfully');
+          } else {
+            console.log('[PushNotification] Channel "iot-alerts" already exists');
+          }
+        }
+      );
+    }
+  } catch (error) {
+    console.error('[PushNotification] Configuration failed:', error);
+  }
 };
 
+// Counter for unique notification IDs
+let notificationCounter = 0;
+
 const showLocalNotification = (type: AlertType, title: string, message: string) => {
-  const colorMap: Record<AlertType, string> = {
-    CRITICAL: '#ef4444',
-    WARNING:  '#f59e0b',
-    STABLE:   '#10b981',
-    INFO:     '#3b82f6',
-  };
+  try {
+    const colorMap: Record<AlertType, string> = {
+      CRITICAL: '#ef4444',
+      WARNING:  '#f59e0b',
+      STABLE:   '#10b981',
+      INFO:     '#3b82f6',
+    };
 
-  if (type === 'CRITICAL') {
-    Vibration.vibrate([0, 500, 200, 500]); 
+    // Trigger haptic feedback for critical alerts
+    if (type === 'CRITICAL') {
+      Vibration.vibrate([0, 500, 200, 500]);
+    }
+
+    // Generate unique notification ID using timestamp + counter
+    notificationCounter = (notificationCounter + 1) % 10000;
+    const notificationId = `${Date.now()}-${notificationCounter}`;
+
+    const notificationConfig: any = {
+      id: notificationId,
+      title: title,
+      message: message,
+      channelId: 'iot-alerts',
+      color: colorMap[type],
+      largeIcon: 'ic_launcher',
+      smallIcon: 'ic_notification',
+      vibrate: type !== 'STABLE',
+      playSound: true,
+      soundName: 'default',
+      autoCancel: true,
+      invokeApp: true,
+      actions: ['Open'],
+      // Priority: 10 = max, 5 = high, 0 = default, -5 = low
+      priority: type === 'CRITICAL' ? 10 : type === 'WARNING' ? 5 : 0,
+      visibility: type === 'CRITICAL' ? 'public' : 'private',
+    };
+
+    // Add vibration pattern for Android
+    if (Platform.OS === 'android') {
+      notificationConfig.vibration = type === 'CRITICAL' ? 1000 : 300;
+    }
+
+    console.log(`[Notification] Triggering ${type} alert:`, title);
+    PushNotification.localNotification(notificationConfig);
+  } catch (error) {
+    console.error('[showLocalNotification] Error:', error);
   }
-
-  PushNotification.localNotification({
-    channelId: 'iot-alerts',
-    title,
-    message,
-    color: colorMap[type],
-    priority: type === 'CRITICAL' ? 'max' : type === 'WARNING' ? 'high' : 'default',
-    importance: type === 'CRITICAL' ? 'max' : type === 'WARNING' ? 'high' : 'default',
-    playSound: true,
-    soundName: 'default',
-    vibrate: type !== 'STABLE',
-    vibration: type === 'CRITICAL' ? 1000 : 300,
-    smallIcon: 'ic_notification',
-    largeIcon: '',
-  });
 };
 
 const useNotificationServiceNative = (
@@ -114,12 +168,24 @@ const useNotificationServiceNative = (
   const refresh = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await axios.get(`${apiBaseUrl}/api/notifications`);
+      
+      // Validate API URL
+      if (!apiBaseUrl || typeof apiBaseUrl !== 'string') {
+        throw new Error('Invalid API URL provided');
+      }
+      
+      const res = await axios.get(`${apiBaseUrl}/api/notifications`, {
+        timeout: 10000,
+      });
       const data: NotificationItem[] = Array.isArray(res.data) ? res.data : [];
       setNotifications(data);
       setError(null);
     } catch (err: any) {
-      setError(err.message ?? 'Failed to fetch notifications');
+      const errorMsg = err.message ?? 'Failed to fetch notifications';
+      setError(errorMsg);
+      if (DEBUG_NOTIFICATIONS) {
+        console.warn('[refresh] Error:', errorMsg);
+      }
     } finally {
       setLoading(false);
     }
@@ -131,21 +197,44 @@ const useNotificationServiceNative = (
     message: string,
     snapshot: SensorSnapshot
   ) => {
-
-    showLocalNotification(type, title, message);
-
     try {
-      await axios.post(`${apiBaseUrl}/api/notifications`, {
-        type,
-        title,
-        message,
-        sensorData: snapshot,
-        event: 'SENSOR_ALERT',
-        source: 'SENSOR',
-      });
-      await refresh();
-    } catch (err) {
-      console.error('[useNotificationService] save failed:', err);
+      // Validate inputs
+      if (!title || !message) {
+        console.warn('[triggerNotification] Missing title or message');
+        return;
+      }
+
+      // Show local notification on device
+      showLocalNotification(type, title, message);
+
+      // Save notification to backend
+      if (apiBaseUrl && typeof apiBaseUrl === 'string') {
+        try {
+          await axios.post(
+            `${apiBaseUrl}/api/notifications`,
+            {
+              type,
+              title,
+              message,
+              sensorData: snapshot,
+              event: 'SENSOR_ALERT',
+              source: 'SENSOR',
+            },
+            { timeout: 10000 }
+          );
+          
+          if (DEBUG_NOTIFICATIONS) {
+            console.log('[triggerNotification] Saved to backend:', { type, title });
+          }
+          
+          await refresh();
+        } catch (apiError: any) {
+          console.error('[triggerNotification] Backend save failed:', apiError.message);
+          // Continue - notification was still shown locally
+        }
+      }
+    } catch (err: any) {
+      console.error('[triggerNotification] Failed:', err?.message || err);
     }
   }, [apiBaseUrl, refresh]);
 
@@ -239,19 +328,35 @@ const useNotificationServiceNative = (
   // ── acknowledge ──────────────────────────────────────────────────────────
   const acknowledgeOne = useCallback(async (id: string) => {
     try {
-      await axios.patch(`${apiBaseUrl}/api/notifications/${id}/read`);
+      if (!apiBaseUrl || !id) {
+        throw new Error('Invalid parameters');
+      }
+      
+      await axios.patch(
+        `${apiBaseUrl}/api/notifications/${id}/read`,
+        {},
+        { timeout: 10000 }
+      );
       setNotifications(prev => prev.map(n => n._id === id ? { ...n, isRead: true } : n));
-    } catch (err) {
-      console.error('[acknowledgeOne] failed:', err);
+    } catch (err: any) {
+      console.error('[acknowledgeOne] failed:', err?.message || err);
     }
   }, [apiBaseUrl]);
 
   const acknowledgeAll = useCallback(async () => {
     try {
-      await axios.patch(`${apiBaseUrl}/api/notifications/read-all`);
+      if (!apiBaseUrl) {
+        throw new Error('Invalid API URL');
+      }
+      
+      await axios.patch(
+        `${apiBaseUrl}/api/notifications/read-all`,
+        {},
+        { timeout: 10000 }
+      );
       setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
-    } catch (err) {
-      console.error('[acknowledgeAll] failed:', err);
+    } catch (err: any) {
+      console.error('[acknowledgeAll] failed:', err?.message || err);
     }
   }, [apiBaseUrl]);
 
