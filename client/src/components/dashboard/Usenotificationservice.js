@@ -11,7 +11,7 @@ const THRESHOLDS = {
 
 let toastIdCounter = 0;
 
-const useNotificationService = (sensorData = null, pollingIntervalMs = 15000) => {
+const useNotificationService = (sensorData, pollingIntervalMs = 5000, isMonitoring = false) => {
   const [toasts, setToasts] = useState([]);          
   const [alerts, setAlerts] = useState([]);      
   const [unreadCount, setUnreadCount] = useState(0);
@@ -117,6 +117,10 @@ const useNotificationService = (sensorData = null, pollingIntervalMs = 15000) =>
 
   const evaluateSensor = useCallback((current) => {
     if (!current) return;
+    
+    // Only evaluate and trigger notifications if monitoring is active
+    if (!isMonitoring) return;
+    
     const prev = prevSensorRef.current;
 
     const moistureAvg = current.moistureavg ?? null;
@@ -243,7 +247,7 @@ const useNotificationService = (sensorData = null, pollingIntervalMs = 15000) =>
 
     // Store current sensor data for next comparison
     prevSensorRef.current = current;
-  }, [triggerNotification]);
+  }, [triggerNotification, isMonitoring]);
 
   // ── API SENSOR DATA POLLING ──────────────────────────────────────────────
   
