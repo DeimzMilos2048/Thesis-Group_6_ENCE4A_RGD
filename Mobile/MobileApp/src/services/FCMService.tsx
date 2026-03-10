@@ -86,7 +86,7 @@ class FCMService {
           const delay = this.retryDelay * Math.pow(2, this.retryCount - 1); // Exponential backoff
           console.log(`Retrying FCM token retrieval in ${delay}ms...`);
           
-          await new Promise(resolve => setTimeout(resolve, delay));
+          await new Promise<void>(resolve => setTimeout(() => resolve(), delay));
           return this.getTokenWithRetry();
         }
       }
@@ -120,8 +120,8 @@ class FCMService {
   async isMessagingAvailable(): Promise<boolean> {
     try {
       // Try a lightweight check
-      const isAvailable = messaging().isMessagingEnabled !== undefined;
-      return isAvailable;
+      const messagingInstance = messaging();
+      return messagingInstance !== null && messagingInstance !== undefined;
     } catch {
       return false;
     }
@@ -160,6 +160,15 @@ class FCMService {
       const unsubscribeBackground = messaging().setBackgroundMessageHandler(async remoteMessage => {
         try {
           console.log('FCM message received in background:', remoteMessage);
+          
+          // Handle drying notifications in background
+          if (remoteMessage.data?.type === 'DRYING_STARTED' || remoteMessage.data?.type === 'DRYING_COMPLETED') {
+            await this.sendLocalNotification({
+              title: remoteMessage.notification?.title || 'Drying Update',
+              body: remoteMessage.notification?.body || 'Drying status updated',
+              data: remoteMessage.data
+            });
+          }
         } catch (error) {
           console.error('Error handling background message:', error);
         }
@@ -183,10 +192,15 @@ class FCMService {
       messaging().getInitialNotification().then(remoteMessage => {
         try {
           console.log('Initial notification:', remoteMessage);
+          
+          if (remoteMessage && (remoteMessage.data?.type === 'DRYING_STARTED' || remoteMessage.data?.type === 'DRYING_COMPLETED')) {
+            // Navigate to dashboard if drying notification
+            console.log('App opened from drying notification');
+          }
         } catch (error) {
           console.error('Error getting initial notification:', error);
         }
-      }).catch(error => {
+      }).catch((error: any) => {
         console.error('Error in getInitialNotification:', error);
       });
 
@@ -283,6 +297,52 @@ class FCMService {
       }
     } catch (error) {
       console.error('Error in unregisterToken:', error);
+    }
+  }
+
+  // Send local notification (for background/foreground notifications)
+  async sendLocalNotification(notification: {
+    title: string;
+    body: string;
+    data?: any;
+  }): Promise<void> {
+    try {
+      // Import PushNotification dynamically to avoid issues
+      const PushNotification = require('react-native-push-notification').default;
+      
+      // Configure channel if not already configured
+      PushNotification.createChannel(
+        {
+          channelId: 'drying-channel',
+          channelName: 'Drying Notifications',
+          channelDescription: 'Notifications for drying process updates',
+          playSound: true,
+          soundName: 'default',
+          importance: 'high',
+          vibrate: true,
+        },
+        (created: boolean) => {
+          console.log('Channel created:', created);
+        }
+      );
+      
+      PushNotification.localNotification({
+        channelId: 'drying-channel',
+        title: notification.title,
+        message: notification.body,
+        userInfo: notification.data || {},
+        playSound: true,
+        soundName: 'default',
+        importance: 'high',
+        vibrate: true,
+        actions: ['View'],
+      });
+      
+      console.log('Local notification sent:', notification.title);
+    } catch (error) {
+      console.error('Error sending local notification:', error);
+      // Fallback to Alert if push notification fails
+      Alert.alert(notification.title, notification.body);
     }
   }
 

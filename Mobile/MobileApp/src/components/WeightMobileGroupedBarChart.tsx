@@ -70,8 +70,7 @@ const WeightMobileGroupedBarChart: React.FC<WeightMobileGroupedBarChartProps> = 
     setStatsData(stats);
   }, [savedWeights, savedAfterWeights]);
 
-  const maxValue = Math.max(...beforeDryingData, ...afterDryingData, 5);
-
+  // Hidden anchor dataset forces y-axis max to 1.5
   const chartData_formatted = {
     labels: ['T1', 'T2', 'T3', 'T4', 'T5', 'T6'],
     datasets: [
@@ -87,6 +86,12 @@ const WeightMobileGroupedBarChart: React.FC<WeightMobileGroupedBarChartProps> = 
         color: () => '#ef4444',
         barPercentage: 0.85,
       },
+      {
+        // Transparent anchor dataset to lock y-axis max at 1.5kg
+        data: [1.5, 1.5, 1.5, 1.5, 1.5, 1.5],
+        color: () => 'rgba(0, 0, 0, 0)',
+        barPercentage: 0,
+      },
     ],
     barRadius: 6,
   };
@@ -98,9 +103,7 @@ const WeightMobileGroupedBarChart: React.FC<WeightMobileGroupedBarChartProps> = 
     >
       <View style={styles.container}>
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>
-            Before & After Weight Analysis
-          </Text>
+          <Text style={styles.headerTitle}>Weight</Text>
           <Text style={styles.headerSubtitle}>
             Weight comparison (kg) for each tray
           </Text>
@@ -110,11 +113,10 @@ const WeightMobileGroupedBarChart: React.FC<WeightMobileGroupedBarChartProps> = 
           <View style={styles.chartContainer}>
             <BarChart
               data={chartData_formatted}
-              width={screenWidth - 40}
+              width={screenWidth - 72}
               height={280}
               yAxisSuffix="kg"
               yAxisLabel=""
-              yAxisInterval={1}
               chartConfig={{
                 backgroundGradientFrom: '#ffffff',
                 backgroundGradientTo: '#ffffff',
@@ -126,16 +128,18 @@ const WeightMobileGroupedBarChart: React.FC<WeightMobileGroupedBarChartProps> = 
                   strokeDasharray: '3',
                   stroke: '#e5e7eb',
                 },
-                decimalPlaces: 1,
+                decimalPlaces: 2,
               }}
               style={{
                 borderRadius: 12,
                 marginVertical: 10,
+                alignSelf: 'center',
               }}
               fromZero
               withInnerLines
               withVerticalLabels
               withHorizontalLabels
+              segments={6}
             />
           </View>
         ) : (
@@ -167,15 +171,11 @@ const WeightMobileGroupedBarChart: React.FC<WeightMobileGroupedBarChartProps> = 
         {/* Legend */}
         <View style={styles.legendContainer}>
           <View style={styles.legendItem}>
-            <View
-              style={[styles.legendColor, { backgroundColor: '#3b82f6' }]}
-            />
+            <View style={[styles.legendColor, { backgroundColor: '#3b82f6' }]} />
             <Text style={styles.legendText}>Before Drying</Text>
           </View>
           <View style={styles.legendItem}>
-            <View
-              style={[styles.legendColor, { backgroundColor: '#ef4444' }]}
-            />
+            <View style={[styles.legendColor, { backgroundColor: '#ef4444' }]} />
             <Text style={styles.legendText}>After Drying</Text>
           </View>
         </View>
@@ -191,11 +191,11 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    padding: 20,
+    padding: 16,
     backgroundColor: '#f9fafb',
   },
   header: {
-    marginBottom: 20,
+    marginBottom: 16,
   },
   headerTitle: {
     fontSize: 18,
@@ -210,8 +210,10 @@ const styles = StyleSheet.create({
   chartContainer: {
     backgroundColor: '#ffffff',
     borderRadius: 12,
-    padding: 16,
-    marginBottom: 20,
+    paddingVertical: 16,
+    paddingHorizontal: 8,
+    marginBottom: 16,
+    overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -224,7 +226,7 @@ const styles = StyleSheet.create({
     padding: 40,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 20,
+    marginBottom: 16,
     minHeight: 250,
   },
   noDataText: {
@@ -236,7 +238,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     borderRadius: 12,
     padding: 16,
-    marginBottom: 16,
+    marginBottom: 12,
   },
   statsTitle: {
     fontSize: 15,
@@ -248,29 +250,31 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
+    gap: 8,
   },
   statCard: {
-    width: '48%',
+    width: '31%',
     backgroundColor: '#f3f4f6',
     borderRadius: 8,
-    padding: 12,
-    marginBottom: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 6,
     alignItems: 'center',
   },
   statLabel: {
-    fontSize: 12,
+    fontSize: 11,
     color: '#6b7280',
     marginBottom: 4,
   },
   statValue: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
     color: '#ef4444',
     marginBottom: 2,
   },
   statPercent: {
-    fontSize: 11,
+    fontSize: 10,
     color: '#9ca3af',
+    textAlign: 'center',
   },
   legendContainer: {
     backgroundColor: '#ffffff',

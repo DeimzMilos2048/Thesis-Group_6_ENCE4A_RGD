@@ -30,7 +30,7 @@ const sendNotification = async (userId, notificationData) => {
       message,
       sensorData,
       thresholds,
-      system: "Rice Grain Dryer",
+      system: "MALA",
       isRead: false
     });
 
@@ -93,7 +93,7 @@ const sendNotificationToMultiple = async (userIds, notificationData) => {
       message,
       sensorData,
       thresholds,
-      system: "Rice Grain Dryer",
+      system: "MALA",
       isRead: false
     });
 
@@ -158,12 +158,12 @@ const sendDryingNotification = async (dryingData) => {
 
     let title, message;
     if (eventType === 'started') {
-      title = '🌾 Drying Process Started';
+      title = 'Drying Process Started';
       message = `Target: ${temperature}°C, Moisture: ${moisture}%`;
     } else {
       const hours = Math.floor(dryingSeconds / 3600);
       const minutes = Math.floor((dryingSeconds % 3600) / 60);
-      title = '✅ Drying Process Completed';
+      title = 'Drying Process Completed';
       message = `Duration: ${hours}h ${minutes}m`;
     }
 
@@ -179,7 +179,8 @@ const sendDryingNotification = async (dryingData) => {
 
     // Save notification to database
     const dbNotification = new Notification({
-      type: `drying_${eventType}`,
+      type: "STABLE",
+      event: eventType === 'started' ? "DRYING_STARTED" : "DRYING_COMPLETED",
       title,
       message,
       sensorData: {
@@ -187,7 +188,7 @@ const sendDryingNotification = async (dryingData) => {
         moisture,
         dryingSeconds
       },
-      system: "Rice Grain Dryer",
+      system: "MALA",
       isRead: false
     });
 
