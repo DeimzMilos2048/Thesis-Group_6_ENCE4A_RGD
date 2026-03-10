@@ -1,4 +1,5 @@
 import express from "express";
+import axios from "axios";
 import SystemConfig from "../models/systemConfigModel.js";
 import DryingSession from "../models/dryingSessionModel.js";
 import SensorData from "../models/sensorDataModel.js";
@@ -152,6 +153,17 @@ router.post("/dryer/start", async (req, res) => {
 
     await config.save();
 
+    // Send command to ESP32 server
+try {
+  await axios.post("http://10.42.0.1:5001/api/system/start", {
+    temperature: config.selectedTemperature,
+    moisture: config.selectedMoisture,
+    tray: config.selectedTray
+  });
+} catch (error) {
+  console.error("ESP server error:", error.message);
+}
+
     // Emit socket event for real-time sync across clients
     const io = req.app.get("io");
     if (io) {
@@ -240,6 +252,13 @@ router.post("/dryer/stop", async (req, res) => {
     config.dryingStartTime = null;
 
     await config.save();
+
+    // Send stop command to ESP32 server
+try {
+  await axios.post("http://10.42.0.1:5001/api/system/stop");
+} catch (error) {
+  console.error("ESP server error:", error.message);
+}
 
     // Emit socket event for real-time sync
     const io = req.app.get("io");
