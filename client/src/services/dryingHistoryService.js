@@ -12,6 +12,7 @@ let monitoringState = {
   isActive: false,
   monitoringInterval: null,
   targetMoisture: 14,
+  selectedTray: null, // Add selected tray to monitoring state
   onMoistureUpdate: null,
   onTargetReached: null,
 };
@@ -19,18 +20,20 @@ let monitoringState = {
 /**
  * Start monitoring moisture levels during drying
  * @param {Function} onMoistureUpdate - Callback with (moistureLevel, isTargetReached)
+ * @param {number} selectedTray - The tray being monitored (1-6)
  * @returns {void}
  */
-export const startMoistureMonitoringService = (onMoistureUpdate) => {
+export const startMoistureMonitoringService = (onMoistureUpdate, selectedTray = null) => {
   if (monitoringState.isActive) {
     console.warn('Moisture monitoring already active');
     return;
   }
 
   monitoringState.isActive = true;
+  monitoringState.selectedTray = selectedTray;
   monitoringState.onMoistureUpdate = onMoistureUpdate;
 
-  console.log('Started moisture monitoring service');
+  console.log(`Started moisture monitoring service for ${selectedTray ? `Tray ${selectedTray}` : 'average moisture'}`);
 
   const checkMoisture = async () => {
     try {
@@ -52,17 +55,29 @@ export const startMoistureMonitoringService = (onMoistureUpdate) => {
       const result = await response.json();
       const sensorData = Array.isArray(result.data) ? result.data[0] : result.data;
 
-      if (sensorData && sensorData.moistureavg !== undefined) {
-        const avgMoisture = parseFloat(sensorData.moistureavg);
+      let moistureLevel;
+      if (sensorData) {
+        if (monitoringState.selectedTray && sensorData[`moisture${monitoringState.selectedTray}`] !== undefined) {
+          // Use selected tray's moisture
+          moistureLevel = parseFloat(sensorData[`moisture${monitoringState.selectedTray}`]);
+          console.log(`Monitoring Tray ${monitoringState.selectedTray} moisture: ${moistureLevel.toFixed(1)}%`);
+        } else if (sensorData.moistureavg !== undefined) {
+          // Fallback to average moisture
+          moistureLevel = parseFloat(sensorData.moistureavg);
+          console.log(`Monitoring average moisture: ${moistureLevel.toFixed(1)}%`);
+        } else {
+          console.warn('No moisture data available');
+          return;
+        }
 
         // Notify caller of current moisture
         if (monitoringState.onMoistureUpdate) {
-          monitoringState.onMoistureUpdate(avgMoisture);
+          monitoringState.onMoistureUpdate(moistureLevel);
         }
 
         // Check if target reached
-        if (avgMoisture <= monitoringState.targetMoisture) {
-          console.log(`Target moisture (${monitoringState.targetMoisture}%) reached!`);
+        if (moistureLevel <= monitoringState.targetMoisture) {
+          console.log(`Target moisture (${monitoringState.targetMoisture}%) reached! Final: ${moistureLevel.toFixed(1)}%`);
           stopMoistureMonitoringService();
 
           // Auto-stop drying
@@ -72,18 +87,19 @@ export const startMoistureMonitoringService = (onMoistureUpdate) => {
               console.log('✓ Drying automatically stopped');
               if (monitoringState.onTargetReached) {
                 monitoringState.onTargetReached({
-                  finalMoisture: avgMoisture,
+                  finalMoisture: moistureLevel,
+                  tray: monitoringState.selectedTray,
                   timestamp: new Date().toISOString()
                 });
               }
             }
-          } catch (err) {
-            console.error('Error auto-stopping drying:', err);
+          } catch (stopError) {
+            console.error('Error auto-stopping drying:', stopError);
           }
         }
       }
     } catch (error) {
-      console.error('Moisture monitoring error:', error);
+      console.error('Error checking moisture:', error);
     }
   };
 

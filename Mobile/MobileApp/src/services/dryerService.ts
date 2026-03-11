@@ -1,8 +1,8 @@
 import axios from 'axios';
 
 const API_URL = __DEV__ 
-  ? 'http://192.168.86.181:5001'
-  : 'https://mala-backend-q03k.onrender.com';
+  ? 'http://192.168.0.109:5001'
+  : 'https://objurgatory-darrell-nonconversantly.ngrok-free.dev';
 
 /**
  * Mobile Dryer Service - All API calls to backend for drying status

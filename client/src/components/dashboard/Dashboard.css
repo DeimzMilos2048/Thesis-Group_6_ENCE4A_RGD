@@ -604,7 +604,10 @@
   background-color: #f0fdf4;
   border-color: #10b981;
   color: #059669;
-  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
+  border-width: 3px;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.3);
+  transform: scale(1.05);
+  transition: all 0.2s ease;
 }
 
 /* Frozen tray button state */

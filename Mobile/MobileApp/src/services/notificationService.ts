@@ -7,8 +7,8 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const API_URL = __DEV__ 
-  ? 'http://192.168.86.181:5001'
-  : 'https://mala-backend-q03k.onrender.com';
+  ? 'http://192.168.0.109:5001'
+  : 'https://objurgatory-darrell-nonconversantly.ngrok-free.dev';
 
 const NOTIFICATIONS_STORAGE_KEY = 'rice_dryer_notifications';
 const FCM_TOKEN_STORAGE_KEY = 'rice_dryer_fcm_token';

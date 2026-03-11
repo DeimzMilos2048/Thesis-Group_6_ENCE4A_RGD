@@ -12,14 +12,24 @@ export const dryerService = {
    * Start drying process
    * @param {number} temperature - Target temperature (40-45°C)
    * @param {number} moisture - Target moisture (13-14%)
+   * @param {number} tray - Selected tray number (1-6)
+   * @param {number} currentMoisture - Current moisture of selected tray
    * @returns {Promise} Response with startTime and status
    */
-  startDrying: async (temperature, moisture) => {
+  startDrying: async (temperature, moisture, tray = null, currentMoisture = null) => {
     try {
-      const response = await axios.post(`${API_URL}/api/system/dryer/start`, {
+      const payload = {
         temperature,
         moisture,
-      });
+      };
+      
+      // Add tray-specific data if provided
+      if (tray && currentMoisture !== null) {
+        payload.tray = tray;
+        payload.currentMoisture = currentMoisture;
+      }
+      
+      const response = await axios.post(`${API_URL}/api/system/dryer/start`, payload);
       return response.data;
     } catch (error) {
       console.error('Error starting drying:', error);

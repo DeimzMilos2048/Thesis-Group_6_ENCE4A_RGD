@@ -94,6 +94,18 @@ export default function RiceDryingDashboard({ view }) {
   const handleLogoutConfirm = () => { authService.logout(); navigate('/login'); };
 
   const handleApply = async () => {
+    // Check if a tray is selected for weighing
+    if (!currentTray) {
+      showToast('error', 'Please select a tray for weighing before starting drying.');
+      return;
+    }
+    
+    // Check if before weight is saved for the selected tray
+    if (!savedWeights[currentTray]?.frozen) {
+      showToast('error', `Please save the before weight for Tray ${currentTray} before starting drying.`);
+      return;
+    }
+    
     if (!selectedTemp && !selectedMoisture) { showToast('error', 'Please select a target temperature and moisture before starting.'); return; }
     if (!selectedTemp) { showToast('error', 'Please select a target temperature (40–45°C) before starting.'); return; }
     if (!selectedMoisture) { showToast('error', 'Please select a target moisture (13% or 14%) before starting.'); return; }
@@ -101,9 +113,14 @@ export default function RiceDryingDashboard({ view }) {
     try {
       setLoading(true);
       setHasDryingStarted(true); // Mark that drying has started
-      const response = await dryerService.startDrying(selectedTemp, selectedMoisture);
+      
+      // Get the current moisture of the selected tray
+      const selectedTrayMoisture = sensorData[`moisture${currentTray}`] || 0;
+      console.log(`Starting drying for Tray ${currentTray} with current moisture: ${selectedTrayMoisture.toFixed(1)}%`);
+      
+      const response = await dryerService.startDrying(selectedTemp, selectedMoisture, currentTray, selectedTrayMoisture);
       if (response.success) {
-        showToast('success', `Drying started — Target: ${selectedTemp}°C · Moisture: ${selectedMoisture}%`);
+        showToast('success', `Drying started — Tray ${currentTray} · Target: ${selectedTemp}°C · Current: ${selectedTrayMoisture.toFixed(1)}% → Target: ${selectedMoisture}%`);
         setIsMonitoring(true);
         setTabNotifications(prev => ({
           ...prev,
@@ -111,9 +128,9 @@ export default function RiceDryingDashboard({ view }) {
           history: true,
         }));
         startMoistureMonitoringService((currentMoisture) => {
-          console.log(`Current moisture: ${currentMoisture.toFixed(2)}%`);
-        });
-        console.log('✓ Moisture monitoring activated');
+          console.log(`Current moisture for Tray ${currentTray}: ${currentMoisture.toFixed(2)}%`);
+        }, currentTray); // Pass selected tray to monitoring service
+        console.log('✓ Moisture monitoring activated for selected tray');
       }
     } catch (error) {
       console.error('Error starting drying:', error);
@@ -323,28 +340,30 @@ export default function RiceDryingDashboard({ view }) {
                       {[1, 2, 3, 4, 5, 6].map(i => {
                         const trayMoisture = sensorData[`moisture${i}`] || 0;
                         const isAtThreshold = trayMoisture <= 14 && trayMoisture > 0;
-                        const isSelected = currentTray === i;
+                        const isSelected = currentTray === i && savedWeights[i]?.frozen;
                         return (
                           <div key={`moisture-${i}`} style={{ 
                             textAlign: 'center', 
                             display: 'flex', 
                             flexDirection: 'column',
-                            backgroundColor: isSelected ? '#dbeafe' : isAtThreshold ? '#dcfce7' : 'transparent',
+                            backgroundColor: isSelected ? '#f0fdf4' : isAtThreshold ? '#dcfce7' : 'transparent',
                             borderRadius: '6px',
                             padding: '4px',
-                            border: isSelected ? '2px solid #3b82f6' : isAtThreshold ? '2px solid #16a34a' : '1px solid #e5e7eb',
-                            boxShadow: isSelected ? '0 0 0 3px rgba(59, 130, 246, 0.2)' : 'none'
+                            border: isSelected ? '3px solid #10b981' : (isAtThreshold ? '2px solid #16a34a' : '1px solid #d1d5db'),
+                            boxShadow: isSelected ? '0 0 0 2px rgba(16, 185, 129, 0.3)' : 'none',
+                            transform: isSelected ? 'scale(1.05)' : 'scale(1)',
+                            transition: 'all 0.2s ease'
                           }}>
                             <div className="sensor-sublabel" style={{ 
-                              color: isSelected ? '#1d4ed8' : isAtThreshold ? '#16a34a' : '#9ca3af', 
-                              fontWeight: isSelected || isAtThreshold ? '700' : '400' 
+                              color: isSelected ? '#059669' : (isAtThreshold ? '#16a34a' : '#9ca3af'), 
+                              fontWeight: isSelected ? '700' : (isAtThreshold ? '700' : '400') 
                             }}>
                               TRAY {i} {isSelected && '👁'} {isAtThreshold && '✓'}
                             </div>
                             <div className="sensor-value-sm" style={{ 
-                              color: isSelected ? '#1d4ed8' : isAtThreshold ? '#16a34a' : undefined,
-                              fontSize: isSelected ? '20px' : '18px',
-                              fontWeight: isSelected ? '700' : '400'
+                              color: isSelected ? '#059669' : (isAtThreshold ? '#16a34a' : undefined),
+                              fontSize: '18px',
+                              fontWeight: '400'
                             }}>
                               {trayMoisture.toFixed(1)}%
                             </div>
@@ -353,7 +372,7 @@ export default function RiceDryingDashboard({ view }) {
                                 className="progress-fill" 
                                 style={{ 
                                   width: `${Math.min((trayMoisture / 14) * 100, 100)}%`,
-                                  backgroundColor: isSelected ? '#3b82f6' : isAtThreshold ? '#16a34a' : '#06b6d4'
+                                  backgroundColor: isSelected ? '#10b981' : (isAtThreshold ? '#16a34a' : '#06b6d4')
                                 }} 
                               />
                             </div>
@@ -362,8 +381,8 @@ export default function RiceDryingDashboard({ view }) {
                                 Ready
                               </div>
                             )}
-                            {isSelected && (
-                              <div style={{ fontSize: '9px', color: '#1d4ed8', fontWeight: '600', marginTop: '2px' }}>
+                            {isSelected && !isAtThreshold && (
+                              <div style={{ fontSize: '10px', color: '#059669', fontWeight: '600', marginTop: '2px' }}>
                                 Selected
                               </div>
                             )}
@@ -373,19 +392,16 @@ export default function RiceDryingDashboard({ view }) {
                     </div>
                     <div className="sensor-avg-row" style={{ marginTop: '10px' }}>
                       <span className="sensor-avg-label">
-                        {currentTray ? `Tray ${currentTray} Moisture` : 'Average Moisture'}
+                        Average Moisture
                       </span>
                       <div className="sensor-avg-value">
-                        {currentTray 
-                          ? `${(sensorData[`moisture${currentTray}`] || 0).toFixed(2)}%`
-                          : `${(sensorData.moistureavg || 0).toFixed(2)}%`
-                        }
+                        {(sensorData.moistureavg || 0).toFixed(2)}%
                       </div>
                       <div className="progress-bar">
                         <div 
                           className="progress-fill cyan" 
                           style={{ 
-                            width: `${Math.min(((currentTray ? (sensorData[`moisture${currentTray}`] || 0) : (sensorData.moistureavg || 0)) / 14) * 100, 100)}%` 
+                            width: `${Math.min(((sensorData.moistureavg || 0) / 14) * 100, 100)}%` 
                           }} 
                         />
                       </div>

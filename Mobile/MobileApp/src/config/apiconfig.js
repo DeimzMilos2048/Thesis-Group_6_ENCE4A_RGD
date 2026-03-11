@@ -1,7 +1,7 @@
 // API Configuration for React Native Mobile App
 
 // Development URL: Use the same IP as socket.io connections
-const DEV_API_URL = 'http://192.168.86.181:5001/api'; // <- change this ip
+const DEV_API_URL = 'http://192.168.0.109:5001/api'; // Raspberry Pi
 
 // Production URL (Render deployment with ngrok)
 const PROD_API_URL = 'https://objurgatory-darrell-nonconversantly.ngrok-free.dev/api';

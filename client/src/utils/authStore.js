@@ -1,10 +1,33 @@
 import { create } from "zustand";
 import api from "./axios";
 import { io } from "socket.io-client";
+import API_CONFIG from "../config/api.config";
 
-const SOCKET_URL = process.env.NODE_ENV === 'development'
-  ? 'http://192.168.86.181:5001'
-  : 'https://mala-backend-q03k.onrender.com';
+// Check if running on web (development/production) vs mobile/Raspberry Pi
+const isReactNative = typeof navigator !== 'undefined' && navigator.product === 'ReactNative';
+const isWebEnvironment = typeof window !== 'undefined' && window.location;
+const isMobileApp = isReactNative || (!isWebEnvironment && typeof navigator !== 'undefined');
+
+// Debug logging for mobile environment detection
+console.log('=== Mobile Debug Info ===');
+console.log('isReactNative:', isReactNative);
+console.log('isWebEnvironment:', isWebEnvironment);
+console.log('isMobileApp:', isMobileApp);
+console.log('navigator exists:', typeof navigator !== 'undefined');
+console.log('window exists:', typeof window !== 'undefined');
+console.log('navigator.product:', navigator?.product);
+console.log('========================');
+
+const getSocketURL = () => {
+  if (isWebEnvironment) {
+    return API_CONFIG.baseURLs[API_CONFIG.currentURLIndex];
+  } else {
+    console.log('Mobile environment detected, using Raspberry Pi URL');
+    return 'http://192.168.0.109:5001';
+  }
+};
+
+const SOCKET_URL = getSocketURL();
 
 // Shared socket instance
 let socket = null;

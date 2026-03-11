@@ -2,7 +2,6 @@ const getBaseURL = () => {
   const envUrl = process.env.REACT_APP_API_URL;
   const isProd = process.env.NODE_ENV === 'production';
 
-  // If explicitly provided, always use the env URL
   if (envUrl && envUrl.trim()) {
     if (!envUrl.trim().startsWith('http') && !envUrl.trim().startsWith('https')) {
       return [`https://${envUrl.trim()}`];
@@ -10,13 +9,22 @@ const getBaseURL = () => {
     return [envUrl.trim()];
   }
 
-  // In production without env var, use the ngrok URL for testing
-  if (isProd) {
-    return ['https://objurgatory-darrell-nonconversantly.ngrok-free.dev'];
-  }
+  const isReactNative = typeof navigator !== 'undefined' && navigator.product === 'ReactNative';
+  const isWebEnvironment = typeof window !== 'undefined' && window.location;
+  const isMobileApp = isReactNative || (!isWebEnvironment && typeof navigator !== 'undefined');
+  
+  if (isWebEnvironment && isMobileApp) {
 
-  // In development, try localhost first, then fallback to ngrok for testing
-  return ['http://localhost:5001', 'https://objurgatory-darrell-nonconversantly.ngrok-free.dev', 'http://localhost:5000', 'http://127.0.0.1:5001', 'http://127.0.0.1:5000'];
+    if (isProd) {
+      return ['https://objurgatory-darrell-nonconversantly.ngrok-free.dev'];
+    }
+    // For development, use the same Raspberry Pi URL as mobile to ensure socket communication works
+    return ['http://192.168.0.109:5001', 'https://objurgatory-darrell-nonconversantly.ngrok-free.dev', 'http://localhost:5001', 'http://localhost:5000', 'http://127.0.0.1:5001', 'http://127.0.0.1:5000'];
+  } else {
+
+    console.log('Mobile environment detected, using Raspberry Pi URL');
+    return ['http://192.168.0.109:5001', 'https://objurgatory-darrell-nonconversantly.ngrok-free.dev'];
+  }
 };
 
 const API_CONFIG = {

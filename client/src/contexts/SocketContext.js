@@ -1,6 +1,35 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import io from 'socket.io-client';
-import { SOCKET_URL } from '../config/apiConfig.js';
+import API_CONFIG from '../config/api.config.js';
+
+// Check if running on web (development/production) vs mobile/Raspberry Pi
+const isReactNative = typeof navigator !== 'undefined' && navigator.product === 'ReactNative';
+const isWebEnvironment = typeof window !== 'undefined' && window.location;
+const isMobileApp = isReactNative || (!isWebEnvironment && typeof navigator !== 'undefined');
+
+// Debug logging for mobile environment detection
+console.log('=== SocketContext Debug Info ===');
+console.log('isReactNative:', isReactNative);
+console.log('isWebEnvironment:', isWebEnvironment);
+console.log('isMobileApp:', isMobileApp);
+console.log('navigator exists:', typeof navigator !== 'undefined');
+console.log('window exists:', typeof window !== 'undefined');
+console.log('navigator.product:', navigator?.product);
+console.log('========================');
+
+// Use the same base URL as API for consistency
+const getSocketURL = () => {
+  if (isWebEnvironment) {
+    // Web environment - use same URL as API
+    return API_CONFIG.baseURLs[API_CONFIG.currentURLIndex];
+  } else {
+    // Mobile/React Native environment - connect to Raspberry Pi web server
+    console.log('Mobile environment detected, using Raspberry Pi URL');
+    return 'http://192.168.0.109:5001';
+  }
+};
+
+const SOCKET_URL = getSocketURL();
 
 const SocketContext = createContext();
 

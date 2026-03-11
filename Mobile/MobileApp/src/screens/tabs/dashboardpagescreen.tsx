@@ -68,8 +68,14 @@ const DashboardPageScreen: React.FC = () => {
   const [unreadCount, setUnreadCount] = useState(0);
 
   // Fetch unread count for badge
-  const getAPIBaseUrl = () =>
-    __DEV__ ? 'http://192.168.86.181:5001' : 'https://mala-backend-q03k.onrender.com';
+  const getAPIBaseUrl = () => {
+    // Try local Raspberry Pi first, then fallback to ngrok
+    const urls = [
+      'http://192.168.0.109:5001',
+      'https://objurgatory-darrell-nonconversantly.ngrok-free.dev'
+    ];
+    return urls[0]; // Will try first URL, fallback can be implemented if needed
+  };
 
   const fetchUnreadCount = async () => {
     try {
@@ -160,9 +166,16 @@ const DashboardPageScreen: React.FC = () => {
   };
 
   useEffect(() => {
-    const SOCKET_URL = __DEV__
-      ? 'http://192.168.86.181:5001'
-      : 'https://mala-backend-q03k.onrender.com';
+    const getSocketURL = () => {
+      // Try local Raspberry Pi first, then fallback to ngrok
+      const urls = [
+        'http://192.168.0.109:5001',
+        'https://objurgatory-darrell-nonconversantly.ngrok-free.dev'
+      ];
+      return urls[0]; // Will try first URL, fallback can be implemented if needed
+    };
+
+    const SOCKET_URL = getSocketURL();
 
     const socket = io(SOCKET_URL, {
       transports: ['websocket', 'polling'],
@@ -318,7 +331,7 @@ const DashboardPageScreen: React.FC = () => {
               </View>
               <View style={styles.averageMoistureTitle}>
                 <Text style={styles.label}>Average Moisture</Text>
-                <Text style={styles.averageMoistureValue}>{(sensorData.moistureavg || 0).toFixed(1)}%</Text>
+                <Text style={styles.averageMoistureValue}>{(sensorData.moistureavg || 0).toFixed(2)}%</Text>
               </View>
             </View>
             <View style={styles.averageMoistureFooter}>

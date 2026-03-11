@@ -6,13 +6,14 @@ const getBaseURL = () => {
     // For development on physical device or emulator
     // Use the same URL as socket.io to maintain consistency
     return [
-      'http://192.168.86.181:5001',      
-      'http://10.0.2.2:5001',           
-      'http://localhost:5001',          
+      'http://192.168.0.109:5001',      // Raspberry Pi
+      'https://objurgatory-darrell-nonconversantly.ngrok-free.dev', // Fallback ngrok
+      'http://10.0.2.2:5001',           // Android emulator
+      'http://localhost:5001',          // Local development
       'http://127.0.0.1:5001',          
     ];
   } else {
-    return ['https://mala-backend-q03k.onrender.com'];
+    return ['https://objurgatory-darrell-nonconversantly.ngrok-free.dev'];
   }
 };
 
