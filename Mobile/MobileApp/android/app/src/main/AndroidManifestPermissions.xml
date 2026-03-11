@@ -34,23 +34,14 @@
       </intent-filter>
     </receiver>
 
-    <!-- Notification Service (required for react-native-push-notification) -->
+    <!-- Firebase Messaging Service - Required for FCM -->
     <service
-      android:name="com.dieam.reactnativepushnotification.modules.RNPushNotificationListenerService"
+      android:name="com.google.firebase.messaging.FirebaseMessagingService"
       android:exported="false">
       <intent-filter>
         <action android:name="com.google.firebase.MESSAGING_EVENT" />
       </intent-filter>
     </service>
-
-    <!-- Boot Complete Receiver -->
-    <receiver
-      android:name="com.dieam.reactnativepushnotification.modules.RNPushNotificationBootEventReceiver"
-      android:exported="true">
-      <intent-filter>
-        <action android:name="android.intent.action.BOOT_COMPLETED" />
-      </intent-filter>
-    </receiver>
 
   </application>
 

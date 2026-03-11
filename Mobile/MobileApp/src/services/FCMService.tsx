@@ -307,38 +307,17 @@ class FCMService {
     data?: any;
   }): Promise<void> {
     try {
-      // Import PushNotification dynamically to avoid issues
-      const PushNotification = require('react-native-push-notification').default;
-      
-      // Configure channel if not already configured
-      PushNotification.createChannel(
-        {
-          channelId: 'drying-channel',
-          channelName: 'Drying Notifications',
-          channelDescription: 'Notifications for drying process updates',
-          playSound: true,
-          soundName: 'default',
-          importance: 'high',
-          vibrate: true,
-        },
-        (created: boolean) => {
-          console.log('Channel created:', created);
-        }
+      // Use Alert as fallback since we're removing react-native-push-notification
+      Alert.alert(
+        notification.title,
+        notification.body,
+        [
+          { text: 'OK', style: 'default' }
+        ],
+        { cancelable: true }
       );
       
-      PushNotification.localNotification({
-        channelId: 'drying-channel',
-        title: notification.title,
-        message: notification.body,
-        userInfo: notification.data || {},
-        playSound: true,
-        soundName: 'default',
-        importance: 'high',
-        vibrate: true,
-        actions: ['View'],
-      });
-      
-      console.log('Local notification sent:', notification.title);
+      console.log('Local notification sent via Alert:', notification.title);
     } catch (error) {
       console.error('Error sending local notification:', error);
       // Fallback to Alert if push notification fails

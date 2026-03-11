@@ -12,7 +12,7 @@ import sensorRoutes from "./routes/sensorRoutes.js";
 import connectDB from "./config/db.js";
 import { initializeSocket, startSensorPolling } from "./socketHandler.js";
 import SensorData from "./models/sensorDataModel.js";
-import { checkSensorThresholds } from "./utils/thresholdChecker.js"; // Add this utility
+import { checkSensorThresholds } from "./utils/thresholdChecker.js";
 import createDefaultAdmin from "./scripts/createDefaultAdmin.js";
 import systemRoutes from "./routes/systemRoutes.js";
 
@@ -28,7 +28,7 @@ const io = new SocketIOServer(server, {
     allowEIO3: true 
 });
 
-const PORT = process.env.PORT || 5002;
+const PORT = process.env.PORT || 5001;
 
 connectDB();
 createDefaultAdmin();
@@ -39,9 +39,11 @@ const allowedOrigins = [
   'http://localhost:3000',
   'http://192.168.86.181:3000',
   'http://10.42.0.1:3000',
-  'http://localhost:3001', // Added new URL
-  'http://192.168.86.181:3001', // Added new URL
-  'http://10.42.0.1:3001', // Added new URL
+  'http://192.168.86.181:3000',
+  'http://localhost:3001', 
+  'http://192.168.86.181:3001', 
+  'http://10.42.0.1:3001', 
+  'http://192.168.86.181:3001',
 ];
   
 if (process.env.CLIENT_ORIGIN) {

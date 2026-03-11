@@ -1,5 +1,4 @@
-import { Platform, PermissionsAndroid, Linking } from 'react-native';
-import PushNotification from 'react-native-push-notification';
+import { Platform, PermissionsAndroid, Linking, Alert } from 'react-native';
 
 /**
  * Notification Permission Manager
@@ -108,16 +107,14 @@ export const NotificationPermissionManager = {
  */
 export const sendTestNotification = () => {
   console.log('[TestNotification] Sending test notification');
-  PushNotification.localNotification({
-    id: 'test-notification',
-    title: 'Test Notification',
-    message: 'This is a test notification from the Dryer System',
-    channelId: 'iot-alerts',
-    color: '#10b981',
-    vibrate: true,
-    playSound: true,
-    soundName: 'default',
-    autoCancel: true,
-    invokeApp: true,
-  });
+  
+  // Use Alert as fallback since we're removing react-native-push-notification
+  Alert.alert(
+    'Test Notification',
+    'This is a test notification from the Dryer System',
+    [
+      { text: 'OK', style: 'default' }
+    ],
+    { cancelable: true }
+  );
 };

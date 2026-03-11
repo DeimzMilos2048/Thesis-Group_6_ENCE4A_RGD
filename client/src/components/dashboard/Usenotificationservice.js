@@ -11,13 +11,14 @@ const THRESHOLDS = {
 
 let toastIdCounter = 0;
 
-const useNotificationService = (sensorData, pollingIntervalMs = 5000, isMonitoring = false) => {
+const useNotificationService = (sensorData, pollingIntervalMs = 5000, isMonitoring = false, isDryingActive = false) => {
   const [toasts, setToasts] = useState([]);          
   const [alerts, setAlerts] = useState([]);      
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [apiSensorData, setApiSensorData] = useState(null);
+  const [hasReachedTarget, setHasReachedTarget] = useState(false);
 
   const prevSensorRef = useRef(null);
   const pollingRef = useRef(null);
@@ -118,8 +119,8 @@ const useNotificationService = (sensorData, pollingIntervalMs = 5000, isMonitori
   const evaluateSensor = useCallback((current) => {
     if (!current) return;
     
-    // Only evaluate and trigger notifications if monitoring is active
-    if (!isMonitoring) return;
+    // Only evaluate and trigger notifications if drying is active AND monitoring is enabled
+    if (!isMonitoring || !isDryingActive) return;
     
     const prev = prevSensorRef.current;
 
@@ -131,6 +132,20 @@ const useNotificationService = (sensorData, pollingIntervalMs = 5000, isMonitori
     const prevMoistureAvg = prev?.moistureavg ?? null;
     const prevTemp        = prev?.temperature  ?? null;
     const prevHumidity    = prev?.humidity     ?? null;
+
+    // Check if any tray has reached 14% - if so, stop further notifications
+    const anyTrayReachedTarget = [1, 2, 3, 4, 5, 6].some(trayNum => {
+      const trayMoisture = current[`moisture${trayNum}`] ?? null;
+      return trayMoisture !== null && trayMoisture <= 14 && trayMoisture > 0;
+    });
+
+    // Update hasReachedTarget state
+    if (anyTrayReachedTarget && !hasReachedTarget) {
+      setHasReachedTarget(true);
+    }
+
+    // Stop notifications if target has been reached
+    if (hasReachedTarget) return;
 
     // ── INDIVIDUAL TRAY MOISTURE THRESHOLDS (14% threshold) ──
     [1, 2, 3, 4, 5, 6].forEach(trayNum => {
@@ -284,6 +299,13 @@ const useNotificationService = (sensorData, pollingIntervalMs = 5000, isMonitori
     };
   }, [fetchSensorData]);
 
+  // Reset target state when drying stops
+  useEffect(() => {
+    if (!isDryingActive) {
+      setHasReachedTarget(false);
+    }
+  }, [isDryingActive]);
+
   // ── watch sensor data changes (both prop and API) ──────────────────────────
   
   useEffect(() => {
@@ -292,7 +314,7 @@ const useNotificationService = (sensorData, pollingIntervalMs = 5000, isMonitori
     if (currentSensorData) {
       evaluateSensor(currentSensorData);
     }
-  }, [sensorData, apiSensorData, evaluateSensor]);
+  }, [sensorData, apiSensorData, evaluateSensor, isDryingActive]);
 
   // ── poll backend for new notifications ────────────────────────────────────
 

@@ -10,19 +10,19 @@ const getBaseURL = () => {
     return [envUrl.trim()];
   }
 
-  // In production without env var, use a secure default backend URL
+  // In production without env var, use the ngrok URL for testing
   if (isProd) {
-    return ['https://mala-luin.onrender.com'];
+    return ['https://objurgatory-darrell-nonconversantly.ngrok-free.dev'];
   }
 
-  // In development, try localhost first
-  return ['http://localhost:5001', 'http://localhost:5000', 'http://127.0.0.1:5001', 'http://127.0.0.1:5000'];
+  // In development, try localhost first, then fallback to ngrok for testing
+  return ['http://localhost:5001', 'https://objurgatory-darrell-nonconversantly.ngrok-free.dev', 'http://localhost:5000', 'http://127.0.0.1:5001', 'http://127.0.0.1:5000'];
 };
 
 const API_CONFIG = {
   baseURLs: getBaseURL(),
   currentURLIndex: 0,
-  timeout: 5000, // Reduced timeout for faster fallback
+  timeout: 5000, 
   headers: {
     'Content-Type': 'application/json'
   }

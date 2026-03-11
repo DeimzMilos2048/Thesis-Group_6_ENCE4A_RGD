@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Platform, Vibration } from 'react-native';
-import PushNotification from 'react-native-push-notification';
+import { Platform, Vibration, Alert } from 'react-native';
+import messaging from '@react-native-firebase/messaging';
 import axios from 'axios';
 
 // Debug flag for troubleshooting
@@ -49,103 +49,78 @@ interface UseNotificationServiceReturn {
   acknowledgeAll: () => Promise<void>;
 }
 
-export const configurePushNotifications = () => {
+export const configurePushNotifications = async () => {
   try {
-    // Configure push notification handler
-    PushNotification.configure({
-      onNotification: (notification) => {
-        console.log('[PushNotification] Notification received:', notification);
-      },
-      onRegistrationError: (err) => {
-        console.error('[PushNotification] Registration Error:', err);
-      },
-      // Android & iOS permissions
-      permissions: {
-        alert: true,
-        badge: true,
-        sound: true,
-      },
-      // iOS: Pop the notification when it arrives
-      popInitialNotification: true,
-      // Request permissions on iOS
-      requestPermissions: true,
+    console.log('[FirebaseMessaging] Setting up Firebase messaging...');
+    
+    // Request permission for iOS
+    if (Platform.OS === 'ios') {
+      const authStatus = await messaging().requestPermission();
+      const enabled = 
+        authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
+        authStatus === messaging.AuthorizationStatus.PROVISIONAL;
+      
+      if (enabled) {
+        console.log('[FirebaseMessaging] iOS permission granted');
+      } else {
+        console.warn('[FirebaseMessaging] iOS permission denied');
+      }
+    }
+
+    // Get FCM token
+    const token = await messaging().getToken();
+    if (token) {
+      console.log('[FirebaseMessaging] FCM Token obtained:', token.substring(0, 10) + '...');
+    }
+
+    // Set up message handlers
+    messaging().onMessage(async remoteMessage => {
+      console.log('[FirebaseMessaging] Foreground message received:', remoteMessage);
     });
 
-    console.log('[PushNotification] Configuration successful');
+    messaging().onNotificationOpenedApp(remoteMessage => {
+      console.log('[FirebaseMessaging] Notification opened app:', remoteMessage);
+    });
 
-    // Create notification channel for Android (required for Android 8.0+)
-    if (Platform.OS === 'android') {
-      PushNotification.createChannel(
-        {
-          channelId: 'iot-alerts',
-          channelName: 'IoT Sensor Alerts',
-          channelDescription: 'Rice Dryer sensor threshold alerts',
-          soundName: 'default',
-          importance: 4,
-          vibrate: true,
-          playSound: true,
-        },
-        (created) => {
-          if (created) {
-            console.log('[PushNotification] Channel "iot-alerts" created successfully');
-          } else {
-            console.log('[PushNotification] Channel "iot-alerts" already exists');
-          }
-        }
-      );
-    }
+    messaging().getInitialNotification().then(remoteMessage => {
+      if (remoteMessage) {
+        console.log('[FirebaseMessaging] Initial notification:', remoteMessage);
+      }
+    });
+
+    console.log('[FirebaseMessaging] Configuration successful');
   } catch (error) {
-    console.error('[PushNotification] Configuration failed:', error);
+    console.error('[FirebaseMessaging] Configuration failed:', error);
   }
 };
 
 // Counter for unique notification IDs
 let notificationCounter = 0;
 
-const showLocalNotification = (type: AlertType, title: string, message: string) => {
+const showLocalNotification = async (type: AlertType, title: string, message: string) => {
   try {
-    const colorMap: Record<AlertType, string> = {
-      CRITICAL: '#ef4444',
-      WARNING:  '#f59e0b',
-      STABLE:   '#10b981',
-      INFO:     '#3b82f6',
-    };
-
     // Trigger haptic feedback for critical alerts
     if (type === 'CRITICAL') {
       Vibration.vibrate([0, 500, 200, 500]);
     }
 
-    // Generate unique notification ID using timestamp + counter
-    notificationCounter = (notificationCounter + 1) % 10000;
-    const notificationId = `${Date.now()}-${notificationCounter}`;
-
-    const notificationConfig: any = {
-      id: notificationId,
-      title: title,
-      message: message,
-      channelId: 'iot-alerts',
-      color: colorMap[type],
-      largeIcon: 'ic_launcher',
-      smallIcon: 'ic_notification',
-      vibrate: type !== 'STABLE',
-      playSound: true,
-      soundName: 'default',
-      autoCancel: true,
-      invokeApp: true,
-      actions: ['Open'],
-      // Priority: 10 = max, 5 = high, 0 = default, -5 = low
-      priority: type === 'CRITICAL' ? 10 : type === 'WARNING' ? 5 : 0,
-      visibility: type === 'CRITICAL' ? 'public' : 'private',
-    };
-
-    // Add vibration pattern for Android
-    if (Platform.OS === 'android') {
-      notificationConfig.vibration = type === 'CRITICAL' ? 1000 : 300;
-    }
-
     console.log(`[Notification] Triggering ${type} alert:`, title);
-    PushNotification.localNotification(notificationConfig);
+    
+    // For local notifications, we'll use Alert as fallback
+    // Firebase Cloud Messaging handles remote notifications
+    Alert.alert(
+      title,
+      message,
+      [
+        { text: 'OK', style: 'default' }
+      ],
+      { cancelable: true }
+    );
+    
+    // Note: For actual local notifications, you might want to use
+    // @react-native-community/push-notification-ios or react-native-push-notification
+    // but since you want to remove react-native-push-notification,
+    // Alert is the simplest cross-platform solution
   } catch (error) {
     console.error('[showLocalNotification] Error:', error);
   }
