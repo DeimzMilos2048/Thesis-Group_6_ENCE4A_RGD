@@ -39,11 +39,9 @@ const allowedOrigins = [
   'http://localhost:3000',
   'http://192.168.86.181:3000',
   'http://10.42.0.1:3000',
-  'http://192.168.86.181:3000',
   'http://localhost:3001', 
   'http://192.168.86.181:3001', 
   'http://10.42.0.1:3001', 
-  'http://192.168.86.181:3001',
 ];
   
 if (process.env.CLIENT_ORIGIN) {
@@ -100,7 +98,7 @@ app.post('/api/sensor/data', async (req, res) => {
     const avgMoisture =
       typeof reading.moistureavg === 'number'
         ? reading.moistureavg
-        : (reading.moisture1 + reading.moisture2) / 2;
+        : (reading.moisture1 + reading.moisture2 + reading.moisture3 + reading.moisture4 + reading.moisture5 + reading.moisture6) / 2;
 
     // 3. Emit real-time update via Socket.io including average moisture
     io.emit('sensor_readings_table', {

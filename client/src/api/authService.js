@@ -1,4 +1,5 @@
 import api from '../utils/axios';
+import { toast } from 'react-toastify';
 
 /* ---------------- ERROR HANDLER ---------------- */
 const handleApiError = (error) => {
@@ -42,7 +43,8 @@ const authService = {
 
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(user));
-
+      
+      toast.success('Login successful!');
       return { token, user };
     } catch (error) {
       localStorage.removeItem('token');
@@ -54,6 +56,7 @@ const authService = {
   async register(userData) {
     try {
       const res = await api.post('/api/auth/register', userData);
+      toast.success('Registration successful!');
       return res.data;
     } catch (error) {
       handleApiError(error);
@@ -62,10 +65,23 @@ const authService = {
 
   async logout() {
     try {
-      await api.post('/api/auth/logout').catch(() => {});
-    } finally {
+      // Clear local data immediately for faster UX
       localStorage.removeItem('token');
       localStorage.removeItem('user');
+      
+      // Show success toast immediately
+      toast.success('Logged out successfully!');
+      
+      // Try to notify server, but don't wait for it
+      api.post('/api/auth/logout').catch(() => {}).catch(() => {});
+      
+      // Return immediately after clearing local data
+      return;
+    } catch (error) {
+      // Ensure local data is cleared even on error
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      toast.success('Logged out successfully!'); // Still show success since local logout worked
     }
   },
 

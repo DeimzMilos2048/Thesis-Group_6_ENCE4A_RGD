@@ -9,7 +9,7 @@ const createAxiosInstance = () => {
   
   const instance = axios.create({
     baseURL: currentURL,
-    timeout: API_CONFIG.timeout,
+    timeout: 3000, // Reduced from 5000ms to 3000ms for faster response
     headers: API_CONFIG.headers,
     withCredentials: false, // Disable CORS credentials for login/register
     validateStatus: function (status) {
@@ -24,6 +24,11 @@ const api = createAxiosInstance();
 // Add request interceptor
 api.interceptors.request.use(
   (config) => {
+    // Track the current URL index for fallback logic
+    if (config._urlIndex === undefined) {
+      config._urlIndex = API_CONFIG.currentURLIndex;
+    }
+    
     const token = localStorage.getItem("token");
     if (token && token.trim()) {
       // Clean the token and ensure proper formatting
@@ -40,7 +45,7 @@ api.interceptors.request.use(
   }
 );
 
-// Add response interceptor
+// Add response interceptor with URL fallback logic
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
@@ -59,7 +64,32 @@ api.interceptors.response.use(
 
       return Promise.reject(error);
     } else if (error.request) {
-      // The request was made but no response was received
+      // The request was made but no response was received - try fallback URLs
+      const originalConfig = error.config;
+      
+      // Only try fallbacks if we haven't already tried them
+      if (!originalConfig._retry && originalConfig._urlIndex !== undefined) {
+        const nextUrlIndex = originalConfig._urlIndex + 1;
+        
+        if (nextUrlIndex < API_CONFIG.baseURLs.length) {
+          console.log(`Primary URL failed, trying fallback URL ${nextUrlIndex}:`, API_CONFIG.baseURLs[nextUrlIndex]);
+          
+          // Create new config with next URL
+          const newConfig = {
+            ...originalConfig,
+            _retry: true,
+            _urlIndex: nextUrlIndex,
+            baseURL: API_CONFIG.baseURLs[nextUrlIndex]
+          };
+          
+          // Update the axios instance baseURL temporarily
+          api.defaults.baseURL = API_CONFIG.baseURLs[nextUrlIndex];
+          
+          // Retry the request with the new URL
+          return api(newConfig);
+        }
+      }
+      
       return Promise.reject(new Error('Network error. Please check your connection.'));
     } else {
       // Something happened in setting up the request that triggered an Error

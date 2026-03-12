@@ -92,7 +92,29 @@ export default function RiceDryingDashboard({ view }) {
 
   const handleLogoutClick = () => setShowLogoutConfirm(true);
   const handleLogoutCancel = () => setShowLogoutConfirm(false);
-  const handleLogoutConfirm = () => { authService.logout(); navigate('/login'); };
+  const handleLogoutConfirm = async () => {
+    try {
+      // Stop drying process if running
+      await dryerService.stopDrying().catch(() => {});
+      
+      // Clear sensor-related data from localStorage
+      localStorage.removeItem('sensorData');
+      localStorage.removeItem('savedWeights');
+      localStorage.removeItem('savedAfterWeights');
+      localStorage.removeItem('dryingStatus');
+      localStorage.removeItem('dryingStartTime');
+      localStorage.removeItem('targetMoisture');
+      localStorage.removeItem('targetTemperature');
+      
+      // Call auth logout
+      await authService.logout();
+      navigate('/login');
+    } catch (error) {
+      console.error('Logout error:', error);
+      // Still navigate to login even if there's an error
+      navigate('/login');
+    }
+  };
 
   const handleApply = async () => {
     // Check if a tray is selected for weighing
@@ -159,9 +181,40 @@ export default function RiceDryingDashboard({ view }) {
     const currentWeight = sensorData.weight1 ?? sensorData.weightbefore1 ?? 0;
     if (savedWeights[currentTray]?.frozen) { showToast('error', `Tray ${currentTray} weight is already saved and locked.`); return; }
     if (currentWeight <= 0) { showToast('error', `No weight data available for Tray ${currentTray}.`); return; }
+    
+    // Save the current tray's before weight
     saveBeforeWeight(currentTray, currentWeight);
     showToast('success', `Tray ${currentTray} before weight saved: ${currentWeight.toFixed(2)} kg`);
     setTabNotifications(prev => ({ ...prev, history: true }));
+    
+    // Auto-advance to next available tray
+    const nextTray = findNextAvailableTray(currentTray);
+    if (nextTray) {
+      setTimeout(() => {
+        setCurrentTray(nextTray);
+        setTray(nextTray);
+        showToast('info', `Auto-advanced to Tray ${nextTray}`);
+      }, 500);
+    } else {
+      showToast('info', 'All trays have been saved or are currently selected');
+    }
+  };
+
+  // Helper function to find the next available tray
+  const findNextAvailableTray = (currentTrayNum) => {
+    for (let i = currentTrayNum + 1; i <= 6; i++) {
+      // Check if this tray is not already saved/frozen
+      if (!savedWeights[i]?.frozen) {
+        return i;
+      }
+    }
+    // If no tray found after current, check from tray 1
+    for (let i = 1; i <= 6; i++) {
+      if (!savedWeights[i]?.frozen) {
+        return i;
+      }
+    }
+    return null; // All trays are saved
   };
 
   const handleSaveAfterWeight = () => {
@@ -383,7 +436,7 @@ export default function RiceDryingDashboard({ view }) {
                       {[1, 2, 3, 4, 5, 6].map(i => {
                         const trayMoisture = sensorData[`moisture${i}`] || 0;
                         const isAtThreshold = trayMoisture <= 14 && trayMoisture > 0;
-                        const isSelected = currentTray === i && savedWeights[i]?.frozen;
+                        const isSelected = savedWeights[i]?.frozen;
                         return (
                           <div key={`moisture-${i}`} style={{ 
                             textAlign: 'center', 
@@ -401,14 +454,14 @@ export default function RiceDryingDashboard({ view }) {
                               color: isSelected ? '#059669' : (isAtThreshold ? '#16a34a' : '#9ca3af'), 
                               fontWeight: isSelected ? '700' : (isAtThreshold ? '700' : '400') 
                             }}>
-                              TRAY {i} {isSelected && '👁'} {isAtThreshold && '✓'}
+                              TRAY {i} {isAtThreshold && '✓'}
                             </div>
                             <div className="sensor-value-sm" style={{ 
                               color: isSelected ? '#059669' : (isAtThreshold ? '#16a34a' : undefined),
                               fontSize: '18px',
                               fontWeight: '400'
                             }}>
-                              {trayMoisture.toFixed(1)}%
+                              {trayMoisture.toFixed(2)}%
                             </div>
                             <div className="progress-bar">
                               <div 
@@ -426,7 +479,7 @@ export default function RiceDryingDashboard({ view }) {
                             )}
                             {isSelected && !isAtThreshold && (
                               <div style={{ fontSize: '10px', color: '#059669', fontWeight: '600', marginTop: '2px' }}>
-                                Selected
+                                Frozen
                               </div>
                             )}
                           </div>
@@ -576,7 +629,8 @@ export default function RiceDryingDashboard({ view }) {
                     >
                       {beforeFrozen
                         ? <>✓ Before<br /><span className="weight-save-val">{savedWeights[currentTray].before.toFixed(2)} kg</span></>
-                        : <>Save<br />Before</>}
+                        : <>Save<br />Before</>
+                      }
                     </button>
                     <button
                       className={`selector-btn weight-save-btn after-btn ${afterFrozen ? 'weight-save-frozen after-frozen' : ''} ${!canSaveAfter ? 'weight-save-disabled' : ''}`}
@@ -587,7 +641,8 @@ export default function RiceDryingDashboard({ view }) {
                         ? <>✓ After<br /><span className="weight-save-val">{savedAfterWeights[currentTray].after.toFixed(2)} kg</span></>
                         : anyTrayReached14
                           ? <>Save<br />After</>
-                          : <>Save<br />After</>}
+                          : <>Save<br />After</>
+                      }
                     </button>
                   </div>
 
@@ -598,14 +653,14 @@ export default function RiceDryingDashboard({ view }) {
                       onClick={handleResetBeforeWeight}
                       disabled={!canResetBefore || weightOperationLoading}
                     >
-                      {weightOperationLoading ? 'Resetting...' : 'Reset<br />Before'}
+                      {weightOperationLoading ? 'Resetting...' : 'Reset Before'}
                     </button>
                     <button
                       className={`selector-btn weight-reset-btn ${!canResetAfter ? 'weight-reset-disabled' : ''}`}
                       onClick={handleResetAfterWeight}
                       disabled={!canResetAfter || weightOperationLoading}
                     >
-                      {weightOperationLoading ? 'Resetting...' : 'Reset<br />After'}
+                      {weightOperationLoading ? 'Resetting...' : 'Reset After'}
                     </button>
                   </div>
                 </div>

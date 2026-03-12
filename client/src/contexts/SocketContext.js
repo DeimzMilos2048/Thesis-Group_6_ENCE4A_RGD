@@ -100,25 +100,58 @@ export const SocketProvider = ({ children }) => {
       toNum(data.moisture3),
       toNum(data.moisture4),
       toNum(data.moisture5),
-      toNum(data.moisture6),
-    ];
+      toNum(data.moisture6)
+    ].filter(v => v > 0); // Filter out zeros for accurate average
+    return values.length > 0 ? (values.reduce((a, b) => a + b, 0) / values.length) : 0;
+  };
 
-    return parseFloat((values.reduce((sum, v) => sum + v, 0) / values.length).toFixed(2));
+  // Create socket with fallback URLs
+  const createSocketWithFallback = () => {
+    const urls = API_CONFIG.baseURLs;
+    let currentUrlIndex = 0;
+    
+    const tryConnect = (urlIndex) => {
+      console.log(`Attempting socket connection to ${urls[urlIndex]}...`);
+      const newSocket = io(urls[urlIndex], {
+        transports: ['polling', 'websocket'],
+        reconnection: false, // We'll handle reconnection manually
+        timeout: 5000,
+      });
+
+      newSocket.on('connect', () => {
+        console.log(`Socket connected successfully to ${urls[urlIndex]}`);
+        setIsConnected(true);
+        API_CONFIG.currentURLIndex = urlIndex; // Update API config to use working URL
+      });
+
+      newSocket.on('connect_error', (error) => {
+        console.warn(`Socket connection failed to ${urls[urlIndex]}:`, error.message);
+        
+        // Try next URL if available
+        if (urlIndex < urls.length - 1) {
+          setTimeout(() => tryConnect(urlIndex + 1), 1000);
+        } else {
+          console.error('All socket connection attempts failed');
+          setIsConnected(false);
+        }
+      });
+
+      newSocket.on('disconnect', () => {
+        console.log('Socket disconnected');
+        setIsConnected(false);
+        // Try to reconnect with fallback URLs
+        setTimeout(() => tryConnect(0), 3000);
+      });
+
+      return newSocket;
+    };
+
+    return tryConnect(0);
   };
 
   useEffect(() => {
-    // Use the same socket URL from apiConfig for consistency
-    const socketUrl = SOCKET_URL;
+    const newSocket = createSocketWithFallback();
     
-    const newSocket = io(socketUrl, {
-      reconnection: true,
-      reconnectionDelay: 1000,
-      reconnectionDelayMax: 5000,
-      reconnectionAttempts: 5,
-      transports: ['websocket', 'polling'], 
-      upgrade: true 
-    });
-
     // Socket event handlers
     newSocket.on('connect', () => {
       console.log('Connected to server:', newSocket.id);

@@ -9,6 +9,7 @@ import './Notification.css';
 import useNotificationService from './Usenotificationservice.js';
 import { useNavigate, useLocation } from 'react-router-dom';
 import authService from '../../api/authService';
+import dryerService from '../../api/dryerService';
 import axios from '../../utils/axios';
 import logo from "../../assets/images/logo2.png";
 
@@ -71,7 +72,29 @@ export default function Notification({ view }) {
   const handleNavigation    = (path, tab) => { setActiveTab(tab); navigate(path); };
   const handleLogoutClick   = ()          => setShowLogoutConfirm(true);
   const handleLogoutCancel  = ()          => setShowLogoutConfirm(false);
-  const handleLogoutConfirm = ()          => { authService.logout(); navigate('/login'); };
+  const handleLogoutConfirm = async () => {
+    try {
+      // Stop drying process if running
+      await dryerService.stopDrying().catch(() => {});
+      
+      // Clear sensor-related data from localStorage
+      localStorage.removeItem('sensorData');
+      localStorage.removeItem('savedWeights');
+      localStorage.removeItem('savedAfterWeights');
+      localStorage.removeItem('dryingStatus');
+      localStorage.removeItem('dryingStartTime');
+      localStorage.removeItem('targetMoisture');
+      localStorage.removeItem('targetTemperature');
+      
+      // Call auth logout
+      await authService.logout();
+      navigate('/login');
+    } catch (error) {
+      console.error('Logout error:', error);
+      // Still navigate to login even if there's an error
+      navigate('/login');
+    }
+  };
 
   const handleAcknowledge = async () => {
     if (selectedAlert?._id) { 
