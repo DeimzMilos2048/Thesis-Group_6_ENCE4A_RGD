@@ -94,10 +94,7 @@ export default function RiceDryingDashboard({ view }) {
   const handleLogoutCancel = () => setShowLogoutConfirm(false);
   const handleLogoutConfirm = async () => {
     try {
-      // Stop drying process if running
-      await dryerService.stopDrying().catch(() => {});
-      
-      // Clear sensor-related data from localStorage
+      // Clear local data immediately for instant logout
       localStorage.removeItem('sensorData');
       localStorage.removeItem('savedWeights');
       localStorage.removeItem('savedAfterWeights');
@@ -105,10 +102,16 @@ export default function RiceDryingDashboard({ view }) {
       localStorage.removeItem('dryingStartTime');
       localStorage.removeItem('targetMoisture');
       localStorage.removeItem('targetTemperature');
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
       
-      // Call auth logout
-      await authService.logout();
+      // Navigate immediately
       navigate('/login');
+      
+      // Run cleanup operations in background without blocking
+      dryerService.stopDrying().catch(() => {});
+      authService.logout().catch(() => {});
+      
     } catch (error) {
       console.error('Logout error:', error);
       // Still navigate to login even if there's an error
@@ -134,6 +137,7 @@ export default function RiceDryingDashboard({ view }) {
     if (!selectedMoisture) { showToast('error', 'Please select a target moisture (13% or 14%) before starting.'); return; }
 
     try {
+      // Set loading state briefly for visual feedback
       setLoading(true);
       setHasDryingStarted(true); // Mark that drying has started
       
@@ -141,24 +145,35 @@ export default function RiceDryingDashboard({ view }) {
       const selectedTrayMoisture = sensorData[`moisture${currentTray}`] || 0;
       console.log(`Starting drying for Tray ${currentTray} with current moisture: ${selectedTrayMoisture.toFixed(1)}%`);
       
-      const response = await dryerService.startDrying(selectedTemp, selectedMoisture, currentTray, selectedTrayMoisture);
-      if (response.success) {
-        showToast('success', `Drying started — Tray ${currentTray} · Target: ${selectedTemp}°C · Current: ${selectedTrayMoisture.toFixed(1)}% → Target: ${selectedMoisture}%`);
-        setIsMonitoring(true);
-        setTabNotifications(prev => ({
-          ...prev,
-          analytics: true,
-          history: true,
-        }));
-        // startMoistureMonitoringService((currentMoisture) => {
-        //   console.log(`Current moisture for Tray ${currentTray}: ${currentMoisture.toFixed(2)}%`);
-        // }, currentTray); // Pass selected tray to monitoring service
-        console.log('✓ Moisture monitoring activated for selected tray');
-      }
+      // Show immediate success feedback
+      showToast('success', `Drying started — Tray ${currentTray} · Target: ${selectedTemp}°C · Current: ${selectedTrayMoisture.toFixed(1)}% → Target: ${selectedMoisture}%`);
+      setIsMonitoring(true);
+      setTabNotifications(prev => ({
+        ...prev,
+        analytics: true,
+        history: true,
+      }));
+      console.log('✓ Moisture monitoring activated for selected tray');
+      
+      // Run API call in background without blocking UI
+      dryerService.startDrying(selectedTemp, selectedMoisture, currentTray, selectedTrayMoisture)
+        .then(response => {
+          if (!response.success) {
+            showToast('warning', 'Drying started but server response was incomplete. Check system status.');
+          }
+        })
+        .catch(error => {
+          console.error('Background drying start error:', error);
+          showToast('warning', 'Drying started locally but server communication failed. System may need manual check.');
+        });
+      
+      // Clear loading state immediately after UI updates
+      setLoading(false);
     } catch (error) {
       console.error('Error starting drying:', error);
-    } finally {
+      showToast('error', 'Failed to start drying. Please try again.');
       setLoading(false);
+      setHasDryingStarted(false); // Reset on error
     }
   };
 
@@ -253,7 +268,7 @@ export default function RiceDryingDashboard({ view }) {
   
   const canSaveBefore   = !beforeFrozen && !isProcessing && currentTray;
   const canResetBefore  = beforeFrozen && !isProcessing && currentTray;
-  const canSaveAfter    = (isDryingStopped && beforeFrozen && hasDryingStarted || anyTrayReached14) && !afterFrozen && currentTray;
+  const canSaveAfter    = isDryingStopped && beforeFrozen && !afterFrozen && currentTray && !isProcessing && !isProcessing && hasDryingStarted;
   const canResetAfter   = isDryingFinished && afterFrozen && currentTray;
   
 
@@ -273,7 +288,7 @@ export default function RiceDryingDashboard({ view }) {
         setTabNotifications(prev => ({ ...prev, dashboard: true }));
         
         // Show toast notification for tray ready for removal
-        showToast('success', `Tray ${trayNum} is ready for removal! Moisture: ${trayMoisture.toFixed(1)}%`);
+        //showToast('success', `Tray ${trayNum} is ready for removal! Moisture: ${trayMoisture.toFixed(1)}%`);
         
         // Also trigger notification service for mobile/web
         if (socket && socket.connected) {

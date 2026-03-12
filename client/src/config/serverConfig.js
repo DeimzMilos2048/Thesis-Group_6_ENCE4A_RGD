@@ -1,6 +1,3 @@
-// Server Configuration for Two-Server Architecture
-// Server A: Web/Mobile Interface (View Only)
-// Server B: ESP32 Communication & Raspberry Pi Interface
 
 const getServerConfig = () => {
   const envUrl = process.env.REACT_APP_API_URL;
