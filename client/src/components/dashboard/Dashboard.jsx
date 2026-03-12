@@ -112,9 +112,9 @@ export default function RiceDryingDashboard({ view }) {
         }));
         
         // Start monitoring moisture for auto-stop at 14%
-        startMoistureMonitoringService((currentMoisture) => {
-          console.log(`Current moisture: ${currentMoisture.toFixed(2)}%`);
-        });
+        // startMoistureMonitoringService((currentMoisture) => {
+        //   console.log(`Current moisture: ${currentMoisture.toFixed(2)}%`);
+        // });
         
         console.log('✓ Moisture monitoring activated');
       }
