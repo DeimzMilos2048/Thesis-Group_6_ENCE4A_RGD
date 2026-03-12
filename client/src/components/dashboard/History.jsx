@@ -129,8 +129,21 @@ export default function History({ view }) {
             return;
           }
 
-          const safeToString = (value, fallback = 'N/A') =>
-            value !== undefined && value !== null ? value.toString() : fallback;
+          const safeToString = (value, fallback = 'N/A') => {
+            if (value !== undefined && value !== null) {
+              const num = parseFloat(value);
+              return isNaN(num) ? value.toString() : num.toFixed(2);
+            }
+            return fallback;
+          };
+
+          const safeToNumberString = (value, fallback = 'N/A') => {
+            if (value !== undefined && value !== null) {
+              const num = parseFloat(value);
+              return isNaN(num) ? fallback : num.toFixed(2);
+            }
+            return fallback;
+          };
 
           const formattedData = sensorData.map((item, index) => {
             return {
@@ -189,8 +202,8 @@ export default function History({ view }) {
               moistureavg: safeToString(item.moistureavg),
 
               // Temperature & Humidity
-              temperature: item.temperature !== undefined ? `${item.temperature}°` : 'N/A',
-              humidity: item.humidity !== undefined ? item.humidity.toString() : 'N/A',
+              temperature: item.temperature !== undefined ? `${parseFloat(item.temperature).toFixed(2)}°` : 'N/A',
+              humidity: item.humidity !== undefined ? parseFloat(item.humidity).toFixed(2) : 'N/A',
 
               // Before Weight — per tray from backend
               beforeWeightT1: safeToString(item.weight1_t1 ?? item.weight1),

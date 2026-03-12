@@ -15,6 +15,7 @@ import { setTemperature, setMoisture, setTray } from '../../api/systemService';
 
 export default function RiceDryingDashboard({ view }) {
   const [loading, setLoading] = useState(false);
+  const [weightOperationLoading, setWeightOperationLoading] = useState(false);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
@@ -171,6 +172,48 @@ export default function RiceDryingDashboard({ view }) {
     saveAfterWeight(currentTray, currentWeight);
     showToast('success', `Tray ${currentTray} after weight saved: ${currentWeight.toFixed(2)} kg`);
     setTabNotifications(prev => ({ ...prev, history: true }));
+  };
+
+  const handleResetBeforeWeight = async () => {
+    if (!canResetBefore) return;
+    
+    setWeightOperationLoading(true);
+    try {
+      // Update UI immediately for responsiveness
+      showToast('info', `Resetting Tray ${currentTray} before weight...`);
+      
+      // Run backend operations in background
+      resetBeforeWeight(currentTray);
+      
+      // Show success message immediately (optimistic UI)
+      showToast('success', `Tray ${currentTray} before weight reset.`);
+    } catch (error) {
+      console.error('Error resetting before weight:', error);
+      showToast('error', 'Failed to reset before weight. Please try again.');
+    } finally {
+      setWeightOperationLoading(false);
+    }
+  };
+
+  const handleResetAfterWeight = async () => {
+    if (!canResetAfter) return;
+    
+    setWeightOperationLoading(true);
+    try {
+      // Update UI immediately for responsiveness
+      showToast('info', `Resetting Tray ${currentTray} after weight...`);
+      
+      // Run backend operations in background
+      resetAfterWeight(currentTray);
+      
+      // Show success message immediately (optimistic UI)
+      showToast('success', `Tray ${currentTray} after weight reset.`);
+    } catch (error) {
+      console.error('Error resetting after weight:', error);
+      showToast('error', 'Failed to reset after weight. Please try again.');
+    } finally {
+      setWeightOperationLoading(false);
+    }
   };
 
   const beforeFrozen    = !!savedWeights[currentTray]?.frozen;
@@ -552,17 +595,17 @@ export default function RiceDryingDashboard({ view }) {
                   <div className="weight-save-row" style={{ marginTop: '6px' }}>
                     <button
                       className={`selector-btn weight-reset-btn ${!canResetBefore ? 'weight-reset-disabled' : ''}`}
-                      onClick={() => { resetBeforeWeight(currentTray); showToast('info', `Tray ${currentTray} before weight reset.`); }}
-                      disabled={!canResetBefore}
+                      onClick={handleResetBeforeWeight}
+                      disabled={!canResetBefore || weightOperationLoading}
                     >
-                      Reset<br />Before
+                      {weightOperationLoading ? 'Resetting...' : 'Reset<br />Before'}
                     </button>
                     <button
                       className={`selector-btn weight-reset-btn ${!canResetAfter ? 'weight-reset-disabled' : ''}`}
-                      onClick={() => { resetAfterWeight(currentTray); showToast('info', `Tray ${currentTray} after weight reset.`); }}
-                      disabled={!canResetAfter}
+                      onClick={handleResetAfterWeight}
+                      disabled={!canResetAfter || weightOperationLoading}
                     >
-                      Reset<br />After
+                      {weightOperationLoading ? 'Resetting...' : 'Reset<br />After'}
                     </button>
                   </div>
                 </div>

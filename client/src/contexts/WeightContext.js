@@ -1,27 +1,63 @@
 import React, { createContext, useState, useContext } from 'react';
 import { useSocket } from './SocketContext';
+import API_CONFIG from '../config/api.config';
 
 const WeightContext = createContext(null);
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001';
+const API_URLs = API_CONFIG.baseURLs;
+const API_URL = Array.isArray(API_URLs) ? API_URLs[0] : API_URLs;
 
 async function patchWeightToBackend(tray, beforeWeight, afterWeight) {
   try {
     const token = localStorage.getItem('token');
-    const response = await fetch(`${API_URL}/api/sensor/latest/weights`, {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
-      body: JSON.stringify({ tray, beforeWeight, afterWeight }),
-    });
-    if (!response.ok) {
-      console.error('Failed to patch weight, status:', response.status);
+    if (!token) return null;
+    
+    // Try primary URL first
+    const primaryURL = API_URLs[0];
+    try {
+      const response = await fetch(`${primaryURL}/api/sensor/latest/weights`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ tray, beforeWeight, afterWeight }),
+      });
+      
+      if (response.ok) {
+        console.log(`[Web] Successfully patched weight to backend (${primaryURL})`);
+        return response;
+      }
+    } catch (err) {
+      console.warn(`[Web] Primary URL failed: ${err.message}`);
     }
-    return response;
+    
+    // Only try fallbacks if primary fails
+    for (let i = 1; i < API_URLs.length; i++) {
+      try {
+        const response = await fetch(`${API_URLs[i]}/api/sensor/latest/weights`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          body: JSON.stringify({ tray, beforeWeight, afterWeight }),
+        });
+        
+        if (response.ok) {
+          console.log(`[Web] Successfully patched weight to fallback (${API_URLs[i]})`);
+          return response;
+        }
+      } catch (err) {
+        console.warn(`[Web] Fallback ${API_URLs[i]} failed: ${err.message}`);
+      }
+    }
+
+    console.error('[Web] All API URLs failed for patching weight');
+    return null;
   } catch (err) {
-    console.error('Failed to patch weight to backend:', err);
+    console.error('[Web] Failed to patch weight to backend:', err);
+    return null;
   }
 }
 
@@ -33,21 +69,47 @@ async function fetchWeightsFromBackend() {
       return null;
     }
 
-    const response = await fetch(`${API_URL}/api/sensor/latest/weights`, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-    });
+    // Try primary URL first
+    const primaryURL = API_URLs[0];
+    try {
+      const response = await fetch(`${primaryURL}/api/sensor/latest/weights`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
 
-    if (response.ok) {
-      const data = await response.json();
-      console.log('[Web] Fetched weights from backend:', data);
-      return data;
-    } else {
-      console.error('[Web] Failed to fetch weights from backend:', response.status);
-      return null;
+      if (response.ok) {
+        const data = await response.json();
+        console.log(`[Web] Fetched weights from primary backend (${primaryURL}):`, data);
+        return data;
+      }
+    } catch (err) {
+      console.warn(`[Web] Primary URL failed: ${err.message}`);
     }
+    
+    // Only try fallbacks if primary fails
+    for (let i = 1; i < API_URLs.length; i++) {
+      try {
+        const response = await fetch(`${API_URLs[i]}/api/sensor/latest/weights`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          console.log(`[Web] Fetched weights from fallback (${API_URLs[i]}):`, data);
+          return data;
+        }
+      } catch (err) {
+        console.warn(`[Web] Fallback ${API_URLs[i]} failed: ${err.message}`);
+      }
+    }
+
+    console.error('[Web] All API URLs failed for fetching weights');
+    return null;
   } catch (error) {
     console.error('[Web] Error fetching weights from backend:', error);
     return null;
