@@ -19,7 +19,6 @@ const buildSensorDataPayload = (reading) => {
     moisture6: reading.moisture6 || 0,
     moistureavg: reading.moistureavg || 0,
     weight1: reading.weight1 || 0,
-    weight2: reading.weight2 || 0,
     status: reading.status || 'Idle',
     timestamp: reading.timestamp,
     // Per-tray weight data (before/after)

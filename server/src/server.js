@@ -15,6 +15,7 @@ import SensorData from "./models/sensorDataModel.js";
 import { checkSensorThresholds } from "./utils/thresholdChecker.js"; // Add this utility
 import createDefaultAdmin from "./scripts/createDefaultAdmin.js";
 import systemRoutes from "./routes/systemRoutes.js";
+import History from "./models/historyModel.js";
 
 const app = express();
 const server = http.createServer(app);
@@ -37,10 +38,10 @@ createDefaultAdmin();
 const allowedOrigins = [
   'https://mala-luin.onrender.com',
   'http://localhost:3000',
-  'http://192.168.86.181:3000',
+  //'http://192.168.86.181:3000',
   'http://10.42.0.1:3000',
   'http://localhost:3001', // Added new URL
-  'http://192.168.86.181:3001', // Added new URL
+ // 'http://192.168.86.181:3001', // Added new URL
   'http://10.42.0.1:3001', // Added new URL
 ];
   
@@ -88,19 +89,15 @@ app.use("/api/sensor", sensorRoutes);
 app.use("/api/system", systemRoutes);
 
 
-// ESP32 sensor data endpoint with notification checking
 app.post('/api/sensor/data', async (req, res) => {
   try {
-    // 1. Save sensor reading to database
+
+    req.body.timestamp = new Date();
+
     const reading = await SensorData.create(req.body);
 
-    // 2. Calculate averages for emission
-    const avgMoisture =
-      typeof reading.moistureavg === 'number'
-        ? reading.moistureavg
-        : (reading.moisture1 + reading.moisture2) / 2;
+    const avgMoisture = reading.moistureavg;
 
-    // 3. Emit real-time update via Socket.io including average moisture
     io.emit('sensor_readings_table', {
       temperature: reading.temperature,
       humidity: reading.humidity,
@@ -112,39 +109,45 @@ app.post('/api/sensor/data', async (req, res) => {
       moisture6: reading.moisture6,
       moistureavg: avgMoisture,
       weight1: reading.weight1,
-      weight2: reading.weight2,
-      status: reading.status || 'Idle',
-      timestamp: reading.timestamp,
+      status: reading.status || "Idle",
+      timestamp: reading.timestamp
     });
 
-    // 4. Check thresholds and send notifications if needed
     await checkSensorThresholds(reading, io);
 
-    res.json({ 
+    // Save history
+    const history = new History({
+      device_id: req.body.device_id,
+      temperature: req.body.temperature,
+      humidity: req.body.humidity,
+      moisture: req.body.moistureavg,
+      weight: req.body.weight1,
+      status: req.body.status,
+      timestamp: req.body.timestamp
+    });
+
+    await history.save();
+
+    res.json({
       success: true,
       message: "Sensor data received",
       data: reading
     });
+
   } catch (error) {
-    console.error("Error processing sensor data:", error);
-    res.status(500).json({ 
-      success: false,
-      error: error.message 
-    });
+  console.error("Error processing sensor data:", error);
+  console.error("Failed document:", req.body);
+
+  if (error.errInfo && error.errInfo.details) {
+    console.log("VALIDATION FAILURE DETAILS:");
+    console.log(JSON.stringify(error.errInfo.details, null, 2));
   }
 
-  const history = new History({
-
-   temperature:req.body.temperature,
-   humidity:req.body.humidity,
-   moisture:req.body.moisture,
-   weight:req.body.weight,
-   status:req.body.status
+  res.status(500).json({
+    success: false,
+    error: error.message
   });
-
-  await history.save();
-
-  res.json("Saved");
+}
 });
 
 app.get('/api/sensor/latest', async (req, res) => {
