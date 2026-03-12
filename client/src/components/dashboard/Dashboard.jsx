@@ -150,9 +150,9 @@ export default function RiceDryingDashboard({ view }) {
           analytics: true,
           history: true,
         }));
-        startMoistureMonitoringService((currentMoisture) => {
-          console.log(`Current moisture for Tray ${currentTray}: ${currentMoisture.toFixed(2)}%`);
-        }, currentTray); // Pass selected tray to monitoring service
+        // startMoistureMonitoringService((currentMoisture) => {
+        //   console.log(`Current moisture for Tray ${currentTray}: ${currentMoisture.toFixed(2)}%`);
+        // }, currentTray); // Pass selected tray to monitoring service
         console.log('✓ Moisture monitoring activated for selected tray');
       }
     } catch (error) {
@@ -186,35 +186,6 @@ export default function RiceDryingDashboard({ view }) {
     saveBeforeWeight(currentTray, currentWeight);
     showToast('success', `Tray ${currentTray} before weight saved: ${currentWeight.toFixed(2)} kg`);
     setTabNotifications(prev => ({ ...prev, history: true }));
-    
-    // Auto-advance to next available tray
-    const nextTray = findNextAvailableTray(currentTray);
-    if (nextTray) {
-      setTimeout(() => {
-        setCurrentTray(nextTray);
-        setTray(nextTray);
-        showToast('info', `Auto-advanced to Tray ${nextTray}`);
-      }, 500);
-    } else {
-      showToast('info', 'All trays have been saved or are currently selected');
-    }
-  };
-
-  // Helper function to find the next available tray
-  const findNextAvailableTray = (currentTrayNum) => {
-    for (let i = currentTrayNum + 1; i <= 6; i++) {
-      // Check if this tray is not already saved/frozen
-      if (!savedWeights[i]?.frozen) {
-        return i;
-      }
-    }
-    // If no tray found after current, check from tray 1
-    for (let i = 1; i <= 6; i++) {
-      if (!savedWeights[i]?.frozen) {
-        return i;
-      }
-    }
-    return null; // All trays are saved
   };
 
   const handleSaveAfterWeight = () => {
@@ -479,7 +450,7 @@ export default function RiceDryingDashboard({ view }) {
                             )}
                             {isSelected && !isAtThreshold && (
                               <div style={{ fontSize: '10px', color: '#059669', fontWeight: '600', marginTop: '2px' }}>
-                                Frozen
+                                
                               </div>
                             )}
                           </div>
