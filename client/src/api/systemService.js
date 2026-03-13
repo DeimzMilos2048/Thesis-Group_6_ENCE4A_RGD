@@ -1,26 +1,44 @@
-import axios from '../utils/axios';
+const API = "http://10.42.0.1:5001/api/system";
 
 export const startDrying = async (temperature, moisture) => {
-  const res = await axios.post('/api/system/start', { temperature, moisture });
-  return res.data;
+  const res = await fetch(`${API}/start`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ temperature, moisture })
+  });
+  return res.json();
 };
 
 export const stopDrying = async () => {
-  const res = await axios.post('/api/system/stop');
-  return res.data;
+  const res = await fetch(`${API}/stop`, {
+    method: "POST"
+  });
+  return res.json();
 };
 
 export const setTemperature = async (temperature) => {
-  const res = await axios.post('/api/system/temperature', { value: temperature });
-  return res.data;
+  const res = await fetch(`${API}/temperature`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ value: temperature })  // backend reads req.body.value
+  });
+  return res.json();
 };
 
 export const setMoisture = async (moisture) => {
-  const res = await axios.post('/api/system/moisture', { value: moisture });
-  return res.data;
+  const res = await fetch(`${API}/moisture`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ value: moisture })
+  });
+  return res.json();
 };
 
 export const setTray = async (tray) => {
-  const res = await axios.post('/api/system/tray', { value: tray });
-  return res.data;
+  const res = await fetch(`${API}/tray`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ value: tray })
+  });
+  return res.json();
 };
