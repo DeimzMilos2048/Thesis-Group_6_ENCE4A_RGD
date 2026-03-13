@@ -1,10 +1,30 @@
 import { create } from "zustand";
 import api from "./axios";
+import axios from "axios";
 import { io } from "socket.io-client";
+import API_CONFIG from "../config/api.config";
 
-const SOCKET_URL = process.env.NODE_ENV === 'development'
-  ? 'http://192.168.86.181:5001'
-  : 'https://mala-backend-q03k.onrender.com';
+// Check if running on web (development/production) vs mobile/Raspberry Pi
+const isReactNative = typeof navigator !== 'undefined' && navigator.product === 'ReactNative';
+const isWebEnvironment = typeof window !== 'undefined' && window.location;
+const isMobileApp = isReactNative || (!isWebEnvironment && typeof navigator !== 'undefined');
+
+// Debug logging for mobile environment detection
+console.log('=== Mobile Debug Info ===');
+console.log('isReactNative:', isReactNative);
+console.log('isWebEnvironment:', isWebEnvironment);
+console.log('isMobileApp:', isMobileApp);
+
+const getSocketURL = () => {
+  if (isWebEnvironment) {
+    return API_CONFIG.baseURLs[API_CONFIG.currentURLIndex];
+  } else {
+    console.log('Mobile environment detected, using Raspberry Pi URL');
+    return 'http://192.168.0.109:5001' || 'http://192.168.86.193:5001';
+  }
+};
+
+const SOCKET_URL = getSocketURL();
 
 // Shared socket instance
 let socket = null;
@@ -27,10 +47,45 @@ const useAuthStore = create((set) => ({
   login: async (email, password) => {
     set({ loading: true });
     try {
-      const res = await api.post("/api/auth/login", { email, password });
-      if (!res || res.status !== 200 || !res.data || !res.data.token) {
-        const message = res?.data?.message || 'Invalid email or password';
-        throw new Error(message);
+      console.log('Attempting login with URLs:', API_CONFIG.baseURLs);
+      let res = null;
+      let lastError = null;
+      
+      // Try each URL until one works
+      for (let urlIndex = 0; urlIndex < API_CONFIG.baseURLs.length; urlIndex++) {
+        try {
+          console.log(`Trying login with URL ${urlIndex}:`, API_CONFIG.baseURLs[urlIndex]);
+          
+          // Create a temporary axios instance for this URL
+          const tempApi = axios.create({
+            baseURL: API_CONFIG.baseURLs[urlIndex],
+            timeout: 10000,
+            headers: { 'Content-Type': 'application/json' },
+            withCredentials: false,
+          });
+          
+          res = await tempApi.post("/api/auth/login", { email, password });
+          
+          if (res && res.status === 200 && res.data && res.data.token) {
+            console.log(`Login successful with URL ${urlIndex}:`, API_CONFIG.baseURLs[urlIndex]);
+            
+            // Update the API config to use the working URL
+            API_CONFIG.currentURLIndex = urlIndex;
+            
+            // Update the main axios instance baseURL
+            api.defaults.baseURL = API_CONFIG.baseURLs[urlIndex];
+            
+            break; // Success, exit the loop
+          }
+        } catch (err) {
+          console.warn(`Login failed with URL ${urlIndex}:`, err.message);
+          lastError = err;
+          continue; // Try next URL
+        }
+      }
+      
+      if (!res || !res.data || !res.data.token) {
+        throw lastError || new Error('All login attempts failed');
       }
 
       const { token, _id, username, email: userEmail, role, redirectTo } = res.data;

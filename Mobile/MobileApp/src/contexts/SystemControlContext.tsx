@@ -19,6 +19,7 @@ interface SystemControlContextType {
   systemData: SystemControlData;
   isConnected: boolean;
   userId: string | null;
+  socket: Socket | null;
   initializeSystem: () => Promise<void>;
   startDrying: (temperature: number, moisture: number) => Promise<void>;
   stopDrying: () => Promise<void>;
@@ -111,9 +112,16 @@ export const SystemControlProvider: React.FC<{ children: React.ReactNode }> = ({
       }
 
       // Connect to socket for real-time updates
-      const SOCKET_URL = __DEV__ 
-        ? 'http://192.168.86.181:5001'        
-        : 'https://mala-backend-q03k.onrender.com';
+      const getSocketURL = () => {
+        // Try local Raspberry Pi first, then fallback to ngrok
+        const urls = [
+          'http://192.168.0.109:5001',
+          'https://objurgatory-darrell-nonconversantly.ngrok-free.dev'
+        ];
+        return urls[0]; // Will try first URL, fallback can be implemented if needed
+      };
+
+      const SOCKET_URL = getSocketURL();
 
       console.log('[Socket] Connecting to:', SOCKET_URL, '(__DEV__=' + __DEV__ + ')');
 
@@ -360,6 +368,7 @@ export const SystemControlProvider: React.FC<{ children: React.ReactNode }> = ({
     },
     isConnected,
     userId,
+    socket,
     initializeSystem,
     startDrying,
     stopDrying,

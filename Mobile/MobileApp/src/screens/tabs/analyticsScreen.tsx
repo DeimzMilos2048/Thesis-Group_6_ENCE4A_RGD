@@ -125,9 +125,16 @@ const AnalyticsScreen = () => {
   useEffect(() => {
     console.log('Analytics: Attempting to connect to socket...');
 
-    const SOCKET_URL = __DEV__
-      ? 'http://192.168.86.181:5001'
-      : 'https://mala-backend-q03k.onrender.com';
+    const getSocketURL = () => {
+      // Try local Raspberry Pi first, then fallback to ngrok
+      const urls = [
+        'http://192.168.0.109:5001',
+        'https://objurgatory-darrell-nonconversantly.ngrok-free.dev'
+      ];
+      return urls[0]; // Will try first URL, fallback can be implemented if needed
+    };
+
+    const SOCKET_URL = getSocketURL();
 
     const socket = io(SOCKET_URL, {
       transports: ['websocket', 'polling'],

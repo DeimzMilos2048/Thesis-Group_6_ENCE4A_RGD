@@ -338,9 +338,9 @@ const NotificationScreen: React.FC = () => {
 
   const getAPIBaseUrl = () => {
     if (__DEV__) {
-      return 'http://192.168.86.181:5001';
+      return 'http://192.168.0.109:5001';
     } else {
-      return 'https://mala-backend-q03k.onrender.com';
+      return 'https://objurgatory-darrell-nonconversantly.ngrok-free.dev';
     }
   };
 

@@ -199,6 +199,7 @@
 
 .main-content {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
   position: relative;
@@ -603,7 +604,10 @@
   background-color: #f0fdf4;
   border-color: #10b981;
   color: #059669;
-  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
+  border-width: 3px;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.3);
+  transform: scale(1.05);
+  transition: all 0.2s ease;
 }
 
 /* Frozen tray button state */
@@ -793,6 +797,39 @@
   gap: 12px;
   margin-top: auto;
   padding-top: 8px;
+}
+
+.monitoring-status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  margin-bottom: 8px;
+  border: 1px solid rgba(16, 185, 129, 0.1);
+}
+
+.status-indicator {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background-color: #ef4444;
+  transition: background-color 0.3s ease;
+}
+
+.status-indicator.active {
+  background-color: #10b981;
+  box-shadow: 0 0 6px rgba(16, 185, 129, 0.3);
+}
+
+.status-text {
+  font-size: 12px;
+  font-weight: 600;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .start-button,
@@ -1244,8 +1281,8 @@
   color: #10b981;
 }
 
-.weight-save-frozen.after-frozen {
-  background-color: #eff6ff;
+.weight-save-frozen.after-btn {
+  background-color: #f0f9ff;
   border-color: #93c5fd;
   color: #3b82f6;
 }
@@ -1293,4 +1330,36 @@
   opacity: 0.4;
   cursor: not-allowed !important;
   transform: none !important;
+}
+
+/* Countdown timer styles */
+.countdown-timer {
+  font-size: 10px;
+  font-weight: 600;
+  color: #dc2626;
+  background-color: #fef2f2;
+  padding: 2px 4px;
+  border-radius: 4px;
+  border: 1px solid #fecaca;
+  display: inline-block;
+  margin-top: 2px;
+}
+
+/* Pulse animation for moisture threshold reached */
+.pulse-animation {
+  animation: moisture-threshold-pulse 1s ease-in-out infinite;
+  border-color: #dc2626 !important;
+  background-color: #fef2f2 !important;
+  color: #dc2626 !important;
+}
+
+@keyframes moisture-threshold-pulse {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.4);
+  }
+  50% {
+    transform: scale(1.05);
+    box-shadow: 0 0 0 8px rgba(220, 38, 38, 0);
+  }
 }

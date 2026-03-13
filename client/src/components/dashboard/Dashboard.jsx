@@ -15,10 +15,12 @@ import { setTemperature, setMoisture, setTray } from '../../api/systemService';
 
 export default function RiceDryingDashboard({ view }) {
   const [loading, setLoading] = useState(false);
+  const [weightOperationLoading, setWeightOperationLoading] = useState(false);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
+  const [hasDryingStarted, setHasDryingStarted] = useState(false);
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -39,7 +41,7 @@ export default function RiceDryingDashboard({ view }) {
 
   const { savedWeights, savedAfterWeights, saveBeforeWeight, saveAfterWeight, resetBeforeWeight, resetAfterWeight } = useWeight();
   const { showToast } = useToast();
-  const { unreadCount } = useNotifications();
+  const { unreadCount, isMonitoring, setIsMonitoring } = useNotifications();
   const [tabNotifications, setTabNotifications] = useState({
     dashboard: false,
     analytics: false,
@@ -82,64 +84,108 @@ export default function RiceDryingDashboard({ view }) {
     return () => { isMounted = false; };
   }, [navigate]);
 
-  const handleNavigation = (path, tab) => { 
-  setActiveTab(tab); 
-  navigate(path); 
-  // Clear notification dot for the active tab
-  setTabNotifications(prev => ({ ...prev, [tab]: false }));
-};
+  const handleNavigation = (path, tab) => {
+    setActiveTab(tab);
+    navigate(path);
+    setTabNotifications(prev => ({ ...prev, [tab]: false }));
+  };
+
   const handleLogoutClick = () => setShowLogoutConfirm(true);
   const handleLogoutCancel = () => setShowLogoutConfirm(false);
-  const handleLogoutConfirm = () => { authService.logout(); navigate('/login'); };
+  const handleLogoutConfirm = async () => {
+    try {
+      // Clear local data immediately for instant logout
+      localStorage.removeItem('sensorData');
+      localStorage.removeItem('savedWeights');
+      localStorage.removeItem('savedAfterWeights');
+      localStorage.removeItem('dryingStatus');
+      localStorage.removeItem('dryingStartTime');
+      localStorage.removeItem('targetMoisture');
+      localStorage.removeItem('targetTemperature');
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      
+      // Navigate immediately
+      navigate('/login');
+      
+      // Run cleanup operations in background without blocking
+      dryerService.stopDrying().catch(() => {});
+      authService.logout().catch(() => {});
+      
+    } catch (error) {
+      console.error('Logout error:', error);
+      // Still navigate to login even if there's an error
+      navigate('/login');
+    }
+  };
 
   const handleApply = async () => {
+    // Check if a tray is selected for weighing
+    if (!currentTray) {
+      showToast('error', 'Please select a tray for weighing before starting drying.');
+      return;
+    }
+    
+    // Check if before weight is saved for the selected tray
+    if (!savedWeights[currentTray]?.frozen) {
+      showToast('error', `Please save the before weight for Tray ${currentTray} before starting drying.`);
+      return;
+    }
+    
     if (!selectedTemp && !selectedMoisture) { showToast('error', 'Please select a target temperature and moisture before starting.'); return; }
     if (!selectedTemp) { showToast('error', 'Please select a target temperature (40–45°C) before starting.'); return; }
     if (!selectedMoisture) { showToast('error', 'Please select a target moisture (13% or 14%) before starting.'); return; }
-    
+
     try {
+      // Set loading state briefly for visual feedback
       setLoading(true);
-      // Call backend API - backend is source of truth
-      const response = await dryerService.startDrying(selectedTemp, selectedMoisture);
-      if (response.success) {
-        showToast('success', `Drying started — Target: ${selectedTemp}°C · Moisture: ${selectedMoisture}%`);
-        
-        // Trigger notification dots for other tabs
-        setTabNotifications(prev => ({
-          ...prev,
-          analytics: true,  // New drying data available
-          history: true,     // New session started
-        }));
-        
-        // Start monitoring moisture for auto-stop at 14%
-        startMoistureMonitoringService((currentMoisture) => {
-          console.log(`Current moisture: ${currentMoisture.toFixed(2)}%`);
+      setHasDryingStarted(true); // Mark that drying has started
+      
+      // Get the current moisture of the selected tray
+      const selectedTrayMoisture = sensorData[`moisture${currentTray}`] || 0;
+      console.log(`Starting drying for Tray ${currentTray} with current moisture: ${selectedTrayMoisture.toFixed(1)}%`);
+      
+      // Show immediate success feedback
+      showToast('success', `Drying started — Tray ${currentTray} · Target: ${selectedTemp}°C · Current: ${selectedTrayMoisture.toFixed(1)}% → Target: ${selectedMoisture}%`);
+      setIsMonitoring(true);
+      setTabNotifications(prev => ({
+        ...prev,
+        analytics: true,
+        history: true,
+      }));
+      console.log('✓ Moisture monitoring activated for selected tray');
+      
+      // Run API call in background without blocking UI
+      dryerService.startDrying(selectedTemp, selectedMoisture, currentTray, selectedTrayMoisture)
+        .then(response => {
+          if (!response.success) {
+            showToast('warning', 'Drying started but server response was incomplete. Check system status.');
+          }
+        })
+        .catch(error => {
+          console.error('Background drying start error:', error);
+          showToast('warning', 'Drying started locally but server communication failed. System may need manual check.');
         });
-        
-        console.log('✓ Moisture monitoring activated');
-      }
+      
+      // Clear loading state immediately after UI updates
+      setLoading(false);
     } catch (error) {
       console.error('Error starting drying:', error);
       showToast('error', 'Failed to start drying. Please try again.');
-    } finally {
       setLoading(false);
+      setHasDryingStarted(false); // Reset on error
     }
   };
 
   const handleStop = async () => {
     try {
-      setLoading(true);
-      // Stop moisture monitoring
+      setIsMonitoring(false);
       stopMoistureMonitoringService();
-      
-      // Call context's stopDrying which resets timer to 0
       await stopDrying();
       showToast('info', 'Drying process has been stopped.');
     } catch (error) {
       console.error('Error stopping drying:', error);
       showToast('error', 'Failed to stop drying. Please try again.');
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -147,14 +193,11 @@ export default function RiceDryingDashboard({ view }) {
     const currentWeight = sensorData.weight1 ?? sensorData.weightbefore1 ?? 0;
     if (savedWeights[currentTray]?.frozen) { showToast('error', `Tray ${currentTray} weight is already saved and locked.`); return; }
     if (currentWeight <= 0) { showToast('error', `No weight data available for Tray ${currentTray}.`); return; }
+    
+    // Save the current tray's before weight
     saveBeforeWeight(currentTray, currentWeight);
     showToast('success', `Tray ${currentTray} before weight saved: ${currentWeight.toFixed(2)} kg`);
-    
-    // Trigger notification for history tab (new weight data)
-    setTabNotifications(prev => ({
-      ...prev,
-      history: true,
-    }));
+    setTabNotifications(prev => ({ ...prev, history: true }));
   };
 
   const handleSaveAfterWeight = () => {
@@ -164,70 +207,98 @@ export default function RiceDryingDashboard({ view }) {
     if (currentWeight <= 0) { showToast('error', `No weight data available for Tray ${currentTray}.`); return; }
     saveAfterWeight(currentTray, currentWeight);
     showToast('success', `Tray ${currentTray} after weight saved: ${currentWeight.toFixed(2)} kg`);
-    
-    // Trigger notification for history tab (completed weight data)
-    setTabNotifications(prev => ({
-      ...prev,
-      history: true,
-    }));
+    setTabNotifications(prev => ({ ...prev, history: true }));
   };
 
-  // ─── Weight button state logic ────────────────────────────────────────────────
-  // Before drying starts (isProcessing = false):
-  //   • Save Before  → enabled (if not yet frozen)
-  //   • Reset Before → enabled (if frozen)
-  //   • Save After   → disabled
-  //   • Reset After  → disabled
-  //
-  // While drying (isProcessing = true):
-  //   • Save Before  → disabled
-  //   • Reset Before → disabled
-  //   • Save After   → disabled
-  //   • Reset After  → disabled
-  //
-  // After drying stops (isProcessing = false, but before weight was already saved):
-  //   • Save Before  → disabled (already frozen)
-  //   • Reset Before → disabled (locked during post-drying)
-  //   • Save After   → enabled (if before is frozen and after is not yet frozen)
-  //   • Reset After  → enabled (if after is frozen)
-  //
-  // Key rule: Before buttons are locked once isProcessing has ever been true
-  // We track this with a "dryingStarted" flag derived from savedWeights being frozen
-  // (since the user must save before weights before pressing Start).
-  // If before weight is frozen AND drying has stopped → unlock After buttons.
-  // ─────────────────────────────────────────────────────────────────────────────
+  const handleResetBeforeWeight = async () => {
+    if (!canResetBefore) return;
+    
+    setWeightOperationLoading(true);
+    try {
+      // Update UI immediately for responsiveness
+      showToast('info', `Resetting Tray ${currentTray} before weight...`);
+      
+      // Run backend operations in background
+      resetBeforeWeight(currentTray);
+      
+      // Show success message immediately (optimistic UI)
+      showToast('success', `Tray ${currentTray} before weight reset.`);
+    } catch (error) {
+      console.error('Error resetting before weight:', error);
+      showToast('error', 'Failed to reset before weight. Please try again.');
+    } finally {
+      setWeightOperationLoading(false);
+    }
+  };
 
-  // Before is frozen means the user saved it before starting
-  const beforeFrozen = !!savedWeights[currentTray]?.frozen;
-  const afterFrozen  = !!savedAfterWeights[currentTray]?.frozen;
+  const handleResetAfterWeight = async () => {
+    if (!canResetAfter) return;
+    
+    setWeightOperationLoading(true);
+    try {
+      // Update UI immediately for responsiveness
+      showToast('info', `Resetting Tray ${currentTray} after weight...`);
+      
+      // Run backend operations in background
+      resetAfterWeight(currentTray);
+      
+      // Show success message immediately (optimistic UI)
+      showToast('success', `Tray ${currentTray} after weight reset.`);
+    } catch (error) {
+      console.error('Error resetting after weight:', error);
+      showToast('error', 'Failed to reset after weight. Please try again.');
+    } finally {
+      setWeightOperationLoading(false);
+    }
+  };
 
-  // After drying stops: isProcessing=false AND beforeFrozen=true → post-drying state
+  const beforeFrozen    = !!savedWeights[currentTray]?.frozen;
+  const afterFrozen     = !!savedAfterWeights[currentTray]?.frozen;
   const isDryingFinished = !isProcessing && beforeFrozen;
+  const isDryingStopped = !isProcessing; // Separate check for when drying is stopped
+  
+  // Check if any tray has reached 14% moisture
+  const anyTrayReached14 = [1, 2, 3, 4, 5, 6].some(trayNum => {
+    const trayMoisture = sensorData[`moisture${trayNum}`] || 0;
+    return trayMoisture <= 14 && trayMoisture > 0;
+  });
+  
+  const canSaveBefore   = !beforeFrozen && !isProcessing && currentTray;
+  const canResetBefore  = beforeFrozen && !isProcessing && currentTray && !anyTrayReached14 && !isDryingStopped;
+  const canSaveAfter    = (isDryingStopped || anyTrayReached14) && beforeFrozen && !afterFrozen && currentTray && !isProcessing && hasDryingStarted;
+  const canResetAfter   = (isDryingFinished || anyTrayReached14) && afterFrozen && currentTray;
+  
 
-  // Save/Reset Before: only enabled before drying starts (not isProcessing, not beforeFrozen already)
-  const canSaveBefore  = !beforeFrozen && !isProcessing;
-  const canResetBefore = beforeFrozen && !isProcessing && !isDryingFinished; // lock reset-before after drying too
-
-  // Save/Reset After: only enabled after drying finishes
-  const canSaveAfter   = isDryingFinished && !afterFrozen;
-  const canResetAfter  = isDryingFinished && afterFrozen;
-
-  // Trigger tab notifications when sensor data changes significantly
   useEffect(() => {
     if (!sensorData || !isProcessing) return;
-    
-    // Only trigger notifications for significant changes during drying
     const temp = sensorData.temperature || 0;
     const moisture = sensorData.moistureavg || 0;
-    
-    // Trigger analytics notification for significant temperature/moisture changes
     if ((temp >= 40 && temp <= 45) || (moisture >= 13 && moisture <= 14)) {
-      setTabNotifications(prev => ({
-        ...prev,
-        analytics: true,  // New data for analytics charts
-      }));
+      setTabNotifications(prev => ({ ...prev, analytics: true }));
     }
-  }, [sensorData, isProcessing]);
+
+    // Check individual tray moisture thresholds for notifications
+    [1, 2, 3, 4, 5, 6].forEach(trayNum => {
+      const trayMoisture = sensorData[`moisture${trayNum}`] || 0;
+      if (trayMoisture <= 14 && trayMoisture > 0) {
+        // Trigger notification for individual tray reaching 14% threshold
+        setTabNotifications(prev => ({ ...prev, dashboard: true }));
+        
+        // Show toast notification for tray ready for removal
+        //showToast('success', `Tray ${trayNum} is ready for removal! Moisture: ${trayMoisture.toFixed(1)}%`);
+        
+        // Also trigger notification service for mobile/web
+        if (socket && socket.connected) {
+          socket.emit('tray:threshold', {
+            trayNumber: trayNum,
+            moisture: trayMoisture,
+            timestamp: new Date().toISOString(),
+            message: `Tray ${trayNum} reached 14% moisture threshold - ready for removal`
+          });
+        }
+      }
+    });
+  }, [sensorData, isProcessing, socket, showToast]);
 
   return (
     <div className="dashboard-container">
@@ -253,21 +324,15 @@ export default function RiceDryingDashboard({ view }) {
         <nav className="topbar-nav">
           <button className={`nav-item ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => handleNavigation('/dashboard', 'dashboard')}>
             <BarChart2 size={16} /><span>Dashboard</span>
-            {tabNotifications.dashboard && (
-              <span className="tab-notification-dot" title="Dashboard has new updates"></span>
-            )}
+            {tabNotifications.dashboard && <span className="tab-notification-dot" title="Dashboard has new updates"></span>}
           </button>
           <button className={`nav-item ${activeTab === 'analytics' ? 'active' : ''}`} onClick={() => handleNavigation('/analytics', 'analytics')}>
             <Activity size={16} /><span>Analytics</span>
-            {tabNotifications.analytics && (
-              <span className="tab-notification-dot" title="Analytics has new data"></span>
-            )}
+            {tabNotifications.analytics && <span className="tab-notification-dot" title="Analytics has new data"></span>}
           </button>
           <button className={`nav-item ${activeTab === 'history' ? 'active' : ''}`} onClick={() => handleNavigation('/history', 'history')}>
             <Clock size={16} /><span>History</span>
-            {tabNotifications.history && (
-              <span className="tab-notification-dot" title="History has new records"></span>
-            )}
+            {tabNotifications.history && <span className="tab-notification-dot" title="History has new records"></span>}
           </button>
           <button className={`nav-item ${activeTab === 'notification' ? 'active' : ''}`} onClick={() => handleNavigation('/notification', 'notification')}>
             <Bell size={16} /><span>Notification</span>
@@ -351,18 +416,74 @@ export default function RiceDryingDashboard({ view }) {
                     <div className="sensor-icon cyan"><Waves size={24} /></div>
                     <div className="sensor-label">Moisture Content</div>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', marginTop: '8px', flex: 1 }}>
-                      {[1, 2, 3, 4, 5, 6].map(i => (
-                        <div key={`moisture-${i}`} style={{ textAlign: 'center', display: 'flex', flexDirection: 'column' }}>
-                          <div className="sensor-sublabel">TRAY {i}</div>
-                          <div className="sensor-value-sm">{(sensorData[`moisture${i}`] || 0).toFixed(1)}%</div>
-                          <div className="progress-bar"><div className="progress-fill cyan" style={{ width: `${Math.min(((sensorData[`moisture${i}`] || 0) / 14) * 100, 100)}%` }} /></div>
-                        </div>
-                      ))}
+                      {[1, 2, 3, 4, 5, 6].map(i => {
+                        const trayMoisture = sensorData[`moisture${i}`] || 0;
+                        const isAtThreshold = trayMoisture <= 14 && trayMoisture > 0;
+                        const isSelected = savedWeights[i]?.frozen;
+                        return (
+                          <div key={`moisture-${i}`} style={{ 
+                            textAlign: 'center', 
+                            display: 'flex', 
+                            flexDirection: 'column',
+                            backgroundColor: isSelected ? '#f0fdf4' : isAtThreshold ? '#dcfce7' : 'transparent',
+                            borderRadius: '6px',
+                            padding: '4px',
+                            border: isSelected ? '3px solid #10b981' : (isAtThreshold ? '2px solid #16a34a' : '1px solid #d1d5db'),
+                            boxShadow: isSelected ? '0 0 0 2px rgba(16, 185, 129, 0.3)' : 'none',
+                            transform: isSelected ? 'scale(1.05)' : 'scale(1)',
+                            transition: 'all 0.2s ease'
+                          }}>
+                            <div className="sensor-sublabel" style={{ 
+                              color: isSelected ? '#059669' : (isAtThreshold ? '#16a34a' : '#9ca3af'), 
+                              fontWeight: isSelected ? '700' : (isAtThreshold ? '700' : '400') 
+                            }}>
+                              TRAY {i} {isAtThreshold && '✓'}
+                            </div>
+                            <div className="sensor-value-sm" style={{ 
+                              color: isSelected ? '#059669' : (isAtThreshold ? '#16a34a' : undefined),
+                              fontSize: '18px',
+                              fontWeight: '400'
+                            }}>
+                              {trayMoisture.toFixed(2)}%
+                            </div>
+                            <div className="progress-bar">
+                              <div 
+                                className="progress-fill" 
+                                style={{ 
+                                  width: `${Math.min((trayMoisture / 14) * 100, 100)}%`,
+                                  backgroundColor: isSelected ? '#10b981' : (isAtThreshold ? '#16a34a' : '#06b6d4')
+                                }} 
+                              />
+                            </div>
+                            {isAtThreshold && (
+                              <div style={{ fontSize: '10px', color: '#16a34a', fontWeight: '600', marginTop: '2px' }}>
+                                Ready
+                              </div>
+                            )}
+                            {isSelected && !isAtThreshold && (
+                              <div style={{ fontSize: '10px', color: '#059669', fontWeight: '600', marginTop: '2px' }}>
+                                
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                     <div className="sensor-avg-row" style={{ marginTop: '10px' }}>
-                      <span className="sensor-avg-label">Average Moisture</span>
-                      <div className="sensor-avg-value">{(sensorData.moistureavg || 0).toFixed(2)}%</div>
-                      <div className="progress-bar"><div className="progress-fill cyan" style={{ width: `${Math.min(((sensorData.moistureavg || 0) / 14) * 100, 100)}%` }} /></div>
+                      <span className="sensor-avg-label">
+                        Average Moisture
+                      </span>
+                      <div className="sensor-avg-value">
+                        {(sensorData.moistureavg || 0).toFixed(2)}%
+                      </div>
+                      <div className="progress-bar">
+                        <div 
+                          className="progress-fill cyan" 
+                          style={{ 
+                            width: `${Math.min(((sensorData.moistureavg || 0) / 14) * 100, 100)}%` 
+                          }} 
+                        />
+                      </div>
                     </div>
                     <div className="sensor-range">Target: 13-14%</div>
                   </div>
@@ -372,18 +493,18 @@ export default function RiceDryingDashboard({ view }) {
                     <div className="sensor-label">Weight</div>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', marginTop: '8px', flex: 1, alignContent: 'start' }}>
                       {[1, 2, 3, 4, 5, 6].map(i => {
-                        const isFrozen    = savedWeights[i]?.frozen;
-                        const isSelected  = currentTray === i;
+                        const isFrozen        = savedWeights[i]?.frozen;
+                        const isSelected      = currentTray === i;
                         const afterFrozenTray = savedAfterWeights[i]?.frozen;
-                        const rawLive     = isSelected ? (sensorData.weight1 ?? sensorData.weightbefore1 ?? null) : null;
-                        const beforeVal   = isFrozen ? savedWeights[i].before : (rawLive ?? 0);
-                        const hasBeforeVal = isFrozen || (isSelected && rawLive !== null && rawLive > 0);
-                        const rawAfter    = isSelected ? (sensorData.weightafter1 ?? null) : null;
-                        const afterVal    = afterFrozenTray ? savedAfterWeights[i].after : (rawAfter ?? 0);
-                        const hasAfterVal = afterFrozenTray || (isSelected && rawAfter !== null && rawAfter > 0);
-                        const maxWeight   = 2;
-                        const beforePct   = hasBeforeVal ? Math.min((beforeVal / maxWeight) * 100, 100) : 0;
-                        const afterPct    = hasAfterVal  ? Math.min((afterVal  / maxWeight) * 100, 100) : 0;
+                        const rawLive         = isSelected ? (sensorData.weight1 ?? sensorData.weightbefore1 ?? null) : null;
+                        const beforeVal       = isFrozen ? savedWeights[i].before : (rawLive ?? 0);
+                        const hasBeforeVal    = isFrozen || (isSelected && rawLive !== null && rawLive > 0);
+                        const rawAfter        = isSelected ? (sensorData.weightafter1 ?? null) : null;
+                        const afterVal        = afterFrozenTray ? savedAfterWeights[i].after : (rawAfter ?? 0);
+                        const hasAfterVal     = afterFrozenTray || (isSelected && rawAfter !== null && rawAfter > 0);
+                        const maxWeight       = 2;
+                        const beforePct       = hasBeforeVal ? Math.min((beforeVal / maxWeight) * 100, 100) : 0;
+                        const afterPct        = hasAfterVal  ? Math.min((afterVal  / maxWeight) * 100, 100) : 0;
                         return (
                           <div key={`weight-tray-${i}`} style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', borderRadius: '6px', padding: '4px 2px', border: isSelected ? '2px solid #10b981' : isFrozen ? '2px solid #6ee7b7' : '2px solid transparent', backgroundColor: isSelected ? '#f0fdf4' : isFrozen ? '#f0fdf4' : 'transparent', transition: 'border-color 0.2s, background-color 0.2s' }}>
                             <div className="sensor-sublabel" style={{ color: isSelected ? '#059669' : isFrozen ? '#10b981' : '#9ca3af', fontWeight: isSelected || isFrozen ? '700' : '400' }}>
@@ -484,11 +605,6 @@ export default function RiceDryingDashboard({ view }) {
 
                   {/* Save Before / Save After */}
                   <div className="weight-save-row" style={{ marginTop: '10px' }}>
-                    {/*
-                      Save Before:
-                      - Enabled only BEFORE drying starts (canSaveBefore)
-                      - Disabled once isProcessing = true OR already frozen
-                    */}
                     <button
                       className={`selector-btn weight-save-btn before-btn ${beforeFrozen ? 'weight-save-frozen' : ''} ${!canSaveBefore ? 'weight-save-disabled' : ''}`}
                       onClick={handleSaveWeight}
@@ -496,15 +612,9 @@ export default function RiceDryingDashboard({ view }) {
                     >
                       {beforeFrozen
                         ? <>✓ Before<br /><span className="weight-save-val">{savedWeights[currentTray].before.toFixed(2)} kg</span></>
-                        : <>Save<br />Before</>}
+                        : <>Save<br />Before</>
+                      }
                     </button>
-
-                    {/*
-                      Save After:
-                      - Enabled only AFTER drying stops (canSaveAfter)
-                      - Requires before weight to be saved first
-                      - Disabled while drying is running
-                    */}
                     <button
                       className={`selector-btn weight-save-btn after-btn ${afterFrozen ? 'weight-save-frozen after-frozen' : ''} ${!canSaveAfter ? 'weight-save-disabled' : ''}`}
                       onClick={handleSaveAfterWeight}
@@ -512,46 +622,42 @@ export default function RiceDryingDashboard({ view }) {
                     >
                       {afterFrozen
                         ? <>✓ After<br /><span className="weight-save-val">{savedAfterWeights[currentTray].after.toFixed(2)} kg</span></>
-                        : <>Save<br />After</>}
+                        : anyTrayReached14
+                          ? <>Save<br />After</>
+                          : <>Save<br />After</>
+                      }
                     </button>
                   </div>
 
                   {/* Reset Before / Reset After */}
                   <div className="weight-save-row" style={{ marginTop: '6px' }}>
-                    {/*
-                      Reset Before:
-                      - Disabled once drying has started (isProcessing)
-                      - Also disabled after drying finishes (isDryingFinished)
-                        so the before weight stays locked after the run
-                    */}
                     <button
                       className={`selector-btn weight-reset-btn ${!canResetBefore ? 'weight-reset-disabled' : ''}`}
-                      onClick={() => { resetBeforeWeight(currentTray); showToast('info', `Tray ${currentTray} before weight reset.`); }}
-                      disabled={!canResetBefore}
+                      onClick={handleResetBeforeWeight}
+                      disabled={!canResetBefore || weightOperationLoading}
                     >
-                      Reset<br />Before
+                      {weightOperationLoading ? 'Resetting...' : 'Reset Before'}
                     </button>
-
-                    {/*
-                      Reset After:
-                      - Enabled only AFTER drying stops AND after weight is saved
-                    */}
                     <button
                       className={`selector-btn weight-reset-btn ${!canResetAfter ? 'weight-reset-disabled' : ''}`}
-                      onClick={() => { resetAfterWeight(currentTray); showToast('info', `Tray ${currentTray} after weight reset.`); }}
-                      disabled={!canResetAfter}
+                      onClick={handleResetAfterWeight}
+                      disabled={!canResetAfter || weightOperationLoading}
                     >
-                      Reset<br />After
+                      {weightOperationLoading ? 'Resetting...' : 'Reset After'}
                     </button>
                   </div>
                 </div>
 
+                {/* Start / Stop Buttons */}
                 <div className="control-buttons">
                   <button className={`start-button ${isProcessing ? 'processing' : ''}`} onClick={handleApply} disabled={isProcessing}>
                     {isProcessing ? (<><span className="processing-dot"></span>Processing...</>) : 'Start'}
                   </button>
-                  <button className="stop-button" onClick={handleStop} disabled={!isProcessing}><StopCircle size={18} /> Stop</button>
+                  <button className="stop-button" onClick={handleStop} disabled={!isProcessing}>
+                    <StopCircle size={18} /> Stop
+                  </button>
                 </div>
+
               </div>
             </div>
           </div>

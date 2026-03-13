@@ -1,7 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Platform, Vibration } from 'react-native';
-import PushNotification from 'react-native-push-notification';
+import { Platform, Vibration, Alert } from 'react-native';
+import messaging from '@react-native-firebase/messaging';
 import axios from 'axios';
+
+// Debug flag for troubleshooting
+const DEBUG_NOTIFICATIONS = __DEV__; // True in development
 
 const THRESHOLDS = {
   moisture: { critical: 18, warning: 15, stable: 14 },
@@ -46,55 +49,81 @@ interface UseNotificationServiceReturn {
   acknowledgeAll: () => Promise<void>;
 }
 
-export const configurePushNotifications = () => {
-  PushNotification.configure({
-    onNotification: (notification) => {
-      console.log('[PushNotification] received:', notification);
-    },
-    permissions: { alert: true, badge: true, sound: true },
-    popInitialNotification: true,
-    requestPermissions: Platform.OS === 'ios',
-  });
+export const configurePushNotifications = async () => {
+  try {
+    console.log('[FirebaseMessaging] Setting up Firebase messaging...');
+    
+    // Request permission for iOS
+    if (Platform.OS === 'ios') {
+      const authStatus = await messaging().requestPermission();
+      const enabled = 
+        authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
+        authStatus === messaging.AuthorizationStatus.PROVISIONAL;
+      
+      if (enabled) {
+        console.log('[FirebaseMessaging] iOS permission granted');
+      } else {
+        console.warn('[FirebaseMessaging] iOS permission denied');
+      }
+    }
 
-  PushNotification.createChannel(
-    {
-      channelId: 'iot-alerts',
-      channelName: 'IoT Sensor Alerts',
-      channelDescription: 'Rice Dryer sensor threshold alerts',
-      soundName: 'default',
-      importance: 4,
-      vibrate: true,
-    },
-    (created) => console.log('[PushNotification] channel created:', created)
-  );
+    // Get FCM token
+    const token = await messaging().getToken();
+    if (token) {
+      console.log('[FirebaseMessaging] FCM Token obtained:', token.substring(0, 10) + '...');
+    }
+
+    // Set up message handlers
+    messaging().onMessage(async remoteMessage => {
+      console.log('[FirebaseMessaging] Foreground message received:', remoteMessage);
+    });
+
+    messaging().onNotificationOpenedApp(remoteMessage => {
+      console.log('[FirebaseMessaging] Notification opened app:', remoteMessage);
+    });
+
+    messaging().getInitialNotification().then(remoteMessage => {
+      if (remoteMessage) {
+        console.log('[FirebaseMessaging] Initial notification:', remoteMessage);
+      }
+    });
+
+    console.log('[FirebaseMessaging] Configuration successful');
+  } catch (error) {
+    console.error('[FirebaseMessaging] Configuration failed:', error);
+  }
 };
 
-const showLocalNotification = (type: AlertType, title: string, message: string) => {
-  const colorMap: Record<AlertType, string> = {
-    CRITICAL: '#ef4444',
-    WARNING:  '#f59e0b',
-    STABLE:   '#10b981',
-    INFO:     '#3b82f6',
-  };
+// Counter for unique notification IDs
+let notificationCounter = 0;
 
-  if (type === 'CRITICAL') {
-    Vibration.vibrate([0, 500, 200, 500]); 
+const showLocalNotification = async (type: AlertType, title: string, message: string) => {
+  try {
+    // Trigger haptic feedback for critical alerts
+    if (type === 'CRITICAL') {
+      Vibration.vibrate([0, 500, 200, 500]);
+    }
+
+    console.log(`[Notification] Triggering ${type} alert:`, title);
+    
+    // For local notifications, we'll use Alert as fallback
+    // Firebase Cloud Messaging handles remote notifications
+    Alert.alert(
+      title,
+      message,
+      [
+        { text: 'OK', style: 'default' }
+      ],
+      { cancelable: true }
+    );
+    
+    // Note: For actual local notifications, you might want to use
+    // @react-native-community/push-notification-ios or react-native-push-notification
+    // but since you want to remove react-native-push-notification,
+    // Alert is the simplest cross-platform solution
+  } catch (error) {
+    console.error('[showLocalNotification] Error:', error);
   }
-
-  PushNotification.localNotification({
-    channelId: 'iot-alerts',
-    title,
-    message,
-    color: colorMap[type],
-    priority: type === 'CRITICAL' ? 'max' : type === 'WARNING' ? 'high' : 'default',
-    importance: type === 'CRITICAL' ? 'max' : type === 'WARNING' ? 'high' : 'default',
-    playSound: true,
-    soundName: 'default',
-    vibrate: type !== 'STABLE',
-    vibration: type === 'CRITICAL' ? 1000 : 300,
-    smallIcon: 'ic_notification',
-    largeIcon: '',
-  });
 };
 
 const useNotificationServiceNative = (
@@ -114,12 +143,24 @@ const useNotificationServiceNative = (
   const refresh = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await axios.get(`${apiBaseUrl}/api/notifications`);
+      
+      // Validate API URL
+      if (!apiBaseUrl || typeof apiBaseUrl !== 'string') {
+        throw new Error('Invalid API URL provided');
+      }
+      
+      const res = await axios.get(`${apiBaseUrl}/api/notifications`, {
+        timeout: 10000,
+      });
       const data: NotificationItem[] = Array.isArray(res.data) ? res.data : [];
       setNotifications(data);
       setError(null);
     } catch (err: any) {
-      setError(err.message ?? 'Failed to fetch notifications');
+      const errorMsg = err.message ?? 'Failed to fetch notifications';
+      setError(errorMsg);
+      if (DEBUG_NOTIFICATIONS) {
+        console.warn('[refresh] Error:', errorMsg);
+      }
     } finally {
       setLoading(false);
     }
@@ -131,21 +172,44 @@ const useNotificationServiceNative = (
     message: string,
     snapshot: SensorSnapshot
   ) => {
-
-    showLocalNotification(type, title, message);
-
     try {
-      await axios.post(`${apiBaseUrl}/api/notifications`, {
-        type,
-        title,
-        message,
-        sensorData: snapshot,
-        event: 'SENSOR_ALERT',
-        source: 'SENSOR',
-      });
-      await refresh();
-    } catch (err) {
-      console.error('[useNotificationService] save failed:', err);
+      // Validate inputs
+      if (!title || !message) {
+        console.warn('[triggerNotification] Missing title or message');
+        return;
+      }
+
+      // Show local notification on device
+      showLocalNotification(type, title, message);
+
+      // Save notification to backend
+      if (apiBaseUrl && typeof apiBaseUrl === 'string') {
+        try {
+          await axios.post(
+            `${apiBaseUrl}/api/notifications`,
+            {
+              type,
+              title,
+              message,
+              sensorData: snapshot,
+              event: 'SENSOR_ALERT',
+              source: 'SENSOR',
+            },
+            { timeout: 10000 }
+          );
+          
+          if (DEBUG_NOTIFICATIONS) {
+            console.log('[triggerNotification] Saved to backend:', { type, title });
+          }
+          
+          await refresh();
+        } catch (apiError: any) {
+          console.error('[triggerNotification] Backend save failed:', apiError.message);
+          // Continue - notification was still shown locally
+        }
+      }
+    } catch (err: any) {
+      console.error('[triggerNotification] Failed:', err?.message || err);
     }
   }, [apiBaseUrl, refresh]);
 
@@ -239,19 +303,35 @@ const useNotificationServiceNative = (
   // ── acknowledge ──────────────────────────────────────────────────────────
   const acknowledgeOne = useCallback(async (id: string) => {
     try {
-      await axios.patch(`${apiBaseUrl}/api/notifications/${id}/read`);
+      if (!apiBaseUrl || !id) {
+        throw new Error('Invalid parameters');
+      }
+      
+      await axios.patch(
+        `${apiBaseUrl}/api/notifications/${id}/read`,
+        {},
+        { timeout: 10000 }
+      );
       setNotifications(prev => prev.map(n => n._id === id ? { ...n, isRead: true } : n));
-    } catch (err) {
-      console.error('[acknowledgeOne] failed:', err);
+    } catch (err: any) {
+      console.error('[acknowledgeOne] failed:', err?.message || err);
     }
   }, [apiBaseUrl]);
 
   const acknowledgeAll = useCallback(async () => {
     try {
-      await axios.patch(`${apiBaseUrl}/api/notifications/read-all`);
+      if (!apiBaseUrl) {
+        throw new Error('Invalid API URL');
+      }
+      
+      await axios.patch(
+        `${apiBaseUrl}/api/notifications/read-all`,
+        {},
+        { timeout: 10000 }
+      );
       setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
-    } catch (err) {
-      console.error('[acknowledgeAll] failed:', err);
+    } catch (err: any) {
+      console.error('[acknowledgeAll] failed:', err?.message || err);
     }
   }, [apiBaseUrl]);
 

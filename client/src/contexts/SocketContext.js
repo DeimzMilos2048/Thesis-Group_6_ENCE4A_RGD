@@ -1,5 +1,35 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import io from 'socket.io-client';
+import API_CONFIG from '../config/api.config.js';
+
+// Check if running on web (development/production) vs mobile/Raspberry Pi
+const isReactNative = typeof navigator !== 'undefined' && navigator.product === 'ReactNative';
+const isWebEnvironment = typeof window !== 'undefined' && window.location;
+const isMobileApp = isReactNative || (!isWebEnvironment && typeof navigator !== 'undefined');
+
+// Debug logging for mobile environment detection
+console.log('=== SocketContext Debug Info ===');
+console.log('isReactNative:', isReactNative);
+console.log('isWebEnvironment:', isWebEnvironment);
+console.log('isMobileApp:', isMobileApp);
+console.log('navigator exists:', typeof navigator !== 'undefined');
+console.log('window exists:', typeof window !== 'undefined');
+console.log('navigator.product:', navigator?.product);
+console.log('========================');
+
+// Use the same base URL as API for consistency
+const getSocketURL = () => {
+  if (isWebEnvironment) {
+    // Web environment - use same URL as API
+    return API_CONFIG.baseURLs[API_CONFIG.currentURLIndex];
+  } else {
+    // Mobile/React Native environment - connect to Raspberry Pi web server
+    console.log('Mobile environment detected, using Raspberry Pi URL');
+    return 'http://192.168.0.109:5001';
+  }
+};
+
+const SOCKET_URL = getSocketURL();
 
 const SocketContext = createContext();
 
@@ -70,25 +100,58 @@ export const SocketProvider = ({ children }) => {
       toNum(data.moisture3),
       toNum(data.moisture4),
       toNum(data.moisture5),
-      toNum(data.moisture6),
-    ];
+      toNum(data.moisture6)
+    ].filter(v => v > 0); // Filter out zeros for accurate average
+    return values.length > 0 ? (values.reduce((a, b) => a + b, 0) / values.length) : 0;
+  };
 
-    return parseFloat((values.reduce((sum, v) => sum + v, 0) / values.length).toFixed(2));
+  // Create socket with fallback URLs
+  const createSocketWithFallback = () => {
+    const urls = API_CONFIG.baseURLs;
+    let currentUrlIndex = 0;
+    
+    const tryConnect = (urlIndex) => {
+      console.log(`Attempting socket connection to ${urls[urlIndex]}...`);
+      const newSocket = io(urls[urlIndex], {
+        transports: ['polling', 'websocket'],
+        reconnection: false, // We'll handle reconnection manually
+        timeout: 5000,
+      });
+
+      newSocket.on('connect', () => {
+        console.log(`Socket connected successfully to ${urls[urlIndex]}`);
+        setIsConnected(true);
+        API_CONFIG.currentURLIndex = urlIndex; // Update API config to use working URL
+      });
+
+      newSocket.on('connect_error', (error) => {
+        console.warn(`Socket connection failed to ${urls[urlIndex]}:`, error.message);
+        
+        // Try next URL if available
+        if (urlIndex < urls.length - 1) {
+          setTimeout(() => tryConnect(urlIndex + 1), 1000);
+        } else {
+          console.error('All socket connection attempts failed');
+          setIsConnected(false);
+        }
+      });
+
+      newSocket.on('disconnect', () => {
+        console.log('Socket disconnected');
+        setIsConnected(false);
+        // Try to reconnect with fallback URLs
+        setTimeout(() => tryConnect(0), 3000);
+      });
+
+      return newSocket;
+    };
+
+    return tryConnect(0);
   };
 
   useEffect(() => {
-    // Use production URL for both development and production to avoid connection issues
-    const socketUrl = process.env.REACT_APP_API_URL || 'https://mala-backend-q03k.onrender.com';
+    const newSocket = createSocketWithFallback();
     
-    const newSocket = io(socketUrl, {
-      reconnection: true,
-      reconnectionDelay: 1000,
-      reconnectionDelayMax: 5000,
-      reconnectionAttempts: 5,
-      transports: ['websocket', 'polling'], 
-      upgrade: true 
-    });
-
     // Socket event handlers
     newSocket.on('connect', () => {
       console.log('Connected to server:', newSocket.id);

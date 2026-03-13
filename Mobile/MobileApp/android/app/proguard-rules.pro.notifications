@@ -1,0 +1,20 @@
+# Rules for Firebase Cloud Messaging
+# Prevent obfuscation of Firebase and notification classes
+-keep class com.google.firebase.messaging.** { *; }
+-keep class com.google.android.gms.** { *; }
+
+# Keep notification-related classes
+-keep class android.app.NotificationManager { *; }
+-keep class androidx.core.app.NotificationCompat { *; }
+-keep class androidx.core.app.NotificationCompat$Builder { *; }
+
+# Keep custom notification receivers
+-keepclasseswithmembernames class * {
+    native <methods>;
+}
+
+# Prevent obfuscation of callback methods
+-keepclassjavanames class * {
+    public <methods>;
+    public <fields>;
+}

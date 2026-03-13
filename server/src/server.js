@@ -12,7 +12,7 @@ import sensorRoutes from "./routes/sensorRoutes.js";
 import connectDB from "./config/db.js";
 import { initializeSocket, startSensorPolling } from "./socketHandler.js";
 import SensorData from "./models/sensorDataModel.js";
-import { checkSensorThresholds } from "./utils/thresholdChecker.js"; // Add this utility
+import { checkSensorThresholds } from "./utils/thresholdChecker.js";
 import createDefaultAdmin from "./scripts/createDefaultAdmin.js";
 import systemRoutes from "./routes/systemRoutes.js";
 import History from "./models/historyModel.js";
@@ -41,7 +41,7 @@ const allowedOrigins = [
   //'http://192.168.86.181:3000',
   'http://10.42.0.1:3000',
   'http://localhost:3001', // Added new URL
- // 'http://192.168.86.181:3001', // Added new URL
+  'http://192.168.86.181:3001', // Added new URL
   'http://10.42.0.1:3001', // Added new URL
 ];
   
@@ -96,8 +96,13 @@ app.post('/api/sensor/data', async (req, res) => {
 
     const reading = await SensorData.create(req.body);
 
-    const avgMoisture = reading.moistureavg;
+    // 2. Calculate averages for emission
+    const avgMoisture =
+      typeof reading.moistureavg === 'number'
+        ? reading.moistureavg
+        : (reading.moisture1 + reading.moisture2) / 2;
 
+    // 3. Emit real-time update via Socket.io including average moisture
     io.emit('sensor_readings_table', {
       temperature: reading.temperature,
       humidity: reading.humidity,

@@ -1,7 +1,7 @@
-const API = "http://10.42.0.1:5001/api/system";
+import { SYSTEM_API_URL } from '../config/apiConfig.js';
 
 export const startDrying = async (temperature, moisture) => {
-  const res = await fetch(`${API}/start`, {
+  const res = await fetch(`${SYSTEM_API_URL}/dryer/start`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ temperature, moisture })
@@ -10,14 +10,14 @@ export const startDrying = async (temperature, moisture) => {
 };
 
 export const stopDrying = async () => {
-  const res = await fetch(`${API}/stop`, {
+  const res = await fetch(`${SYSTEM_API_URL}/dryer/stop`, {
     method: "POST"
   });
   return res.json();
 };
 
 export const setTemperature = async (temperature) => {
-  const res = await fetch(`${API}/temperature`, {
+  const res = await fetch(`${SYSTEM_API_URL}/temperature`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ value: temperature })  // backend reads req.body.value
@@ -26,7 +26,7 @@ export const setTemperature = async (temperature) => {
 };
 
 export const setMoisture = async (moisture) => {
-  const res = await fetch(`${API}/moisture`, {
+  const res = await fetch(`${SYSTEM_API_URL}/moisture`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ value: moisture })
@@ -35,7 +35,7 @@ export const setMoisture = async (moisture) => {
 };
 
 export const setTray = async (tray) => {
-  const res = await fetch(`${API}/tray`, {
+  const res = await fetch(`${SYSTEM_API_URL}/tray`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ value: tray })

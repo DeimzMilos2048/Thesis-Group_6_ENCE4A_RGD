@@ -43,9 +43,9 @@ const WeightGroupedBarChart = ({ savedWeights = {}, savedAfterWeights = {} }) =>
         </div>
       </h3>
 
-      <div className="analytics-card-status" style={{ height: '400px', width: '100%' }}>
+      <div className="analytics-card-status" style={{ height: '100%', width: '100%' }}>
         {weightData && weightData.length > 0 && (Object.keys(savedWeights).length > 0 || Object.keys(savedAfterWeights).length > 0) ? (
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer width="100%" height="100%" minWidth={0} aspect={undefined}>
             <BarChart
               data={weightData}
               margin={{ top: 20, right: 30, left: 0, bottom: 5 }}

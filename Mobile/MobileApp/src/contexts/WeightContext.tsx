@@ -1,5 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Alert } from 'react-native';
+import { useSystemControl } from './SystemControlContext';
 
 interface WeightData {
   [key: number]: {
@@ -45,6 +47,7 @@ interface WeightContextType {
   clearWeights: () => Promise<void>;
   clearTrayWeights: (tray: number) => Promise<void>;
   loadWeights: () => Promise<void>;
+  loadWeightsFromBackend: () => Promise<void>;
   calculateWeightLoss: (tray: number) => { lossPercentage: number; lossAmount: number } | null;
   getAllWeightLoss: () => WeightLossData;
   exportWeightData: () => string;
@@ -75,11 +78,75 @@ export const WeightProvider: React.FC<WeightProviderProps> = ({ children }) => {
   const [weightHistory, setWeightHistory] = useState<WeightHistoryEntry[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { socket } = useSystemControl();
 
   // Load weights from AsyncStorage on mount
   useEffect(() => {
     loadWeights();
   }, []);
+
+  // Listen for weight reset events from web
+  useEffect(() => {
+    console.log('[Mobile] WeightContext - Setting up socket listeners, socket:', !!socket);
+    console.log('[Mobile] WeightContext - Socket connected:', socket?.connected);
+    
+    if (!socket) {
+      console.warn('[Mobile] WeightContext - No socket available');
+      return;
+    }
+
+    // Listen for before weight reset events
+    socket.on('weight:reset_before', (data: { tray: number, timestamp: string }) => {
+      console.log(`[Mobile] Received weight reset before event for tray ${data.tray}`, data);
+      
+      // Update local state to match web reset
+      setSavedWeights(prev => {
+        const next = { ...prev };
+        delete next[data.tray];
+        return next;
+      });
+
+      // Don't clear AsyncStorage immediately - let the backend update propagate
+      // The next time data is loaded from backend, it will reflect the reset
+      loadWeightsFromBackend(); // Reload fresh data from backend
+
+      // Show in-app notification
+      Alert.alert(
+        'Weight Reset',
+        `Tray ${data.tray} before weight has been reset from web interface.`,
+        [{ text: 'OK' }]
+      );
+    });
+
+    // Listen for after weight reset events
+    socket.on('weight:reset_after', (data: { tray: number, timestamp: string }) => {
+      console.log(`[Mobile] Received weight reset after event for tray ${data.tray}`, data);
+      
+      // Update local state to match web reset
+      setSavedAfterWeights(prev => {
+        const next = { ...prev };
+        delete next[data.tray];
+        return next;
+      });
+
+      // Don't clear AsyncStorage immediately - let the backend update propagate
+      // The next time data is loaded from backend, it will reflect the reset
+      loadWeightsFromBackend(); // Reload fresh data from backend
+
+      // Show in-app notification
+      Alert.alert(
+        'Weight Reset',
+        `Tray ${data.tray} after weight has been reset from web interface.`,
+        [{ text: 'OK' }]
+      );
+    });
+
+    return () => {
+      console.log('[Mobile] WeightContext - Cleaning up socket listeners');
+      socket.off('weight:reset_before');
+      socket.off('weight:reset_after');
+    };
+  }, [socket]);
 
   // Recalculate weight loss whenever weights change
   useEffect(() => {
@@ -113,6 +180,48 @@ export const WeightProvider: React.FC<WeightProviderProps> = ({ children }) => {
     } catch (error) {
       console.error('Error loading weights:', error);
       setError('Failed to load weight data');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const loadWeightsFromBackend = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      // Get weights from backend (MongoDB)
+      const token = await AsyncStorage.getItem('token');
+      if (!token) {
+        console.warn('[Mobile] No token found, cannot fetch weights from backend');
+        return;
+      }
+
+      const response = await fetch('http://192.168.0.109:5001/api/sensor/latest/weights', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('[Mobile] Fetched weights from backend:', data);
+        
+        // Update local state with backend data
+        if (data.weights) {
+          setSavedWeights(data.weights);
+          await AsyncStorage.setItem('savedWeights', JSON.stringify(data.weights));
+        }
+        if (data.afterWeights) {
+          setSavedAfterWeights(data.afterWeights);
+          await AsyncStorage.setItem('savedAfterWeights', JSON.stringify(data.afterWeights));
+        }
+      } else {
+        console.error('[Mobile] Failed to fetch weights from backend:', response.status);
+      }
+    } catch (error) {
+      console.error('[Mobile] Error fetching weights from backend:', error);
     } finally {
       setIsLoading(false);
     }
@@ -371,6 +480,7 @@ export const WeightProvider: React.FC<WeightProviderProps> = ({ children }) => {
     clearWeights,
     clearTrayWeights,
     loadWeights,
+    loadWeightsFromBackend,
     calculateWeightLoss,
     getAllWeightLoss,
     exportWeightData,

@@ -5,6 +5,7 @@ import './Dashboard.css';
 import './Analytics.css';
 import { useNavigate, useLocation } from 'react-router-dom';
 import authService from '../../api/authService';
+import dryerService from '../../api/dryerService';
 import logo from "../../assets/images/logo2.png";
 import { useSocket } from '../../contexts/SocketContext.js';
 import { useWeight } from '../../contexts/WeightContext.js';
@@ -96,9 +97,28 @@ export default function Analytics({ view }) {
     setShowLogoutConfirm(true);
   };
 
-  const handleLogoutConfirm = () => {
-    authService.logout();
-    navigate('/login');
+  const handleLogoutConfirm = async () => {
+    try {
+      // Stop drying process if running
+      await dryerService.stopDrying().catch(() => {});
+      
+      // Clear sensor-related data from localStorage
+      localStorage.removeItem('sensorData');
+      localStorage.removeItem('savedWeights');
+      localStorage.removeItem('savedAfterWeights');
+      localStorage.removeItem('dryingStatus');
+      localStorage.removeItem('dryingStartTime');
+      localStorage.removeItem('targetMoisture');
+      localStorage.removeItem('targetTemperature');
+      
+      // Call auth logout
+      await authService.logout();
+      navigate('/login');
+    } catch (error) {
+      console.error('Logout error:', error);
+      // Still navigate to login even if there's an error
+      navigate('/login');
+    }
   };
 
   const handleLogoutCancel = () => {
@@ -108,7 +128,7 @@ export default function Analytics({ view }) {
   const fmt = (val, unit) => val === null ? 'N/A' : `${Number(val).toFixed(1)}${unit}`;
 
   const DualLineGraph = ({ data, color1, color2, unit, minValue, maxValue }) => (
-    <ResponsiveContainer width="100%" height="100%">
+    <ResponsiveContainer width="100%" height="100%" minWidth={0} aspect={undefined}>
       <LineChart data={data} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
         <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
         <XAxis dataKey="time" tick={{ fontSize: 12 }} />
@@ -122,7 +142,7 @@ export default function Analytics({ view }) {
   );
 
   const SingleLineGraph = ({ data, color, unit, minValue, maxValue }) => (
-    <ResponsiveContainer width="100%" height="100%">
+    <ResponsiveContainer width="100%" height="100%" minWidth={0} aspect={undefined}>
       <LineChart data={data} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
         <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
         <XAxis dataKey="time" tick={{ fontSize: 12 }} />
@@ -143,7 +163,7 @@ export default function Analytics({ view }) {
     });
 
     return (
-      <ResponsiveContainer width="100%" height="100%">
+      <ResponsiveContainer width="100%" height="100%" minWidth={0} aspect={undefined}>
         <LineChart data={data} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
           <XAxis dataKey="time" tick={{ fontSize: 12 }} />
