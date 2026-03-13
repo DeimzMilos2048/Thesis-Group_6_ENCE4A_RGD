@@ -1,4 +1,4 @@
-import React, { createContext, useState, useContext } from 'react';
+import React, { createContext, useState, useContext, useEffect } from 'react';
 import { useSocket } from './SocketContext';
 import API_CONFIG from '../config/api.config';
 
@@ -6,6 +6,25 @@ const WeightContext = createContext(null);
 
 const API_URLs = API_CONFIG.baseURLs;
 const API_URL = Array.isArray(API_URLs) ? API_URLs[0] : API_URLs;
+
+// Helper functions for localStorage
+const saveToLocalStorage = (key, data) => {
+  try {
+    localStorage.setItem(key, JSON.stringify(data));
+  } catch (error) {
+    console.warn(`Failed to save ${key} to localStorage:`, error);
+  }
+};
+
+const loadFromLocalStorage = (key, defaultValue = {}) => {
+  try {
+    const stored = localStorage.getItem(key);
+    return stored ? JSON.parse(stored) : defaultValue;
+  } catch (error) {
+    console.warn(`Failed to load ${key} from localStorage:`, error);
+    return defaultValue;
+  }
+};
 
 async function patchWeightToBackend(tray, beforeWeight, afterWeight) {
   try {
@@ -117,22 +136,40 @@ async function fetchWeightsFromBackend() {
 }
 
 export function WeightProvider({ children }) {
-  const [savedWeights, setSavedWeights] = useState({});
-  const [savedAfterWeights, setSavedAfterWeights] = useState({});
+  // Initialize state from localStorage
+  const [savedWeights, setSavedWeights] = useState(() => 
+    loadFromLocalStorage('savedWeights', {})
+  );
+  const [savedAfterWeights, setSavedAfterWeights] = useState(() => 
+    loadFromLocalStorage('savedAfterWeights', {})
+  );
   const socket = useSocket();
 
+  // Save to localStorage whenever state changes
+  useEffect(() => {
+    saveToLocalStorage('savedWeights', savedWeights);
+  }, [savedWeights]);
+
+  useEffect(() => {
+    saveToLocalStorage('savedAfterWeights', savedAfterWeights);
+  }, [savedAfterWeights]);
+
   const saveBeforeWeight = (tray, value) => {
-    setSavedWeights(prev => ({ ...prev, [tray]: { before: value, frozen: true } }));
+    const newWeights = { ...savedWeights, [tray]: { before: value, frozen: true } };
+    setSavedWeights(newWeights);
     patchWeightToBackend(tray, value, undefined);
   };
 
   const saveAfterWeight = (tray, value) => {
-    setSavedAfterWeights(prev => ({ ...prev, [tray]: { after: value, frozen: true } }));
+    const newAfterWeights = { ...savedAfterWeights, [tray]: { after: value, frozen: true } };
+    setSavedAfterWeights(newAfterWeights);
     patchWeightToBackend(tray, undefined, value);
   };
 
   const resetBeforeWeight = async (tray) => {
-    setSavedWeights(prev => { const next = { ...prev }; delete next[tray]; return next; });
+    const newWeights = { ...savedWeights };
+    delete newWeights[tray];
+    setSavedWeights(newWeights);
     
     // Clear weight from backend (MongoDB)
     await patchWeightToBackend(tray, null, null);
@@ -162,7 +199,9 @@ export function WeightProvider({ children }) {
   };
 
   const resetAfterWeight = async (tray) => {
-    setSavedAfterWeights(prev => { const next = { ...prev }; delete next[tray]; return next; });
+    const newAfterWeights = { ...savedAfterWeights };
+    delete newAfterWeights[tray];
+    setSavedAfterWeights(newAfterWeights);
     
     // Clear weight from backend (MongoDB)
     await patchWeightToBackend(tray, null, null);

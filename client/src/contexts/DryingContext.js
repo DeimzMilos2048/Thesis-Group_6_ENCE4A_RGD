@@ -33,7 +33,7 @@ export function DryingProvider({ children }) {
   useEffect(() => {
     syncIntervalRef.current = setInterval(() => {
       syncWithBackend();
-    }, 5000);
+    }, 5001);
 
     // Initial sync
     syncWithBackend();
