@@ -2,6 +2,25 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import io from 'socket.io-client';
 import API_CONFIG from '../config/api.config.js';
 
+// Helper functions for localStorage
+const saveToLocalStorage = (key, data) => {
+  try {
+    localStorage.setItem(key, JSON.stringify(data));
+  } catch (error) {
+    console.warn(`Failed to save ${key} to localStorage:`, error);
+  }
+};
+
+const loadFromLocalStorage = (key, defaultValue = null) => {
+  try {
+    const stored = localStorage.getItem(key);
+    return stored ? JSON.parse(stored) : defaultValue;
+  } catch (error) {
+    console.warn(`Failed to load ${key} from localStorage:`, error);
+    return defaultValue;
+  }
+};
+
 // Check if running on web (development/production) vs mobile/Raspberry Pi
 const isReactNative = typeof navigator !== 'undefined' && navigator.product === 'ReactNative';
 const isWebEnvironment = typeof window !== 'undefined' && window.location;
@@ -43,20 +62,22 @@ export const useSocket = () => {
 
 export const SocketProvider = ({ children }) => {
   const [socket, setSocket] = useState(null);
-  const [sensorData, setSensorData] = useState({
-    temperature: 0,
-    humidity: 0,
-    moisture1: 0,
-    moisture2: 0,
-    moisture3: 0,
-    moisture4: 0,
-    moisture5: 0,
-    moisture6: 0,
-    moistureavg: 0,
-    weight1: 0,
-    weight2: 0,
-    status: 'Idle'
-  });
+  const [sensorData, setSensorData] = useState(() => 
+    loadFromLocalStorage('sensorData', {
+      temperature: 0,
+      humidity: 0,
+      moisture1: 0,
+      moisture2: 0,
+      moisture3: 0,
+      moisture4: 0,
+      moisture5: 0,
+      moisture6: 0,
+      moistureavg: 0,
+      weight1: 0,
+      weight2: 0,
+      status: 'Idle'
+    })
+  );
   const [chartData, setChartData] = useState({
     moisture1: [],
     moisture2: [],
@@ -85,6 +106,11 @@ export const SocketProvider = ({ children }) => {
   });
 
   const [isConnected, setIsConnected] = useState(false);
+
+  // Save sensorData to localStorage whenever it changes
+  useEffect(() => {
+    saveToLocalStorage('sensorData', sensorData);
+  }, [sensorData]);
 
   // Helper: safely parse any value (string or number) to float
   const toNum = (v) => {

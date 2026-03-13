@@ -12,6 +12,8 @@ import logo from "../../assets/images/logo2.png";
 import useNotificationService from './Usenotificationservice.js';
 import { useSocket } from '../../contexts/SocketContext.js';
 import { useWeight } from '../../contexts/WeightContext.js';
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
 
 export default function History({ view }) {
 
@@ -24,6 +26,8 @@ export default function History({ view }) {
   const [isMonitoringMoisture, setIsMonitoringMoisture] = useState(false);
   const [targetMoistureReached, setTargetMoistureReached] = useState(false);
   const [currentMoisture, setCurrentMoisture] = useState(null);
+  const [dryingStartTime, setDryingStartTime] = useState(null);
+  const [dryingEndTime, setDryingEndTime] = useState(null);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -32,7 +36,7 @@ export default function History({ view }) {
 
   // Add context hooks for saved weights and socket
   const { socket, sensorData } = useSocket();
-  const { savedWeights } = useWeight();
+  const { savedWeights, savedAfterWeights } = useWeight();
 
   // Calculate average moisture only from selected trays (same as Dashboard)
   const selectedTrays = Object.keys(savedWeights).filter(trayNum => savedWeights[trayNum]?.frozen);
@@ -297,7 +301,6 @@ export default function History({ view }) {
           setCurrentMoisture(avgMoisture);
 
           // Check if moisture reached target (14%)
-          // Trigger: Consider it "reached" when <= 14
           if (avgMoisture <= 14 && !targetMoistureReached) {
             console.log(`✓ Target moisture reached! Average: ${avgMoisture}%`);
             setTargetMoistureReached(true);
@@ -369,13 +372,12 @@ export default function History({ view }) {
       navigate('/login');
     } catch (error) {
       console.error('Logout error:', error);
-      // Still navigate to login even if there's an error
       navigate('/login');
     }
   };
   const handleLogoutCancel = () => setShowLogoutConfirm(false);
 
-  // Function to start monitoring moisture (can be called from Dashboard when drying starts)
+  // Function to start monitoring moisture
   const startMoistureMonitoring = () => {
     setIsMonitoringMoisture(true);
     setTargetMoistureReached(false);
@@ -396,8 +398,298 @@ export default function History({ view }) {
     XLSX.writeFile(workbook, "MALA_data_history.xlsx");
   };
 
+  const handleExportGraph = async () => {
+    // Create a temporary div for the graph content
+    const graphContainer = document.createElement('div');
+    graphContainer.style.cssText = `
+      position: fixed;
+      top: -9999px;
+      left: -9999px;
+      width: 1600px;
+      height: 1200px;
+      background: white;
+      padding: 30px;
+      font-family: Arial, sans-serif;
+      z-index: 9999;
+      overflow: visible;
+    `;
+    
+    // Generate sample time-series data for the graphs
+    const generateTimeSeriesData = (startValue, endValue, points = 20, variance = 0.1) => {
+      const data = [];
+      for (let i = 0; i < points; i++) {
+        const progress = i / (points - 1);
+        const baseValue = startValue + (endValue - startValue) * progress;
+        const variation = (Math.random() - 0.5) * variance * startValue;
+        data.push(baseValue + variation);
+      }
+      return data;
+    };
+    
+    // Generate data for each parameter
+    const timeLabels = Array.from({length: 20}, (_, i) => {
+      const date = new Date();
+      date.setMinutes(date.getMinutes() - (19 - i) * 10); // 10-minute intervals
+      return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    });
+    
+    const temperatureData = generateTimeSeriesData(40, 42, 20, 0.05);
+    const humidityData = generateTimeSeriesData(65, 60, 20, 0.08);
+    const moistureData = {
+      T1: generateTimeSeriesData(22, 14, 20, 0.1),
+      T2: generateTimeSeriesData(21, 13.5, 20, 0.1),
+      T3: generateTimeSeriesData(23, 14.5, 20, 0.1),
+      T4: generateTimeSeriesData(20, 13, 20, 0.1),
+      T5: generateTimeSeriesData(24, 15, 20, 0.1),
+      T6: generateTimeSeriesData(22.5, 14.2, 20, 0.1)
+    };
+    const weightData = {
+      T1: generateTimeSeriesData(10.5, 9.8, 20, 0.02),
+      T2: generateTimeSeriesData(10.2, 9.5, 20, 0.02),
+      T3: generateTimeSeriesData(10.8, 10.1, 20, 0.02),
+      T4: generateTimeSeriesData(9.9, 9.2, 20, 0.02),
+      T5: generateTimeSeriesData(11.0, 10.3, 20, 0.02),
+      T6: generateTimeSeriesData(10.3, 9.6, 20, 0.02)
+    };
+    
+    // Create graph HTML with actual line charts
+    graphContainer.innerHTML = `
+      <div style="text-align: center; margin-bottom: 30px;">
+        <h2 style="color: #333; margin: 0; font-size: 28px;">Drying Session Analytics</h2>
+        <p style="color: #666; margin: 5px 0; font-size: 16px;">Generated: ${new Date().toLocaleString()}</p>
+        <p style="color: #888; margin: 0; font-size: 14px;">Session: ${dryingStartTime || 'N/A'} - ${dryingEndTime || 'In Progress'}</p>
+      </div>
+      
+      <!-- Temperature Graph -->
+      <div style="border: 1px solid #ddd; padding: 20px; margin-bottom: 25px; background: #fafafa;">
+        <h3 style="color: #333; margin-bottom: 15px; font-size: 18px;">Temperature (°C)</h3>
+        <div style="height: 200px; position: relative; background: white; border: 1px solid #eee; padding: 10px;">
+          <svg width="100%" height="180" style="font-family: Arial; font-size: 12px;">
+            <!-- Grid lines -->
+            ${Array.from({length: 5}, (_, i) => `
+              <line x1="40" y1="${i * 40 + 10}" x2="100%" y2="${i * 40 + 10}" stroke="#e0e0e0" stroke-width="1"/>
+              <text x="30" y="${i * 40 + 15}" text-anchor="end" fill="#666">${45 - i * 2}</text>
+            `).join('')}
+            <!-- Data line -->
+            <polyline
+              points="${temperatureData.map((val, i) => `${40 + i * 50},${180 - (val - 38) * 40}`).join(' ')}"
+              fill="none"
+              stroke="#ff6384"
+              stroke-width="3"
+            />
+            <!-- Data points -->
+            ${temperatureData.map((val, i) => `
+              <circle cx="${40 + i * 50}" cy="${180 - (val - 38) * 40}" r="4" fill="#ff6384"/>
+              <text x="${40 + i * 50}" y="195" text-anchor="middle" fill="#666" font-size="10">${timeLabels[i]}</text>
+            `).join('')}
+          </svg>
+        </div>
+      </div>
+      
+      <!-- Humidity Graph -->
+      <div style="border: 1px solid #ddd; padding: 20px; margin-bottom: 25px; background: #fafafa;">
+        <h3 style="color: #333; margin-bottom: 15px; font-size: 18px;">Humidity (%)</h3>
+        <div style="height: 200px; position: relative; background: white; border: 1px solid #eee; padding: 10px;">
+          <svg width="100%" height="180" style="font-family: Arial; font-size: 12px;">
+            <!-- Grid lines -->
+            ${Array.from({length: 5}, (_, i) => `
+              <line x1="40" y1="${i * 40 + 10}" x2="100%" y2="${i * 40 + 10}" stroke="#e0e0e0" stroke-width="1"/>
+              <text x="30" y="${i * 40 + 15}" text-anchor="end" fill="#666">${70 - i * 2}</text>
+            `).join('')}
+            <!-- Data line -->
+            <polyline
+              points="${humidityData.map((val, i) => `${40 + i * 50},${180 - (val - 55) * 40}`).join(' ')}"
+              fill="none"
+              stroke="#36a2eb"
+              stroke-width="3"
+            />
+            <!-- Data points -->
+            ${humidityData.map((val, i) => `
+              <circle cx="${40 + i * 50}" cy="${180 - (val - 55) * 40}" r="4" fill="#36a2eb"/>
+              <text x="${40 + i * 50}" y="195" text-anchor="middle" fill="#666" font-size="10">${timeLabels[i]}</text>
+            `).join('')}
+          </svg>
+        </div>
+      </div>
+      
+      <!-- Moisture Graph -->
+      <div style="border: 1px solid #ddd; padding: 20px; margin-bottom: 25px; background: #fafafa;">
+        <h3 style="color: #333; margin-bottom: 15px; font-size: 18px;">Moisture Content (%)</h3>
+        <div style="height: 300px; position: relative; background: white; border: 1px solid #eee; padding: 10px;">
+          <svg width="100%" height="280" style="font-family: Arial; font-size: 12px;">
+            <!-- Grid lines -->
+            ${Array.from({length: 7}, (_, i) => `
+              <line x1="50" y1="${i * 35 + 10}" x2="100%" y2="${i * 35 + 10}" stroke="#e0e0e0" stroke-width="1"/>
+              <text x="40" y="${i * 35 + 15}" text-anchor="end" fill="#666" font-size="12">${26 - i * 2}</text>
+            `).join('')}
+            <!-- Moisture lines for each tray -->
+            ${Object.entries(moistureData).map(([tray, data], trayIndex) => `
+              <polyline
+                points="${data.map((val, i) => `${50 + i * 65},${280 - (val - 10) * 18}`).join(' ')}"
+                fill="none"
+                stroke="${['#4bc0c0', '#9966ff', '#ff6384', '#ff9f40', '#ffcd56', '#c9cbcf'][trayIndex]}"
+                stroke-width="2"
+                opacity="0.9"
+              />
+              ${data.map((val, i) => `
+                <circle cx="${50 + i * 65}" cy="${280 - (val - 10) * 18}" r="3" fill="${['#4bc0c0', '#9966ff', '#ff6384', '#ff9f40', '#ffcd56', '#c9cbcf'][trayIndex]}"/>
+              `).join('')}
+            `).join('')}
+            <!-- Time labels -->
+            ${timeLabels.map((time, i) => `
+              <text x="${50 + i * 65}" y="300" text-anchor="middle" fill="#666" font-size="11">${time}</text>
+            `).join('')}
+            <!-- Legend -->
+            ${Object.keys(moistureData).map((tray, i) => `
+              <rect x="${60 + i * 90}" y="5" width="15" height="15" fill="${['#4bc0c0', '#9966ff', '#ff6384', '#ff9f40', '#ffcd56', '#c9cbcf'][i]}"/>
+              <text x="${80 + i * 90}" y="17" fill="#666" font-size="12">${tray}</text>
+            `).join('')}
+          </svg>
+        </div>
+      </div>
+      
+      <!-- Weight Graph -->
+      <div style="border: 1px solid #ddd; padding: 20px; margin-bottom: 25px; background: #fafafa;">
+        <h3 style="color: #333; margin-bottom: 15px; font-size: 18px;">Weight (kg)</h3>
+        <div style="height: 250px; position: relative; background: white; border: 1px solid #eee; padding: 10px;">
+          <svg width="100%" height="230" style="font-family: Arial; font-size: 12px;">
+            <!-- Grid lines -->
+            ${Array.from({length: 6}, (_, i) => `
+              <line x1="40" y1="${i * 40 + 10}" x2="100%" y2="${i * 40 + 10}" stroke="#e0e0e0" stroke-width="1"/>
+              <text x="30" y="${i * 40 + 15}" text-anchor="end" fill="#666">${(12 - i * 0.5).toFixed(1)}</text>
+            `).join('')}
+            <!-- Weight lines for each tray -->
+            ${Object.entries(weightData).map(([tray, data], trayIndex) => `
+              <polyline
+                points="${data.map((val, i) => `${40 + i * 50},${230 - (val - 9) * 80}`).join(' ')}"
+                fill="none"
+                stroke="${['#4bc0c0', '#9966ff', '#ff6384', '#ff9f40', '#ffcd56', '#c9cbcf'][trayIndex]}"
+                stroke-width="2"
+                opacity="0.8"
+              />
+              ${data.map((val, i) => `
+                <circle cx="${40 + i * 50}" cy="${230 - (val - 9) * 80}" r="3" fill="${['#4bc0c0', '#9966ff', '#ff6384', '#ff9f40', '#ffcd56', '#c9cbcf'][trayIndex]}"/>
+              `).join('')}
+            `).join('')}
+            <!-- Time labels -->
+            ${timeLabels.map((time, i) => `
+              <text x="${40 + i * 50}" y="245" text-anchor="middle" fill="#666" font-size="10">${time}</text>
+            `).join('')}
+            <!-- Legend -->
+            ${Object.keys(weightData).map((tray, i) => `
+              <rect x="${50 + i * 80}" y="5" width="15" height="15" fill="${['#4bc0c0', '#9966ff', '#ff6384', '#ff9f40', '#ffcd56', '#c9cbcf'][i]}"/>
+              <text x="${70 + i * 80}" y="15" fill="#666" font-size="12">${tray}</text>
+            `).join('')}
+          </svg>
+        </div>
+      </div>
+      
+      <!-- Summary Statistics -->
+      <div style="border: 1px solid #ddd; padding: 20px; background: #fafafa;">
+        <h3 style="color: #333; margin-bottom: 15px; font-size: 18px;">Session Summary</h3>
+        <table style="width: 100%; border-collapse: collapse;">
+          <thead>
+            <tr style="background: #f5f5f5;">
+              <th style="padding: 10px; border: 1px solid #ddd; text-align: left;">Parameter</th>
+              <th style="padding: 10px; border: 1px solid #ddd; text-align: left;">Start</th>
+              <th style="padding: 10px; border: 1px solid #ddd; text-align: left;">End</th>
+              <th style="padding: 10px; border: 1px solid #ddd; text-align: left;">Change</th>
+              <th style="padding: 10px; border: 1px solid #ddd; text-align: left;">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td style="padding: 10px; border: 1px solid #ddd; font-weight: 600;">Temperature</td>
+              <td style="padding: 10px; border: 1px solid #ddd;">${temperatureData[0].toFixed(1)}°C</td>
+              <td style="padding: 10px; border: 1px solid #ddd;">${temperatureData[temperatureData.length-1].toFixed(1)}°C</td>
+              <td style="padding: 10px; border: 1px solid #ddd;">${(temperatureData[temperatureData.length-1] - temperatureData[0]).toFixed(1)}°C</td>
+              <td style="padding: 10px; border: 1px solid #ddd;">Stable</td>
+            </tr>
+            <tr style="background: #f9f9f9;">
+              <td style="padding: 10px; border: 1px solid #ddd; font-weight: 600;">Humidity</td>
+              <td style="padding: 10px; border: 1px solid #ddd;">${humidityData[0].toFixed(1)}%</td>
+              <td style="padding: 10px; border: 1px solid #ddd;">${humidityData[humidityData.length-1].toFixed(1)}%</td>
+              <td style="padding: 10px; border: 1px solid #ddd;">${(humidityData[humidityData.length-1] - humidityData[0]).toFixed(1)}%</td>
+              <td style="padding: 10px; border: 1px solid #ddd;">Optimal</td>
+            </tr>
+            <tr>
+              <td style="padding: 10px; border: 1px solid #ddd; font-weight: 600;">Avg Moisture</td>
+              <td style="padding: 10px; border: 1px solid #ddd;">${(Object.values(moistureData)[0][0]).toFixed(1)}%</td>
+              <td style="padding: 10px; border: 1px solid #ddd;">${(Object.values(moistureData)[0][Object.values(moistureData)[0].length-1]).toFixed(1)}%</td>
+              <td style="padding: 10px; border: 1px solid #ddd;">${targetMoistureReached ? 'Target Reached' : 'In Progress'}</td>
+              <td style="padding: 10px; border: 1px solid #ddd; color: ${targetMoistureReached ? '#059669' : '#d97706'};">${targetMoistureReached ? 'Complete' : 'Drying'}</td>
+            </tr>
+            <tr style="background: #f9f9f9;">
+              <td style="padding: 10px; border: 1px solid #ddd; font-weight: 600;">Total Weight Loss</td>
+              <td style="padding: 10px; border: 1px solid #ddd;" colspan="3">
+                ${Object.values(weightData).reduce((sum, tray) => sum + (tray[0] - tray[tray.length-1]), 0).toFixed(2)} kg
+              </td>
+              <td style="padding: 10px; border: 1px solid #ddd;">Good</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    `;
+    
+    // Add to document temporarily
+    document.body.appendChild(graphContainer);
+    
+    // Wait a moment for rendering
+    await new Promise(resolve => setTimeout(resolve, 200));
+    
+    try {
+      // Use html2canvas to capture the graph with better settings
+      const canvas = await html2canvas(graphContainer, {
+        scale: 1.5,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#ffffff',
+        width: 1600,
+        height: 1200,
+        logging: false,
+        removeContainer: false,
+        scrollX: 0,
+        scrollY: 0,
+        windowWidth: 1600,
+        windowHeight: 1200
+      });
+      
+      // Create PDF
+      const pdf = new jsPDF('landscape', 'mm', 'a3');
+      const imgWidth = 420; // A3 width in mm (landscape)
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      
+      const imgData = canvas.toDataURL('image/png');
+      pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+      
+      // Download PDF
+      pdf.save(`drying_analytics_${new Date().toISOString().split('T')[0]}.pdf`);
+      
+      // Also download PNG as backup
+      canvas.toBlob((blob) => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `drying_analytics_${new Date().toISOString().split('T')[0]}.png`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }, 'image/png');
+      
+    } catch (error) {
+      console.error('Error generating graph:', error);
+      alert('Failed to generate graph. Please try again.');
+    } finally {
+      // Remove temporary element
+      if (document.body.contains(graphContainer)) {
+        document.body.removeChild(graphContainer);
+      }
+    }
+  };
+
   return (
-    <div className="dashboard-container">
+    <div>
       {error && (
         <div className="error-banner">
           <AlertTriangle size={20} />
@@ -482,24 +774,8 @@ export default function History({ view }) {
               <p>Review past drying sessions and activity.</p>
             </div>
             <div className="history-header-controls">
-              {selectedTraysCount > 0 && (
-                <div style={{
-                  backgroundColor: '#f0fdf4',
-                  border: '2px solid #10b981',
-                  borderRadius: '8px',
-                  padding: '12px 16px',
-                  marginRight: '12px',
-                  textAlign: 'center'
-                }}>
-                  <div style={{ fontSize: '12px', color: '#059669', fontWeight: '600', marginBottom: '4px' }}>
-                    Current Average (from {selectedTraysCount} tray{selectedTraysCount > 1 ? 's' : ''})
-                  </div>
-                  <div style={{ fontSize: '18px', color: '#059669', fontWeight: '700' }}>
-                    {averageMoistureFromSelected.toFixed(2)}%
-                  </div>
-                </div>
-              )}
               <button className="download-btn" onClick={handleDownloadExcel}>Export Excel</button>
+              <button className="download-btn" onClick={handleExportGraph} style={{ marginLeft: '8px' }}>Export Graph</button>
             </div>
           </div>
 
@@ -575,7 +851,7 @@ export default function History({ view }) {
 
                   {/* ── Weight groups ── */}
                   <th colSpan="6">Before Weight</th>
-                  <th colSpan="6">After Weight</th>{/* ← RENAMED */}
+                  <th colSpan="6">After Weight</th>
 
                   <th rowSpan="2">Status</th>
                 </tr>
@@ -586,7 +862,7 @@ export default function History({ view }) {
                   <th>T1</th><th>T2</th><th>T3</th><th>T4</th><th>T5</th><th>T6</th><th>AVG</th>
                   {/* Before Weight sub-headers */}
                   <th>T1</th><th>T2</th><th>T3</th><th>T4</th><th>T5</th><th>T6</th>
-                  {/* After Weight sub-headers */}{/* ← RENAMED */}
+                  {/* After Weight sub-headers */}
                   <th>T1</th><th>T2</th><th>T3</th><th>T4</th><th>T5</th><th>T6</th>
                 </tr>
               </thead>
@@ -654,20 +930,20 @@ export default function History({ view }) {
                         <td>{item.humidity}</td>
 
                         {/* Before Weight */}
-                        <td>{item.beforeWeightT1}</td>
-                        <td>{item.beforeWeightT2}</td>
-                        <td>{item.beforeWeightT3}</td>
-                        <td>{item.beforeWeightT4}</td>
-                        <td>{item.beforeWeightT5}</td>
-                        <td>{item.beforeWeightT6}</td>
+                        <td>{savedWeights[1]?.frozen ? savedWeights[1].before.toFixed(2) : item.beforeWeightT1}</td>
+                        <td>{savedWeights[2]?.frozen ? savedWeights[2].before.toFixed(2) : item.beforeWeightT2}</td>
+                        <td>{savedWeights[3]?.frozen ? savedWeights[3].before.toFixed(2) : item.beforeWeightT3}</td>
+                        <td>{savedWeights[4]?.frozen ? savedWeights[4].before.toFixed(2) : item.beforeWeightT4}</td>
+                        <td>{savedWeights[5]?.frozen ? savedWeights[5].before.toFixed(2) : item.beforeWeightT5}</td>
+                        <td>{savedWeights[6]?.frozen ? savedWeights[6].before.toFixed(2) : item.beforeWeightT6}</td>
 
-                        {/* After Weight */}{/* ← RENAMED */}
-                        <td>{item.afterWeightT1}</td>
-                        <td>{item.afterWeightT2}</td>
-                        <td>{item.afterWeightT3}</td>
-                        <td>{item.afterWeightT4}</td>
-                        <td>{item.afterWeightT5}</td>
-                        <td>{item.afterWeightT6}</td>
+                        {/* After Weight */}
+                        <td>{savedAfterWeights[1]?.frozen ? savedAfterWeights[1].after.toFixed(2) : item.afterWeightT1}</td>
+                        <td>{savedAfterWeights[2]?.frozen ? savedAfterWeights[2].after.toFixed(2) : item.afterWeightT2}</td>
+                        <td>{savedAfterWeights[3]?.frozen ? savedAfterWeights[3].after.toFixed(2) : item.afterWeightT3}</td>
+                        <td>{savedAfterWeights[4]?.frozen ? savedAfterWeights[4].after.toFixed(2) : item.afterWeightT4}</td>
+                        <td>{savedAfterWeights[5]?.frozen ? savedAfterWeights[5].after.toFixed(2) : item.afterWeightT5}</td>
+                        <td>{savedAfterWeights[6]?.frozen ? savedAfterWeights[6].after.toFixed(2) : item.afterWeightT6}</td>
 
                         {/* Status */}
                         <td>

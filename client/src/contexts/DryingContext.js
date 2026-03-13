@@ -3,16 +3,56 @@ import dryerService from '../api/dryerService';
 
 const DryingContext = createContext(null);
 
+// Helper functions for localStorage
+const saveToLocalStorage = (key, data) => {
+  try {
+    localStorage.setItem(key, JSON.stringify(data));
+  } catch (error) {
+    console.warn(`Failed to save ${key} to localStorage:`, error);
+  }
+};
+
+const loadFromLocalStorage = (key, defaultValue = null) => {
+  try {
+    const stored = localStorage.getItem(key);
+    return stored ? JSON.parse(stored) : defaultValue;
+  } catch (error) {
+    console.warn(`Failed to load ${key} from localStorage:`, error);
+    return defaultValue;
+  }
+};
+
 export function DryingProvider({ children }) {
-  const [isProcessing,   setIsProcessing]   = useState(false);
-  const [dryingSeconds,  setDryingSeconds]  = useState(0);
-  const [selectedTemp,   setSelectedTemp]   = useState(null);
-  const [selectedMoisture, setSelectedMoisture] = useState(null);
-  const [currentTray,    setCurrentTray]    = useState(1);
+  const [isProcessing, setIsProcessing] = useState(loadFromLocalStorage('isProcessing', false));
+  const [dryingSeconds, setDryingSeconds] = useState(loadFromLocalStorage('dryingSeconds', 0));
+  const [selectedTemp, setSelectedTemp] = useState(loadFromLocalStorage('selectedTemp', null));
+  const [selectedMoisture, setSelectedMoisture] = useState(loadFromLocalStorage('selectedMoisture', null));
+  const [currentTray, setCurrentTray] = useState(loadFromLocalStorage('currentTray', 1));
   const [socket, setSocket] = useState(null);
   const [lastSyncTime, setLastSyncTime] = useState(Date.now());
   const intervalRef = useRef(null);
   const syncIntervalRef = useRef(null);
+
+  // Save to localStorage whenever state changes
+  useEffect(() => {
+    saveToLocalStorage('isProcessing', isProcessing);
+  }, [isProcessing]);
+
+  useEffect(() => {
+    saveToLocalStorage('dryingSeconds', dryingSeconds);
+  }, [dryingSeconds]);
+
+  useEffect(() => {
+    saveToLocalStorage('selectedTemp', selectedTemp);
+  }, [selectedTemp]);
+
+  useEffect(() => {
+    saveToLocalStorage('selectedMoisture', selectedMoisture);
+  }, [selectedMoisture]);
+
+  useEffect(() => {
+    saveToLocalStorage('currentTray', currentTray);
+  }, [currentTray]);
 
   // Fetch dryer status from backend periodically
   const syncWithBackend = async () => {
