@@ -10,6 +10,8 @@ import authService from '../../api/authService';
 import dryerService from '../../api/dryerService';
 import logo from "../../assets/images/logo2.png";
 import useNotificationService from './Usenotificationservice.js';
+import { useSocket } from '../../contexts/SocketContext.js';
+import { useWeight } from '../../contexts/WeightContext.js';
 
 export default function History({ view }) {
 
@@ -27,6 +29,21 @@ export default function History({ view }) {
 
   // Add notification service for badge
   const { unreadCount } = useNotificationService(null, 15000);
+
+  // Add context hooks for saved weights and socket
+  const { socket, sensorData } = useSocket();
+  const { savedWeights } = useWeight();
+
+  // Calculate average moisture only from selected trays (same as Dashboard)
+  const selectedTrays = Object.keys(savedWeights).filter(trayNum => savedWeights[trayNum]?.frozen);
+  const selectedTraysCount = selectedTrays.length;
+
+  // Calculate average moisture from selected trays only
+  let totalMoisture = 0;
+  selectedTrays.forEach(trayNum => {
+    totalMoisture += sensorData[`moisture${trayNum}`] || 0;
+  });
+  const averageMoistureFromSelected = selectedTraysCount > 0 ? totalMoisture / selectedTraysCount : 0;
 
   useEffect(() => {
     const path = location.pathname;
@@ -313,6 +330,22 @@ export default function History({ view }) {
     return () => clearInterval(monitoringInterval);
   }, [isMonitoringMoisture, targetMoistureReached]);
 
+  // Send notifications for average moisture calculations (same as Dashboard)
+  useEffect(() => {
+    if (selectedTraysCount > 0 && socket && socket.connected) {
+      socket.emit('moisture:average:calculated', {
+        selectedTraysCount,
+        averageMoisture: averageMoistureFromSelected,
+        selectedTrays: selectedTrays.map(trayNum => ({
+          trayNumber: trayNum,
+          moisture: sensorData[`moisture${trayNum}`] || 0
+        })),
+        timestamp: new Date().toISOString(),
+        message: `History: Average moisture calculated: ${averageMoistureFromSelected.toFixed(2)}% from ${selectedTraysCount} tray${selectedTraysCount > 1 ? 's' : ''}`
+      });
+    }
+  }, [selectedTraysCount, averageMoistureFromSelected, selectedTrays, sensorData, socket]);
+
   const handleNavigation = (path, tab) => {
     setActiveTab(tab);
     navigate(path);
@@ -324,10 +357,8 @@ export default function History({ view }) {
       // Stop drying process if running
       await dryerService.stopDrying().catch(() => {});
       
-      // Clear sensor-related data from localStorage
+      // Clear sensor-related data from localStorage (but preserve weight data)
       localStorage.removeItem('sensorData');
-      localStorage.removeItem('savedWeights');
-      localStorage.removeItem('savedAfterWeights');
       localStorage.removeItem('dryingStatus');
       localStorage.removeItem('dryingStartTime');
       localStorage.removeItem('targetMoisture');
@@ -450,7 +481,26 @@ export default function History({ view }) {
               <h1>History</h1>
               <p>Review past drying sessions and activity.</p>
             </div>
-            <button className="download-btn" onClick={handleDownloadExcel}>Export Excel</button>
+            <div className="history-header-controls">
+              {selectedTraysCount > 0 && (
+                <div style={{
+                  backgroundColor: '#f0fdf4',
+                  border: '2px solid #10b981',
+                  borderRadius: '8px',
+                  padding: '12px 16px',
+                  marginRight: '12px',
+                  textAlign: 'center'
+                }}>
+                  <div style={{ fontSize: '12px', color: '#059669', fontWeight: '600', marginBottom: '4px' }}>
+                    Current Average (from {selectedTraysCount} tray{selectedTraysCount > 1 ? 's' : ''})
+                  </div>
+                  <div style={{ fontSize: '18px', color: '#059669', fontWeight: '700' }}>
+                    {averageMoistureFromSelected.toFixed(2)}%
+                  </div>
+                </div>
+              )}
+              <button className="download-btn" onClick={handleDownloadExcel}>Export Excel</button>
+            </div>
           </div>
 
           {/* Moisture Monitoring Status Bar */}

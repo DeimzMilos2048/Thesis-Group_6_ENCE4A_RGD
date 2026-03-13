@@ -19,7 +19,7 @@ const getBaseURL = () => {
       return ['https://objurgatory-darrell-nonconversantly.ngrok-free.dev'];
     }
     // For development, use same Raspberry Pi URL as mobile to ensure socket communication works
-    return ['http://192.168.0.109:5001', 'http://192.168.86.193:5001','https://objurgatory-darrell-nonconversantly.ngrok-free.dev', 'http://localhost:5001', 'http://127.0.0.1:5001','http://10.42.0.1:5001','http://10.42.0.1:5002'];
+    return ['http://192.168.0.109:5001', 'http://192.168.86.193:5001','https://objurgatory-darrell-nonconversantly.ngrok-free.dev', 'http://localhost:5001', 'http://127.0.0.1:5001','http://10.42.0.1:5001','http://10.42.0.1:5002', 'http://10.42.0.1:3000'];
   } else if (isWebEnvironment && !isMobileApp) {
     // Web browser environment (localhost development)
     if (isProd) {
@@ -27,7 +27,7 @@ const getBaseURL = () => {
     }
     // Check if accessing from Raspberry Pi network first
     if (window.location.hostname === '10.42.0.1' || window.location.hostname.startsWith('10.42.')) {
-      return ['http://10.42.0.1:5001', 'http://10.42.0.1:5002', 'http://localhost:5001', 'http://127.0.0.1:5001', 'http://192.168.0.109:5001', 'http://192.168.86.193:5001','https://objurgatory-darrell-nonconversantly.ngrok-free.dev'];
+      return ['http://10.42.0.1:3000','http://10.42.0.1:5001', 'http://10.42.0.1:5002', 'http://localhost:5001', 'http://127.0.0.1:5001', 'http://192.168.0.109:5001', 'http://192.168.86.193:5001','https://objurgatory-darrell-nonconversantly.ngrok-free.dev'];
     }
     // For localhost development, prioritize localhost URLs first
     return ['http://localhost:5001', 'http://127.0.0.1:5001', 'http://192.168.0.109:5001', 'http://192.168.86.193:5001','https://objurgatory-darrell-nonconversantly.ngrok-free.dev'];

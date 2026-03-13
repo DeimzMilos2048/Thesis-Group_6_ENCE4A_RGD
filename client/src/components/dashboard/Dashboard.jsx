@@ -97,8 +97,6 @@ export default function RiceDryingDashboard({ view }) {
     try {
       // Clear local data immediately for instant logout
       localStorage.removeItem('sensorData');
-      localStorage.removeItem('savedWeights');
-      localStorage.removeItem('savedAfterWeights');
       localStorage.removeItem('dryingStatus');
       localStorage.removeItem('dryingStartTime');
       localStorage.removeItem('targetMoisture');
@@ -476,44 +474,59 @@ export default function RiceDryingDashboard({ view }) {
                             textAlign: 'center', 
                             display: 'flex', 
                             flexDirection: 'column',
-                            backgroundColor: isSelected ? '#f0fdf4' : isAtThreshold ? '#dcfce7' : 'transparent',
+                            backgroundColor: isSelected ? '#f0fdf4' : (isAtThreshold && isSelected ? '#dcfce7' : 'transparent'),
                             borderRadius: '6px',
                             padding: '4px',
-                            border: isSelected ? '3px solid #10b981' : (isAtThreshold ? '2px solid #16a34a' : '1px solid #d1d5db'),
+                            border: isSelected ? '3px solid #10b981' : (isAtThreshold && isSelected ? '2px solid #16a34a' : '1px solid #d1d5db'),
                             boxShadow: isSelected ? '0 0 0 2px rgba(16, 185, 129, 0.3)' : 'none',
                             transform: isSelected ? 'scale(1.05)' : 'scale(1)',
                             transition: 'all 0.2s ease'
                           }}>
                             <div className="sensor-sublabel" style={{ 
-                              color: isSelected ? '#059669' : (isAtThreshold ? '#16a34a' : '#9ca3af'), 
-                              fontWeight: isSelected ? '700' : (isAtThreshold ? '700' : '400') 
+                              color: isSelected ? '#059669' : (isAtThreshold && isSelected ? '#16a34a' : '#9ca3af'), 
+                              fontWeight: isSelected ? '700' : (isAtThreshold && isSelected ? '700' : '400') 
                             }}>
-                              TRAY {i} {isAtThreshold && '✓'}
+                              TRAY {i} {isAtThreshold && isSelected && '✓'}
                             </div>
-                            <div className="sensor-value-sm" style={{ 
-                              color: isSelected ? '#059669' : (isAtThreshold ? '#16a34a' : undefined),
-                              fontSize: '18px',
-                              fontWeight: '400'
-                            }}>
-                              {trayMoisture.toFixed(2)}%
-                            </div>
-                            <div className="progress-bar">
-                              <div 
-                                className="progress-fill" 
-                                style={{ 
-                                  width: `${Math.min((trayMoisture / 14) * 100, 100)}%`,
-                                  backgroundColor: isSelected ? '#10b981' : (isAtThreshold ? '#16a34a' : '#06b6d4')
-                                }} 
-                              />
-                            </div>
-                            {isAtThreshold && (
-                              <div style={{ fontSize: '10px', color: '#16a34a', fontWeight: '600', marginTop: '2px' }}>
-                                Ready
-                              </div>
-                            )}
-                            {isSelected && !isAtThreshold && (
-                              <div style={{ fontSize: '10px', color: '#059669', fontWeight: '600', marginTop: '2px' }}>
-                                
+                            {isSelected ? (
+                              <>
+                                <div className="sensor-value-sm" style={{ 
+                                  color: isSelected ? '#059669' : (isAtThreshold && isSelected ? '#16a34a' : undefined),
+                                  fontSize: '18px',
+                                  fontWeight: '400'
+                                }}>
+                                  {trayMoisture.toFixed(2)}%
+                                </div>
+                                <div className="progress-bar">
+                                  <div 
+                                    className="progress-fill" 
+                                    style={{ 
+                                      width: `${Math.min((trayMoisture / 14) * 100, 100)}%`,
+                                      backgroundColor: isSelected ? '#10b981' : (isAtThreshold && isSelected ? '#16a34a' : '#06b6d4')
+                                    }} 
+                                  />
+                                </div>
+                                {isAtThreshold && (
+                                  <div style={{ fontSize: '10px', color: '#16a34a', fontWeight: '600', marginTop: '2px' }}>
+                                    Ready
+                                  </div>
+                                )}
+                                {isSelected && !isAtThreshold && (
+                                  <div style={{ fontSize: '10px', color: '#059669', fontWeight: '600', marginTop: '2px' }}>
+                                    
+                                  </div>
+                                )}
+                              </>
+                            ) : (
+                              <div style={{ 
+                                height: '40px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                color: '#9ca3af',
+                                fontSize: '12px'
+                              }}>
+                                —
                               </div>
                             )}
                           </div>
