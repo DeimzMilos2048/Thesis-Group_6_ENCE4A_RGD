@@ -19,14 +19,18 @@ const getBaseURL = () => {
       return ['https://objurgatory-darrell-nonconversantly.ngrok-free.dev'];
     }
     // For development, use same Raspberry Pi URL as mobile to ensure socket communication works
-    return ['http://192.168.0.109:5001', 'http://192.168.86.193:5001','https://objurgatory-darrell-nonconversantly.ngrok-free.dev', 'http://localhost:5001', 'http://localhost:5000', 'http://127.0.0.1:5001', 'http://127.0.0.1:5000'];
+    return ['http://192.168.0.109:5001', 'http://192.168.86.193:5001','https://objurgatory-darrell-nonconversantly.ngrok-free.dev', 'http://localhost:5001', 'http://127.0.0.1:5001','http://10.42.0.1:5001','http://10.42.0.1:5002'];
   } else if (isWebEnvironment && !isMobileApp) {
     // Web browser environment (localhost development)
     if (isProd) {
       return ['https://objurgatory-darrell-nonconversantly.ngrok-free.dev'];
     }
+    // Check if accessing from Raspberry Pi network first
+    if (window.location.hostname === '10.42.0.1' || window.location.hostname.startsWith('10.42.')) {
+      return ['http://10.42.0.1:5001', 'http://10.42.0.1:5002', 'http://localhost:5001', 'http://127.0.0.1:5001', 'http://192.168.0.109:5001', 'http://192.168.86.193:5001','https://objurgatory-darrell-nonconversantly.ngrok-free.dev'];
+    }
     // For localhost development, prioritize localhost URLs first
-    return ['http://localhost:5001', 'http://localhost:5000', 'http://127.0.0.1:5001', 'http://127.0.0.1:5000', 'http://192.168.0.109:5001', 'http://192.168.86.193:5001','https://objurgatory-darrell-nonconversantly.ngrok-free.dev'];
+    return ['http://localhost:5001', 'http://127.0.0.1:5001', 'http://192.168.0.109:5001', 'http://192.168.86.193:5001','https://objurgatory-darrell-nonconversantly.ngrok-free.dev'];
   } else {
 
     console.log('Mobile environment detected, using Raspberry Pi URL');
@@ -37,7 +41,7 @@ const getBaseURL = () => {
 const API_CONFIG = {
   baseURLs: getBaseURL(),
   currentURLIndex: 0,
-  timeout: 3000, // Reduced from 5000ms to 3000ms for faster response
+  timeout: 3000, 
   headers: {
     'Content-Type': 'application/json'
   }

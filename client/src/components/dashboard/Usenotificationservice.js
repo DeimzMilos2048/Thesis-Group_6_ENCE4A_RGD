@@ -11,7 +11,7 @@ const THRESHOLDS = {
 
 let toastIdCounter = 0;
 
-const useNotificationService = (sensorData, pollingIntervalMs = 5000, isMonitoring = false, isDryingActive = false) => {
+const useNotificationService = (sensorData, pollingIntervalMs = 5001, isMonitoring = false, isDryingActive = false) => {
   const [toasts, setToasts] = useState([]);          
   const [alerts, setAlerts] = useState([]);      
   const [unreadCount, setUnreadCount] = useState(0);
@@ -56,7 +56,7 @@ const useNotificationService = (sensorData, pollingIntervalMs = 5000, isMonitori
     // auto-dismiss after 5 s
     setTimeout(() => {
       setToasts(prev => prev.filter(t => t.id !== id));
-    }, 5000);
+    }, 5001);
 
     return id;
   }, []);
@@ -290,7 +290,7 @@ const useNotificationService = (sensorData, pollingIntervalMs = 5000, isMonitori
     fetchSensorData();
     
     // Set up polling for sensor data
-    sensorPollingRef.current = setInterval(fetchSensorData, 5000); // Poll every 5 seconds
+    sensorPollingRef.current = setInterval(fetchSensorData, 5001); // Poll every 5 seconds
     
     return () => {
       if (sensorPollingRef.current) {

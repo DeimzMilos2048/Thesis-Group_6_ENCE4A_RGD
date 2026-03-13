@@ -35,7 +35,7 @@ class TwoServerSocketService {
     this.socketA = io(this.serverA, {
       reconnection: true,
       reconnectionDelay: 1000,
-      reconnectionDelayMax: 5000,
+      reconnectionDelayMax: 5001,
       reconnectionAttempts: 5,
       transports: ['websocket', 'polling'],
       upgrade: true
@@ -73,7 +73,7 @@ class TwoServerSocketService {
     this.socketB = io(this.serverB, {
       reconnection: true,
       reconnectionDelay: 1000,
-      reconnectionDelayMax: 5000,
+      reconnectionDelayMax: 5001,
       reconnectionAttempts: 5,
       transports: ['websocket', 'polling'],
       upgrade: true
@@ -106,7 +106,7 @@ class TwoServerSocketService {
       this.socketA = io(this.fallbackA, {
         reconnection: true,
         reconnectionDelay: 1000,
-        reconnectionDelayMax: 5000,
+        reconnectionDelayMax: 5001,
         reconnectionAttempts: 5,
         transports: ['websocket', 'polling'],
         upgrade: true
@@ -120,7 +120,7 @@ class TwoServerSocketService {
       this.socketB = io(this.fallbackB, {
         reconnection: true,
         reconnectionDelay: 1000,
-        reconnectionDelayMax: 5000,
+        reconnectionDelayMax: 5001,
         reconnectionAttempts: 5,
         transports: ['websocket', 'polling'],
         upgrade: true

@@ -21,6 +21,7 @@ export default function RiceDryingDashboard({ view }) {
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const [hasDryingStarted, setHasDryingStarted] = useState(false);
+  const [dryingStartPressed, setDryingStartPressed] = useState(false);
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -140,6 +141,7 @@ export default function RiceDryingDashboard({ view }) {
       // Set loading state briefly for visual feedback
       setLoading(true);
       setHasDryingStarted(true); // Mark that drying has started
+      setDryingStartPressed(true); // Track that start button was pressed
       
       // Get the current moisture of the selected tray
       const selectedTrayMoisture = sensorData[`moisture${currentTray}`] || 0;
@@ -198,6 +200,17 @@ export default function RiceDryingDashboard({ view }) {
     saveBeforeWeight(currentTray, currentWeight);
     showToast('success', `Tray ${currentTray} before weight saved: ${currentWeight.toFixed(2)} kg`);
     setTabNotifications(prev => ({ ...prev, history: true }));
+    
+    // Send notification to web and mobile
+    if (socket && socket.connected) {
+      socket.emit('tray:weight:saved', {
+        trayNumber: currentTray,
+        weight: currentWeight,
+        type: 'before',
+        timestamp: new Date().toISOString(),
+        message: `Tray ${currentTray} before weight saved: ${currentWeight.toFixed(2)} kg`
+      });
+    }
   };
 
   const handleSaveAfterWeight = () => {
@@ -208,6 +221,17 @@ export default function RiceDryingDashboard({ view }) {
     saveAfterWeight(currentTray, currentWeight);
     showToast('success', `Tray ${currentTray} after weight saved: ${currentWeight.toFixed(2)} kg`);
     setTabNotifications(prev => ({ ...prev, history: true }));
+    
+    // Send notification to web and mobile
+    if (socket && socket.connected) {
+      socket.emit('tray:weight:saved', {
+        trayNumber: currentTray,
+        weight: currentWeight,
+        type: 'after',
+        timestamp: new Date().toISOString(),
+        message: `Tray ${currentTray} after weight saved: ${currentWeight.toFixed(2)} kg`
+      });
+    }
   };
 
   const handleResetBeforeWeight = async () => {
@@ -257,14 +281,25 @@ export default function RiceDryingDashboard({ view }) {
   const isDryingFinished = !isProcessing && beforeFrozen;
   const isDryingStopped = !isProcessing; // Separate check for when drying is stopped
   
+  // Calculate average moisture only from selected trays
+  const selectedTrays = Object.keys(savedWeights).filter(trayNum => savedWeights[trayNum]?.frozen);
+  const selectedTraysCount = selectedTrays.length;
+  
+  // Calculate average moisture from selected trays only
+  let totalMoisture = 0;
+  selectedTrays.forEach(trayNum => {
+    totalMoisture += sensorData[`moisture${trayNum}`] || 0;
+  });
+  const averageMoistureFromSelected = selectedTraysCount > 0 ? totalMoisture / selectedTraysCount : 0;
+
   // Check if any tray has reached 14% moisture
   const anyTrayReached14 = [1, 2, 3, 4, 5, 6].some(trayNum => {
     const trayMoisture = sensorData[`moisture${trayNum}`] || 0;
     return trayMoisture <= 14 && trayMoisture > 0;
   });
-  
-  const canSaveBefore   = !beforeFrozen && !isProcessing && currentTray;
-  const canResetBefore  = beforeFrozen && !isProcessing && currentTray && !anyTrayReached14 && !isDryingStopped;
+
+  const canSaveBefore   = !beforeFrozen && !isProcessing && currentTray && !dryingStartPressed;
+  const canResetBefore  = beforeFrozen && !isProcessing && currentTray && !dryingStartPressed;
   const canSaveAfter    = (isDryingStopped || anyTrayReached14) && beforeFrozen && !afterFrozen && currentTray && !isProcessing && hasDryingStarted;
   const canResetAfter   = (isDryingFinished || anyTrayReached14) && afterFrozen && currentTray;
   
@@ -299,6 +334,22 @@ export default function RiceDryingDashboard({ view }) {
       }
     });
   }, [sensorData, isProcessing, socket, showToast]);
+
+  // Send notifications for average moisture calculations
+  useEffect(() => {
+    if (selectedTraysCount > 0 && socket && socket.connected) {
+      socket.emit('moisture:average:calculated', {
+        selectedTraysCount,
+        averageMoisture: averageMoistureFromSelected,
+        selectedTrays: selectedTrays.map(trayNum => ({
+          trayNumber: trayNum,
+          moisture: sensorData[`moisture${trayNum}`] || 0
+        })),
+        timestamp: new Date().toISOString(),
+        message: `Average moisture calculated: ${averageMoistureFromSelected.toFixed(2)}% from ${selectedTraysCount} tray${selectedTraysCount > 1 ? 's' : ''}`
+      });
+    }
+  }, [selectedTraysCount, averageMoistureFromSelected, selectedTrays, sensorData, socket]);
 
   return (
     <div className="dashboard-container">
@@ -471,16 +522,16 @@ export default function RiceDryingDashboard({ view }) {
                     </div>
                     <div className="sensor-avg-row" style={{ marginTop: '10px' }}>
                       <span className="sensor-avg-label">
-                        Average Moisture
+                        Average Moisture ({selectedTraysCount > 0 ? `from ${selectedTraysCount} tray${selectedTraysCount > 1 ? 's' : ''}` : 'No trays selected'})
                       </span>
                       <div className="sensor-avg-value">
-                        {(sensorData.moistureavg || 0).toFixed(2)}%
+                        {averageMoistureFromSelected.toFixed(2)}%
                       </div>
                       <div className="progress-bar">
                         <div 
                           className="progress-fill cyan" 
                           style={{ 
-                            width: `${Math.min(((sensorData.moistureavg || 0) / 14) * 100, 100)}%` 
+                            width: `${Math.min(((averageMoistureFromSelected || 0) / 14) * 100, 100)}%` 
                           }} 
                         />
                       </div>

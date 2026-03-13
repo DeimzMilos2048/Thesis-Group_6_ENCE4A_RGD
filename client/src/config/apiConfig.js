@@ -100,6 +100,7 @@ console.log('=== Final Environment Selection ===');
 console.log('Selected environment:', currentEnv);
 console.log('API Config:', API_CONFIG[currentEnv]);
 console.log('Socket URL:', API_CONFIG[currentEnv].socketUrl);
+console.log('Base URL for auth:', API_CONFIG[currentEnv].baseUrl);
 console.log('================================');
 
 export const API = API_CONFIG[currentEnv].baseUrl;
