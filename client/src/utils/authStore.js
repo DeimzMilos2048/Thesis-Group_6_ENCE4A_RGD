@@ -59,7 +59,7 @@ const useAuthStore = create((set) => ({
           // Create a temporary axios instance for this URL
           const tempApi = axios.create({
             baseURL: API_CONFIG.baseURLs[urlIndex],
-            timeout: 5000,
+            timeout: 10000,
             headers: { 'Content-Type': 'application/json' },
             withCredentials: false,
           });

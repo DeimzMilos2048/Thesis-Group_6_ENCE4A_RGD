@@ -179,7 +179,6 @@ export default function RiceDryingDashboard({ view }) {
 
   const handleStop = async () => {
     try {
-      setLoading(true);
       setIsMonitoring(false);
       stopMoistureMonitoringService();
       await stopDrying();
@@ -187,8 +186,6 @@ export default function RiceDryingDashboard({ view }) {
     } catch (error) {
       console.error('Error stopping drying:', error);
       showToast('error', 'Failed to stop drying. Please try again.');
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -267,9 +264,9 @@ export default function RiceDryingDashboard({ view }) {
   });
   
   const canSaveBefore   = !beforeFrozen && !isProcessing && currentTray;
-  const canResetBefore  = beforeFrozen && !isProcessing && currentTray;
-  const canSaveAfter    = isDryingStopped && beforeFrozen && !afterFrozen && currentTray && !isProcessing && !isProcessing && hasDryingStarted;
-  const canResetAfter   = isDryingFinished && afterFrozen && currentTray;
+  const canResetBefore  = beforeFrozen && !isProcessing && currentTray && !anyTrayReached14 && !isDryingStopped;
+  const canSaveAfter    = (isDryingStopped || anyTrayReached14) && beforeFrozen && !afterFrozen && currentTray && !isProcessing && hasDryingStarted;
+  const canResetAfter   = (isDryingFinished || anyTrayReached14) && afterFrozen && currentTray;
   
 
   useEffect(() => {
