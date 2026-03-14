@@ -15,10 +15,9 @@
   color: #ffffff;
 }
 
-.history-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+.selected-row {
+  background-color: #e3f2fd !important;
+  border-left: 3px solid #3b82f6 !important;
   padding-right: 32px;
 }
 
