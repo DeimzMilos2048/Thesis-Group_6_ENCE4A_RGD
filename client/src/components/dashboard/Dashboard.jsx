@@ -209,6 +209,11 @@ export default function RiceDryingDashboard({ view }) {
         message: `Tray ${currentTray} before weight saved: ${currentWeight.toFixed(2)} kg`
       });
     }
+    
+    // Dispatch custom event for History component
+    window.dispatchEvent(new CustomEvent('weightDataUpdated', {
+      detail: { type: 'before', tray: currentTray, weight: currentWeight }
+    }));
   };
 
   const handleSaveAfterWeight = () => {
@@ -230,6 +235,11 @@ export default function RiceDryingDashboard({ view }) {
         message: `Tray ${currentTray} after weight saved: ${currentWeight.toFixed(2)} kg`
       });
     }
+    
+    // Dispatch custom event for History component
+    window.dispatchEvent(new CustomEvent('weightDataUpdated', {
+      detail: { type: 'after', tray: currentTray, weight: currentWeight }
+    }));
   };
 
   const handleResetBeforeWeight = async () => {

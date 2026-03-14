@@ -96,12 +96,17 @@
   color: #ffffff;
 }
 
-.status.stopped {
-  background: #9CA3AF;
-  color: #ffffff;
-}
-
 .status.running {
   background: #3B82F6;
   color: #ffffff;
+}
+
+/* Selected tray highlighting */
+.selected-tray {
+  background-color: #dcfce7 !important;
+  border: 2px solid #16a34a !important;
+  color: #166534 !important;
+  font-weight: 700 !important;
+  transform: scale(1.02);
+  box-shadow: 0 0 2px rgba(22, 163, 74, 0.1);
 }
