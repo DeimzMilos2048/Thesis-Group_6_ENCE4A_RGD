@@ -72,8 +72,13 @@ const authService = {
       // Show success toast immediately
       toast.success('Logged out successfully!');
       
-      // Try to notify server, but don't wait for it
-      api.post('/api/auth/logout').catch(() => {}).catch(() => {});
+      // Try to notify server in background without blocking
+      // Use setTimeout to ensure it doesn't block the UI thread
+      setTimeout(() => {
+        api.post('/api/auth/logout').catch((err) => {
+          console.warn('Server logout failed (non-critical):', err);
+        });
+      }, 0);
       
       // Return immediately after clearing local data
       return;

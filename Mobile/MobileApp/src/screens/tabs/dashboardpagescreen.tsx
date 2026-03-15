@@ -72,42 +72,55 @@ const DashboardPageScreen: React.FC = () => {
     // Try local Raspberry Pi first, then fallback to ngrok
     const urls = [
       'http://192.168.0.109:5001',
-      'https://objurgatory-darrell-nonconversantly.ngrok-free.dev'
+      'https://mala-backend-u0gt.onrender.com'
     ];
     return urls[0]; // Will try first URL, fallback can be implemented if needed
   };
 
   const fetchUnreadCount = async () => {
-    try {
-      const token = await AsyncStorage.getItem('token');
-      if (!token) return;
-      const response = await fetch(`${getAPIBaseUrl()}/api/notifications`, {
-        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-      });
-      if (response.ok) {
-        const data = await response.json();
-        const unread = Array.isArray(data) ? data.filter((a: any) => !a.isRead).length : 0;
-        setUnreadCount(unread);
+    const urls = [
+      'http://192.168.0.109:5001',
+      'https://mala-backend-u0gt.onrender.com'
+    ];
+    
+    for (const baseUrl of urls) {
+      try {
+        const token = await AsyncStorage.getItem('token');
+        if (!token) return;
+        const response = await fetch(`${baseUrl}/api/notifications`, {
+          headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        });
+        if (response.ok) {
+          const data = await response.json();
+          const unread = Array.isArray(data) ? data.filter((a: any) => !a.isRead).length : 0;
+          setUnreadCount(unread);
+          return; // Success, exit the loop
+        }
+      } catch (error) {
+        console.warn(`Failed to fetch unread count from ${baseUrl}:`, error);
+        // Continue to next URL
       }
-    } catch (error) {
-      console.error('Error fetching unread count:', error);
     }
+    console.error('All URLs failed for fetching unread count');
   };
 
   useEffect(() => {
-    const getUserId = async () => {
-      try {
-        const token = await AsyncStorage.getItem('token');
-        if (token) {
-          const savedUserId = await AsyncStorage.getItem('userId');
-          setUserId(savedUserId);
+    const initializeData = async () => {
+      const getUserId = async () => {
+        try {
+          const token = await AsyncStorage.getItem('token');
+          if (token) {
+            const savedUserId = await AsyncStorage.getItem('userId');
+            setUserId(savedUserId);
+          }
+        } catch (error) {
+          console.error('Error getting user ID:', error);
         }
-      } catch (error) {
-        console.error('Error getting user ID:', error);
-      }
+      };
+      await getUserId();
+      await fetchUnreadCount();
     };
-    getUserId();
-    fetchUnreadCount();
+    initializeData();
 
     // Poll every 15s to keep badge fresh (same interval as web)
     const interval = setInterval(fetchUnreadCount, 15000);
@@ -166,90 +179,118 @@ const DashboardPageScreen: React.FC = () => {
   };
 
   useEffect(() => {
-    const getSocketURL = () => {
-      // Try local Raspberry Pi first, then fallback to ngrok
+    const connectSocketWithFallback = async () => {
       const urls = [
         'http://192.168.0.109:5001',
-        'https://objurgatory-darrell-nonconversantly.ngrok-free.dev'
+        'http://10.0.2.2:5001',
+        'https://mala-backend-u0gt.onrender.com'
       ];
-      return urls[0]; // Will try first URL, fallback can be implemented if needed
-    };
+      
+      for (const url of urls) {
+        try {
+          const socket = io(url, {
+            transports: ['websocket', 'polling'],
+            reconnection: false, // We'll handle reconnection manually
+            timeout: 5000,
+          });
 
-    const SOCKET_URL = getSocketURL();
+          socket.on('connect', () => {
+            console.log(`Connected to sensor server: ${url}`);
+            setupSocketHandlers(socket);
+            return; // Success, stop trying other URLs
+          });
 
-    const socket = io(SOCKET_URL, {
-      transports: ['websocket', 'polling'],
-      reconnection: true,
-      reconnectionDelay: 1000,
-      reconnectionAttempts: Infinity,
-      timeout: 10000,
-      forceNew: true,
-      autoConnect: true,
-      upgrade: true,
-    });
+          socket.on('connect_error', (err: any) => {
+            console.warn(`Failed to connect to ${url}:`, err);
+            socket.disconnect();
+          });
 
-    socket.on('connect', () => console.log('Connected to sensor server'));
-    socket.on('connect_error', (err) => console.error('Connection error:', err));
-
-    const num = (data: any, ...keys: string[]): number => {
-      for (const key of keys) {
-        if (typeof data[key] === 'number' && !isNaN(data[key])) return data[key];
+          // Wait a bit before trying next URL
+          await new Promise<void>((resolve) => setTimeout(resolve, 1000));
+        } catch (error) {
+          console.warn(`Error creating socket for ${url}:`, error);
+        }
       }
-      return 0;
+      console.error('All socket connection attempts failed');
     };
 
-    const handleSensorData = (data: any) => {
-      setSensorData({
-        temperature:   num(data, 'temperature'),
-        humidity:      num(data, 'humidity'),
-        moisture1:     num(data, 'moisture1'),
-        moisture2:     num(data, 'moisture2'),
-        moisture3:     num(data, 'moisture3'),
-        moisture4:     num(data, 'moisture4'),
-        moisture5:     num(data, 'moisture5'),
-        moisture6:     num(data, 'moisture6'),
-        moistureavg:   num(data, 'moistureavg'),
-        weight1:       num(data, 'weight1', 'weightbefore1'),
-        weight2:       num(data, 'weight2', 'weightbefore2'),
-        weight3:       num(data, 'weight3', 'weightbefore3'),
-        weight4:       num(data, 'weight4', 'weightbefore4'),
-        weight5:       num(data, 'weight5', 'weightbefore5'),
-        weight6:       num(data, 'weight6', 'weightbefore6'),
-        weightbefore1: num(data, 'weightbefore1'),
-        weightbefore2: num(data, 'weightbefore2'),
-        weightbefore3: num(data, 'weightbefore3'),
-        weightbefore4: num(data, 'weightbefore4'),
-        weightbefore5: num(data, 'weightbefore5'),
-        weightbefore6: num(data, 'weightbefore6'),
-        weightafter1:  num(data, 'weightafter1'),
-        weightafter2:  num(data, 'weightafter2'),
-        weightafter3:  num(data, 'weightafter3'),
-        weightafter4:  num(data, 'weightafter4'),
-        weightafter5:  num(data, 'weightafter5'),
-        weightafter6:  num(data, 'weightafter6'),
-        dryingSeconds: num(data, 'dryingSeconds', 'drying_seconds'),
-        status: data.status || data.system_status || 'Idle',
+    const setupSocketHandlers = (socket: any) => {
+      socket.on('connect_error', (err: any) => console.error('Connection error:', err));
+
+      const num = (data: any, ...keys: string[]): number => {
+        for (const key of keys) {
+          if (typeof data[key] === 'number' && !isNaN(data[key])) return data[key];
+        }
+        return 0;
+      };
+
+      const handleSensorData = (data: any) => {
+        setSensorData({
+          temperature:   num(data, 'temperature'),
+          humidity:      num(data, 'humidity'),
+          moisture1:     num(data, 'moisture1'),
+          moisture2:     num(data, 'moisture2'),
+          moisture3:     num(data, 'moisture3'),
+          moisture4:     num(data, 'moisture4'),
+          moisture5:     num(data, 'moisture5'),
+          moisture6:     num(data, 'moisture6'),
+          moistureavg:   num(data, 'moistureavg'),
+          weight1:       num(data, 'weight1', 'weightbefore1'),
+          weight2:       num(data, 'weight2', 'weightbefore2'),
+          weight3:       num(data, 'weight3', 'weightbefore3'),
+          weight4:       num(data, 'weight4', 'weightbefore4'),
+          weight5:       num(data, 'weight5', 'weightbefore5'),
+          weight6:       num(data, 'weight6', 'weightbefore6'),
+          weightbefore1: num(data, 'weightbefore1'),
+          weightbefore2: num(data, 'weightbefore2'),
+          weightbefore3: num(data, 'weightbefore3'),
+          weightbefore4: num(data, 'weightbefore4'),
+          weightbefore5: num(data, 'weightbefore5'),
+          weightbefore6: num(data, 'weightbefore6'),
+          weightafter1:  num(data, 'weightafter1'),
+          weightafter2:  num(data, 'weightafter2'),
+          weightafter3:  num(data, 'weightafter3'),
+          weightafter4:  num(data, 'weightafter4'),
+          weightafter5:  num(data, 'weightafter5'),
+          weightafter6:  num(data, 'weightafter6'),
+          dryingSeconds: num(data, 'dryingSeconds', 'drying_seconds'),
+          status: data.status || data.system_status || 'Idle',
+        });
+      };
+
+      socket.on('sensor_readings_table', handleSensorData);
+      socket.on('sensor_data', handleSensorData);
+      socket.on('sensorData', handleSensorData);
+
+      socket.on('dryer:status_updated', (data: any) => {
+        if (data.status === 'drying') {
+          setSensorData(prev => ({ ...prev, status: 'Drying', dryingSeconds: 0 }));
+          Alert.alert('Drying Started', `Target: ${data.temperature}°C, Moisture: ${data.moisture}%`, [{ text: 'OK' }]);
+        } else if (data.status === 'idle') {
+          setSensorData(prev => ({ ...prev, status: 'Idle', dryingSeconds: data.elapsedSeconds || 0 }));
+          const hours = Math.floor((data.elapsedSeconds || 0) / 3600);
+          const minutes = Math.floor(((data.elapsedSeconds || 0) % 3600) / 60);
+          Alert.alert('Drying Completed', `Total drying time: ${hours}h ${minutes}m`, [{ text: 'OK' }]);
+        }
       });
+
+      socket.on('drying_time_sync', (data: any) => {
+        console.log('[Dashboard] Drying time sync received from web:', data);
+        // Update local sensor data with sync from web
+        setSensorData(prev => ({
+          ...prev,
+          dryingSeconds: data.dryingSeconds || 0,
+        }));
+      });
+
+      socket.on('disconnect', () => console.log('Socket disconnected'));
     };
 
-    socket.on('sensor_readings_table', handleSensorData);
-    socket.on('sensor_data', handleSensorData);
-    socket.on('sensorData', handleSensorData);
+    connectSocketWithFallback();
 
-    socket.on('dryer:status_updated', (data: any) => {
-      if (data.status === 'drying') {
-        setSensorData(prev => ({ ...prev, status: 'Drying', dryingSeconds: 0 }));
-        Alert.alert('Drying Started', `Target: ${data.temperature}°C, Moisture: ${data.moisture}%`, [{ text: 'OK' }]);
-      } else if (data.status === 'idle') {
-        setSensorData(prev => ({ ...prev, status: 'Idle', dryingSeconds: data.elapsedSeconds || 0 }));
-        const hours = Math.floor((data.elapsedSeconds || 0) / 3600);
-        const minutes = Math.floor(((data.elapsedSeconds || 0) % 3600) / 60);
-        Alert.alert('Drying Completed', `Total drying time: ${hours}h ${minutes}m`, [{ text: 'OK' }]);
-      }
-    });
-
-    socket.on('disconnect', () => console.log('Socket disconnected'));
-    return () => { socket.disconnect(); };
+    return () => {
+      // Cleanup will be handled by individual socket instances
+    };
   }, []);
 
   return (
@@ -267,7 +308,7 @@ const DashboardPageScreen: React.FC = () => {
           <View style={styles.statusCard}>
             <Text style={styles.statusTitle}>Drying Time</Text>
             <Text style={[styles.statusValue, styles.statusValueMono]}>
-              {formatDryingTime(systemData.dryingSeconds || systemData.dryingTime || 0)}
+              {formatDryingTime(sensorData.dryingSeconds || 0)}
             </Text>
           </View>
         </View>

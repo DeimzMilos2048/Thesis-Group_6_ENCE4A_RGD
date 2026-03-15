@@ -1,12 +1,12 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// Get the correct base URL based on environment
+// Get correct base URL based on environment
 const getBaseUrl = () => {
   if (__DEV__) {
     return 'http://192.168.0.109:5001';  // Development: Raspberry Pi
   } else {
-    return 'https://objurgatory-darrell-nonconversantly.ngrok-free.dev';  // Production: ngrok
+    return 'https://mala-backend-u0gt.onrender.com';  // Production: Render backend
   }
 };
 

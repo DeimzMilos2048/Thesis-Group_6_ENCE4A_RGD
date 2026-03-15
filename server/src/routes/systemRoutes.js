@@ -3,6 +3,8 @@ import axios from "axios";
 import SystemConfig from "../models/systemConfigModel.js";
 import DryingSession from "../models/dryingSessionModel.js";
 import SensorData from "../models/sensorDataModel.js";
+import { evaluateSensorData, saveNotificationIfNew } from "../utils/notificationGenerator.js";
+import { broadcastNotification } from "../utils/firebaseNotificationService.js";
 
 const router = express.Router();
 
@@ -245,6 +247,69 @@ router.post("/dryer/stop", async (req, res) => {
 
     await dryingSession.save();
 
+    // Generate "Drying Process Completed" notification
+    try {
+      const dryingCompletedNotification = {
+        type: 'SUCCESS',
+        event: `DRYING_COMPLETED_${Date.now()}`, // Unique event to avoid duplicate prevention
+        title: '✓ Drying Process Completed',
+        message: `Drying session completed after ${Math.floor(elapsedSeconds / 60)} minutes and ${elapsedSeconds % 60} seconds. Final moisture: ${latestSensor?.moistureavg || 'N/A'}%`,
+        source: 'SYSTEM',
+        deviceId: 'MALA_SYSTEM',
+        sensorData: {
+          temperature: latestSensor?.temperature || 0,
+          humidity: latestSensor?.humidity || 0,
+          moisture1: latestSensor?.moisture1 || 0,
+          moisture2: latestSensor?.moisture2 || 0,
+          moisture3: latestSensor?.moisture3 || 0,
+          moisture4: latestSensor?.moisture4 || 0,
+          moisture5: latestSensor?.moisture5 || 0,
+          moisture6: latestSensor?.moisture6 || 0,
+          moistureavg: latestSensor?.moistureavg || 0,
+        },
+        thresholds: {
+          temperature: { critical: 50, warning: 45, stable: 40 },
+          humidity: { warning: 75, stable: 60 },
+          moisture: { target: config.selectedMoisture || 14, safe: 13 }
+        },
+        dryingSession: {
+          elapsedSeconds: elapsedSeconds,
+          endTime: new Date(),
+          temperature: config.selectedTemperature,
+          selectedMoisture: config.selectedMoisture
+        }
+      };
+
+      console.log('Creating drying completion notification:', dryingCompletedNotification);
+
+      // Save notification to database
+      const savedNotification = await saveNotificationIfNew(dryingCompletedNotification);
+
+      if (savedNotification) {
+        console.log('Drying completion notification saved successfully:', savedNotification._id);
+        
+        // Broadcast notification to web dashboard via Socket.io
+        const io = req.app.get("io");
+        if (io) {
+          io.emit('notification:new', savedNotification);
+          console.log('Drying completed notification broadcasted to web clients');
+        }
+
+        // Send push notification to mobile devices
+        try {
+          await broadcastNotification(savedNotification);
+          console.log('Drying completed notification sent to mobile devices');
+        } catch (fcmError) {
+          console.error('FCM broadcast failed (non-critical):', fcmError.message);
+        }
+      } else {
+        console.log('Drying completion notification was not saved (likely duplicate)');
+      }
+    } catch (notificationError) {
+      console.error('Error generating drying completion notification:', notificationError);
+      // Don't block the stop process if notification fails
+    }
+
     // Update system config status
     config.dryerStatus = "idle";
     config.dryingElapsedSeconds = elapsedSeconds;
@@ -321,6 +386,74 @@ router.get("/dryer/status", async (req, res) => {
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+/*
+TEST NOTIFICATION ENDPOINT - For debugging
+*/
+router.post("/test/notification", async (req, res) => {
+  try {
+    const testNotification = {
+      type: 'SUCCESS',
+      event: 'TEST_NOTIFICATION',
+      title: '✓ Test Notification',
+      message: 'This is a test notification to verify the system is working',
+      source: 'SYSTEM',
+      deviceId: 'MALA_SYSTEM',
+      sensorData: {
+        temperature: 45.5,
+        humidity: 65.2,
+        moistureavg: 14.0,
+      },
+      thresholds: {
+        temperature: { critical: 50, warning: 45, stable: 40 },
+        humidity: { warning: 75, stable: 60 },
+        moisture: { target: 14, safe: 13 }
+      }
+    };
+
+    console.log('Creating test notification:', testNotification);
+
+    // Save notification to database
+    const savedNotification = await saveNotificationIfNew(testNotification);
+
+    if (savedNotification) {
+      console.log('Test notification saved successfully:', savedNotification._id);
+      
+      // Broadcast notification to web dashboard via Socket.io
+      const io = req.app.get("io");
+      if (io) {
+        io.emit('notification:new', savedNotification);
+        console.log('Test notification broadcasted to web clients');
+      }
+
+      // Send push notification to mobile devices
+      try {
+        await broadcastNotification(savedNotification);
+        console.log('Test notification sent to mobile devices');
+      } catch (fcmError) {
+        console.error('FCM broadcast failed (non-critical):', fcmError.message);
+      }
+
+      res.json({
+        success: true,
+        message: 'Test notification sent successfully',
+        notification: savedNotification
+      });
+    } else {
+      console.log('Test notification was not saved (likely duplicate)');
+      res.json({
+        success: false,
+        message: 'Test notification was not saved (likely duplicate)'
+      });
+    }
+  } catch (error) {
+    console.error('Error creating test notification:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
   }
 });
 

@@ -88,6 +88,97 @@ export const initializeSocket = (io) => {
       }
     });
 
+    // Handle drying time sync between web and mobile
+    socket.on('drying_time_sync', (data) => {
+      console.log('Drying time sync received:', data);
+      // Broadcast to all connected clients for synchronization
+      io.emit('drying_time_sync', {
+        ...data,
+        clientId: socket.id
+      });
+    });
+
+    // Handle history data synchronization between users
+    socket.on('history:session_saved', (data) => {
+      console.log('History session saved:', data);
+      // Broadcast to all other users
+      socket.broadcast.emit('history:session_saved', data);
+    });
+
+    socket.on('history:weight_updated', (data) => {
+      console.log('Dashboard weight updated:', data);
+      // Broadcast to all other users
+      socket.broadcast.emit('history:weight_updated', data);
+    });
+
+    socket.on('history:data_saved', (data) => {
+      console.log('History data saved:', data);
+      // Broadcast to all other users
+      socket.broadcast.emit('history:data_saved', data);
+    });
+
+    socket.on('history:session_updated', (data) => {
+      console.log('History session updated:', data);
+      // Broadcast to all other users
+      socket.broadcast.emit('history:session_updated', data);
+    });
+
+    // Handle web foreground notifications
+    socket.on('notification:web:foreground', (data) => {
+      console.log('Web foreground notification:', data);
+      // Broadcast to all other web clients
+      socket.broadcast.emit('notification:web:foreground', data);
+      
+      // Also broadcast to mobile clients for cross-platform sync
+      socket.broadcast.emit('notification:mobile:sync', {
+        ...data,
+        sourcePlatform: 'web',
+        notificationType: 'foreground'
+      });
+    });
+
+    // Handle web background notifications
+    socket.on('notification:web:background', (data) => {
+      console.log('Web background notification:', data);
+      // Broadcast to all other web clients
+      socket.broadcast.emit('notification:web:background', data);
+      
+      // Also broadcast to mobile clients for cross-platform sync
+      socket.broadcast.emit('notification:mobile:sync', {
+        ...data,
+        sourcePlatform: 'web',
+        notificationType: 'background'
+      });
+    });
+
+    // Handle mobile foreground notifications
+    socket.on('notification:mobile:foreground', (data) => {
+      console.log('Mobile foreground notification:', data);
+      // Broadcast to all other mobile clients
+      socket.broadcast.emit('notification:mobile:foreground', data);
+      
+      // Also broadcast to web clients for cross-platform sync
+      socket.broadcast.emit('notification:web:sync', {
+        ...data,
+        sourcePlatform: 'mobile',
+        notificationType: 'foreground'
+      });
+    });
+
+    // Handle mobile background notifications
+    socket.on('notification:mobile:background', (data) => {
+      console.log('Mobile background notification:', data);
+      // Broadcast to all other mobile clients
+      socket.broadcast.emit('notification:mobile:background', data);
+      
+      // Also broadcast to web clients for cross-platform sync
+      socket.broadcast.emit('notification:web:sync', {
+        ...data,
+        sourcePlatform: 'mobile',
+        notificationType: 'background'
+      });
+    });
+
     socket.on('error', (error) => {
       console.error('Socket error:', error);
     });

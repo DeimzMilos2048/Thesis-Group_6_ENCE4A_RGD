@@ -340,7 +340,7 @@ const NotificationScreen: React.FC = () => {
     if (__DEV__) {
       return 'http://192.168.0.109:5001';
     } else {
-      return 'https://objurgatory-darrell-nonconversantly.ngrok-free.dev';
+      return 'https://mala-backend-u0gt.onrender.com';
     }
   };
 
@@ -617,12 +617,23 @@ const NotificationScreen: React.FC = () => {
                       <Text style={styles.alertTitle}>{alert.title}</Text>
                       <Text style={styles.alertMessage}>{alert.message}</Text>
                       <Text style={styles.alertSensorData}>
-                        {alert.sensorData?.temperature ? `${alert.sensorData.temperature}°C | ` : ''}
-                        {alert.sensorData?.moistureavg ? `Moisture: ${alert.sensorData.moistureavg.toFixed(1)}%` : ''}
-                        {alert.sensorData?.moisture1 && alert.sensorData?.moisture2
-                          ? `M1: ${alert.sensorData.moisture1}% M2: ${alert.sensorData.moisture2}%`
-                          : ''}
-                        {alert.sensorData?.humidity ? `Humidity: ${alert.sensorData.humidity}%` : ''}
+                        {alert.sensorData?.temperature != null ? `${alert.sensorData.temperature}°C | ` : 'N/A°C | '}
+                        {alert.sensorData?.moistureavg != null ? `Moisture: ${alert.sensorData.moistureavg.toFixed(1)}%` : 'N/A%'}
+                        {alert.sensorData?.moisture1 != null && alert.sensorData?.moisture2 != null
+                          ? ` | M1: ${alert.sensorData.moisture1}% M2: ${alert.sensorData.moisture2}%`
+                          : alert.sensorData?.moisture1 != null 
+                            ? ` | M1: ${alert.sensorData.moisture1}%`
+                            : alert.sensorData?.moisture2 != null
+                              ? ` | M2: ${alert.sensorData.moisture2}%`
+                              : ' | M1: N/A% M2: N/A%'}
+                        {alert.sensorData?.humidity != null ? ` | Humidity: ${alert.sensorData.humidity}%` : ' | Humidity: N/A%'}
+                        {alert.sensorData?.weight1 != null && alert.sensorData?.weight2 != null
+                          ? ` | W1: ${alert.sensorData.weight1}kg W2: ${alert.sensorData.weight2}kg`
+                          : alert.sensorData?.weight1 != null 
+                            ? ` | W1: ${alert.sensorData.weight1}kg`
+                            : alert.sensorData?.weight2 != null
+                              ? ` | W2: ${alert.sensorData.weight2}kg`
+                              : ' | W1: N/Akg W2: N/Akg'}
                       </Text>
                     </View>
                     <View style={styles.alertRight}>
@@ -658,48 +669,60 @@ const NotificationScreen: React.FC = () => {
 
               {selectedAlert?.sensorData && (
                 <View style={styles.sensorGrid}>
-                  {selectedAlert.sensorData.temperature != null && (
-                    <View style={styles.sensorItem}>
-                      <Ionicons name="thermometer" size={16} color="#666" />
-                      <Text style={styles.sensorText}>{selectedAlert.sensorData.temperature}°C</Text>
-                    </View>
-                  )}
-                  {selectedAlert.sensorData.moistureavg != null && (
-                    <View style={styles.sensorItem}>
-                      <Ionicons name="water" size={16} color="#666" />
-                      <Text style={styles.sensorText}>Moisture: {selectedAlert.sensorData.moistureavg.toFixed(1)}%</Text>
-                    </View>
-                  )}
-                  {selectedAlert.sensorData.moisture1 != null && (
-                    <View style={styles.sensorItem}>
-                      <Ionicons name="water" size={16} color="#666" />
-                      <Text style={styles.sensorText}>M1: {selectedAlert.sensorData.moisture1}%</Text>
-                    </View>
-                  )}
-                  {selectedAlert.sensorData.moisture2 != null && (
-                    <View style={styles.sensorItem}>
-                      <Ionicons name="water" size={16} color="#666" />
-                      <Text style={styles.sensorText}>M2: {selectedAlert.sensorData.moisture2}%</Text>
-                    </View>
-                  )}
-                  {selectedAlert.sensorData.humidity != null && (
-                    <View style={styles.sensorItem}>
-                      <Ionicons name="cloud" size={16} color="#666" />
-                      <Text style={styles.sensorText}>{selectedAlert.sensorData.humidity}%</Text>
-                    </View>
-                  )}
-                  {selectedAlert.sensorData.weight1 != null && (
-                    <View style={styles.sensorItem}>
-                      <Ionicons name="scale" size={16} color="#666" />
-                      <Text style={styles.sensorText}>W1: {selectedAlert.sensorData.weight1}kg</Text>
-                    </View>
-                  )}
-                  {selectedAlert.sensorData.weight2 != null && (
-                    <View style={styles.sensorItem}>
-                      <Ionicons name="scale" size={16} color="#666" />
-                      <Text style={styles.sensorText}>W2: {selectedAlert.sensorData.weight2}kg</Text>
-                    </View>
-                  )}
+                  <View style={styles.sensorItem}>
+                    <Ionicons name="thermometer" size={16} color="#666" />
+                    <Text style={styles.sensorText}>
+                      {selectedAlert.sensorData.temperature != null ? `${selectedAlert.sensorData.temperature}°C` : 'N/A°C'}
+                    </Text>
+                  </View>
+                  <View style={styles.sensorItem}>
+                    <Ionicons name="water" size={16} color="#666" />
+                    <Text style={styles.sensorText}>
+                      {selectedAlert.sensorData.moistureavg != null 
+                        ? `Moisture: ${selectedAlert.sensorData.moistureavg.toFixed(1)}%` 
+                        : 'N/A%'}
+                    </Text>
+                  </View>
+                  <View style={styles.sensorItem}>
+                    <Ionicons name="water" size={16} color="#666" />
+                    <Text style={styles.sensorText}>
+                      {selectedAlert.sensorData.moisture1 != null 
+                        ? `M1: ${selectedAlert.sensorData.moisture1}%` 
+                        : 'M1: N/A%'}
+                    </Text>
+                  </View>
+                  <View style={styles.sensorItem}>
+                    <Ionicons name="water" size={16} color="#666" />
+                    <Text style={styles.sensorText}>
+                      {selectedAlert.sensorData.moisture2 != null 
+                        ? `M2: ${selectedAlert.sensorData.moisture2}%` 
+                        : 'M2: N/A%'}
+                    </Text>
+                  </View>
+                  <View style={styles.sensorItem}>
+                    <Ionicons name="cloud" size={16} color="#666" />
+                    <Text style={styles.sensorText}>
+                      {selectedAlert.sensorData.humidity != null 
+                        ? `${selectedAlert.sensorData.humidity}%` 
+                        : 'N/A%'}
+                    </Text>
+                  </View>
+                  <View style={styles.sensorItem}>
+                    <Ionicons name="scale" size={16} color="#666" />
+                    <Text style={styles.sensorText}>
+                      {selectedAlert.sensorData.weight1 != null 
+                        ? `W1: ${selectedAlert.sensorData.weight1}kg` 
+                        : 'W1: N/Akg'}
+                    </Text>
+                  </View>
+                  <View style={styles.sensorItem}>
+                    <Ionicons name="scale" size={16} color="#666" />
+                    <Text style={styles.sensorText}>
+                      {selectedAlert.sensorData.weight2 != null 
+                        ? `W2: ${selectedAlert.sensorData.weight2}kg` 
+                        : 'W2: N/Akg'}
+                    </Text>
+                  </View>
                 </View>
               )}
 

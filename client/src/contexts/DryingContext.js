@@ -75,7 +75,6 @@ export function DryingProvider({ children }) {
       syncWithBackend();
     }, 5001);
 
-    // Initial sync
     syncWithBackend();
 
     return () => clearInterval(syncIntervalRef.current);
@@ -85,13 +84,25 @@ export function DryingProvider({ children }) {
   useEffect(() => {
     if (isProcessing) {
       intervalRef.current = setInterval(() => {
-        setDryingSeconds(prev => prev + 1);
+        setDryingSeconds(prev => {
+          const newSeconds = prev + 1;
+          
+          // Emit sync to all connected devices (mobile/web)
+          if (socket && socket.connected) {
+            socket.emit('drying_time_sync', {
+              dryingSeconds: newSeconds,
+              timestamp: new Date().toISOString()
+            });
+          }
+          
+          return newSeconds;
+        });
       }, 1000);
     } else {
       clearInterval(intervalRef.current);
     }
     return () => clearInterval(intervalRef.current);
-  }, [isProcessing]);
+  }, [isProcessing, socket]);
 
   const startDrying = async (temp, moisture) => {
     try {

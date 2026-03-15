@@ -1,7 +1,7 @@
 // history
 
 import { useState, useEffect } from 'react';
-import { Activity, AlertTriangle, BarChart2, Bell, CircleUser, Clock, LogOut, Thermometer, Droplets, Waves, ChevronDown, ChevronUp, User, HelpCircle, Settings, Download } from 'lucide-react';
+import { Activity, AlertTriangle, BarChart2, Bell, CircleUser, Clock, LogOut, Thermometer, Droplets, Waves, ChevronDown, ChevronUp, User, HelpCircle, Settings, Download, Trash2 } from 'lucide-react';
 import './Dashboard.css';
 import './History.css';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -95,10 +95,20 @@ const getSessionParams = (item) => {
 
 export default function History({ view }) {
 
+  // Helper function to format values with N/A fallback
+  const formatValue = (value, decimals = 2, suffix = '') => {
+    if (value === null || value === undefined || value === 'N/A') {
+      return 'N/A';
+    }
+    const num = parseFloat(value);
+    return isNaN(num) ? 'N/A' : `${num.toFixed(decimals)}${suffix}`;
+  };
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('history');
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const [historyData, setHistoryData] = useState([]);
   const [isMonitoringMoisture, setIsMonitoringMoisture] = useState(false);
@@ -173,14 +183,24 @@ export default function History({ view }) {
       humidity: sensorData.humidity?.toFixed(1) || '-',
       beforeWeight: {},
       afterWeight: {},
-      status: 'Active'
+      status: 'Active',
+      startTimeISO: now.toISOString(),
+      endTimeISO: null,
+      userId: localStorage.getItem('userId') || null,
+      _type: 'session'
     };
     [1, 2, 3, 4, 5, 6].forEach(i => {
       session.initialMoisture[`T${i}`] = sensorData[`moisture${i}`]?.toFixed(1) || '-';
-      session.beforeWeight[`T${i}`] = savedWeights[i]?.before?.toFixed(2) || '-';
+      session.beforeWeight[`T${i}`] = savedWeights[i]?.frozen ? formatValue(savedWeights[i].before, 2, 'kg') : 'N/A';
     });
     setHistoryData(prev => [session, ...prev]);
     localStorage.setItem('currentSession', JSON.stringify(session));
+
+    // Emit to other users via Socket.IO
+    if (socket?.connected) {
+      socket.emit('history:session_saved', session);
+      console.log('History: Emitted session start to other users:', session);
+    }
   };
 
   const recordSessionEnd = (completionStatus = 'Completed') => {
@@ -191,6 +211,7 @@ export default function History({ view }) {
       session.endTime = now.toLocaleTimeString();
       session.completionStatus = completionStatus;
       session.status = completionStatus === 'Completed' ? 'Completed' : 'Stopped';
+      session.endTimeISO = now.toISOString();
       [1, 2, 3, 4, 5, 6].forEach(i => {
         session.finalMoisture[`T${i}`] = sensorData[`moisture${i}`]?.toFixed(1) || '-';
         session.afterWeight[`T${i}`] = savedAfterWeights[i]?.after?.toFixed(2) || '-';
@@ -203,6 +224,12 @@ export default function History({ view }) {
       setHistoryData(prev => prev.map(s => s.id === session.id ? session : s));
       localStorage.removeItem('currentSession');
       localStorage.setItem('dryingHistory', JSON.stringify(historyData));
+
+      // Emit to other users via Socket.IO
+      if (socket?.connected) {
+        socket.emit('history:session_updated', session);
+        console.log('History: Emitted session end to other users:', session);
+      }
     }
   };
 
@@ -350,34 +377,43 @@ export default function History({ view }) {
               endTime:   rawEndISO   ? new Date(rawEndISO).toLocaleTimeString('en-US',   { hour: '2-digit', minute: '2-digit', hour12: true }) : '—',
               startTimeISO: rawStartISO,
               endTimeISO:   rawEndISO,
+              // Use the actual moisture values from sensor readings
               initialMoistureT1: safe(item.moisture1),
               initialMoistureT2: safe(item.moisture2),
               initialMoistureT3: safe(item.moisture3),
               initialMoistureT4: safe(item.moisture4),
               initialMoistureT5: safe(item.moisture5),
               initialMoistureT6: safe(item.moisture6),
-              finalMoistureT1: safe(item.finalMoisture1 ?? item.moisture1End),
-              finalMoistureT2: safe(item.finalMoisture2 ?? item.moisture2End),
-              finalMoistureT3: safe(item.finalMoisture3 ?? item.moisture3End),
-              finalMoistureT4: safe(item.finalMoisture4 ?? item.moisture4End),
-              finalMoistureT5: safe(item.finalMoisture5 ?? item.moisture5End),
-              finalMoistureT6: safe(item.finalMoisture6 ?? item.moisture6End),
+              // For final moisture, use the same values since sensor data doesn't track start/end separately
+              finalMoistureT1: safe(item.moisture1),
+              finalMoistureT2: safe(item.moisture2),
+              finalMoistureT3: safe(item.moisture3),
+              finalMoistureT4: safe(item.moisture4),
+              finalMoistureT5: safe(item.moisture5),
+              finalMoistureT6: safe(item.moisture6),
               moistureavg: safe(item.moistureavg),
               temperature: item.temperature !== undefined ? `${parseFloat(item.temperature).toFixed(2)}°` : 'N/A',
               humidity:    item.humidity    !== undefined ? parseFloat(item.humidity).toFixed(2) : 'N/A',
-              beforeWeightT1: safe(item.weight1_t1 ?? item.weight1),
-              beforeWeightT2: safe(item.weight1_t2 ?? item.weight1),
-              beforeWeightT3: safe(item.weight1_t3 ?? item.weight1),
-              beforeWeightT4: safe(item.weight1_t4 ?? item.weight1),
-              beforeWeightT5: safe(item.weight1_t5 ?? item.weight1),
-              beforeWeightT6: safe(item.weight1_t6 ?? item.weight1),
-              afterWeightT1: safe(item.weight2_t1 ?? item.weight2),
-              afterWeightT2: safe(item.weight2_t2 ?? item.weight2),
-              afterWeightT3: safe(item.weight2_t3 ?? item.weight2),
-              afterWeightT4: safe(item.weight2_t4 ?? item.weight2),
-              afterWeightT5: safe(item.weight2_t5 ?? item.weight2),
-              afterWeightT6: safe(item.weight2_t6 ?? item.weight2),
+              // Fix weight mapping to use the correct field names from database
+              beforeWeightT1: safe(item.weight1_t1),
+              beforeWeightT2: safe(item.weight1_t2),
+              beforeWeightT3: safe(item.weight1_t3),
+              beforeWeightT4: safe(item.weight1_t4),
+              beforeWeightT5: safe(item.weight1_t5),
+              beforeWeightT6: safe(item.weight1_t6),
+              afterWeightT1: safe(item.weight2_t1),
+              afterWeightT2: safe(item.weight2_t2),
+              afterWeightT3: safe(item.weight2_t3),
+              afterWeightT4: safe(item.weight2_t4),
+              afterWeightT5: safe(item.weight2_t5),
+              afterWeightT6: safe(item.weight2_t6),
+              // Also include the original weight fields as fallback
+              weight1: safe(item.weight1),
+              weight2: safe(item.weight2),
               status: item.status || 'Idle',
+              // Include additional fields that might be useful
+              userId: item.userId || null,
+              _type: item._type || 'sensor',
             };
           });
           setHistoryData(formattedData);
@@ -442,7 +478,258 @@ export default function History({ view }) {
     }
   }, [selectedTraysCount, averageMoistureFromSelected, selectedTrays, sensorData, socket]);
 
-  // ── Navigation & logout ───────────────────────────────────────────────────────
+  // ── Real-time history synchronization via Socket.IO ─────────────────────
+  useEffect(() => {
+    if (!socket) return;
+
+    // Helper function for safe value formatting (moved here for global access)
+    const safe = (value, fallback = 'N/A') => {
+      if (value !== undefined && value !== null) {
+        const num = parseFloat(value);
+        return isNaN(num) ? value.toString() : num.toFixed(2);
+      }
+      return fallback;
+    };
+
+    // Listen for history updates from other users
+    const handleHistoryUpdate = (data) => {
+      console.log('History: Received real-time update:', data);
+      
+      // Update history data with new entry
+      setHistoryData(prev => {
+        // Check if this entry already exists to avoid duplicates
+        const exists = prev.some(item => 
+          item._id === data._id || item.id === data.id
+        );
+        
+        if (!exists) {
+          // Format the new data consistently with existing history
+          const formattedEntry = {
+            id: data._id || data.id || Date.now(),
+            date: data.timestamp ? new Date(data.timestamp).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' }) : 'N/A',
+            startTime: data.timestamp ? new Date(data.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }) : 'N/A',
+            endTime: data.endTime ? new Date(data.endTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }) : '—',
+            startTimeISO: data.timestamp,
+            endTimeISO: data.endTime,
+            initialMoistureT1: safe(data.moisture1),
+            initialMoistureT2: safe(data.moisture2),
+            initialMoistureT3: safe(data.moisture3),
+            initialMoistureT4: safe(data.moisture4),
+            initialMoistureT5: safe(data.moisture5),
+            initialMoistureT6: safe(data.moisture6),
+            finalMoistureT1: safe(data.moisture1),
+            finalMoistureT2: safe(data.moisture2),
+            finalMoistureT3: safe(data.moisture3),
+            finalMoistureT4: safe(data.moisture4),
+            finalMoistureT5: safe(data.moisture5),
+            finalMoistureT6: safe(data.moisture6),
+            moistureavg: safe(data.moistureavg),
+            temperature: data.temperature !== undefined ? `${parseFloat(data.temperature).toFixed(2)}°` : 'N/A',
+            humidity: data.humidity !== undefined ? parseFloat(data.humidity).toFixed(2) : 'N/A',
+            beforeWeightT1: safe(data.weight1_t1),
+            beforeWeightT2: safe(data.weight1_t2),
+            beforeWeightT3: safe(data.weight1_t3),
+            beforeWeightT4: safe(data.weight1_t4),
+            beforeWeightT5: safe(data.weight1_t5),
+            beforeWeightT6: safe(data.weight1_t6),
+            afterWeightT1: safe(data.weight2_t1),
+            afterWeightT2: safe(data.weight2_t2),
+            afterWeightT3: safe(data.weight2_t3),
+            afterWeightT4: safe(data.weight2_t4),
+            afterWeightT5: safe(data.weight2_t5),
+            afterWeightT6: safe(data.weight2_t6),
+            weight1: safe(data.weight1),
+            weight2: safe(data.weight2),
+            status: data.status || 'Idle',
+            userId: data.userId || null,
+            _type: data._type || 'sensor',
+          };
+
+          // Add new entry at the beginning of the array
+          return [formattedEntry, ...prev];
+        }
+        return prev;
+      });
+    };
+
+    // Listen for weight updates from other users
+    const handleWeightUpdate = (data) => {
+      console.log('History: Received weight update:', data);
+      
+      // Update the latest record with new weight data
+      setHistoryData(prev => {
+        const updated = [...prev];
+        if (updated.length > 0) {
+          // Update the first (latest) record with new weight data
+          updated[0] = {
+            ...updated[0],
+            beforeWeightT1: data.weight1_t1 !== undefined ? safe(data.weight1_t1) : updated[0].beforeWeightT1,
+            beforeWeightT2: data.weight1_t2 !== undefined ? safe(data.weight1_t2) : updated[0].beforeWeightT2,
+            beforeWeightT3: data.weight1_t3 !== undefined ? safe(data.weight1_t3) : updated[0].beforeWeightT3,
+            beforeWeightT4: data.weight1_t4 !== undefined ? safe(data.weight1_t4) : updated[0].beforeWeightT4,
+            beforeWeightT5: data.weight1_t5 !== undefined ? safe(data.weight1_t5) : updated[0].beforeWeightT5,
+            beforeWeightT6: data.weight1_t6 !== undefined ? safe(data.weight1_t6) : updated[0].beforeWeightT6,
+            afterWeightT1: data.weight2_t1 !== undefined ? safe(data.weight2_t1) : updated[0].afterWeightT1,
+            afterWeightT2: data.weight2_t2 !== undefined ? safe(data.weight2_t2) : updated[0].afterWeightT2,
+            afterWeightT3: data.weight2_t3 !== undefined ? safe(data.weight2_t3) : updated[0].afterWeightT3,
+            afterWeightT4: data.weight2_t4 !== undefined ? safe(data.weight2_t4) : updated[0].afterWeightT4,
+            afterWeightT5: data.weight2_t5 !== undefined ? safe(data.weight2_t5) : updated[0].afterWeightT5,
+            afterWeightT6: data.weight2_t6 !== undefined ? safe(data.weight2_t6) : updated[0].afterWeightT6,
+          };
+        }
+        return updated;
+      });
+    };
+
+    // Listen for session updates from other users
+    const handleSessionUpdate = (data) => {
+      console.log('History: Received session update:', data);
+      
+      // Update history data with session information
+      setHistoryData(prev => {
+        const formattedSession = {
+          id: data._id || data.id || Date.now(),
+          date: data.date || new Date().toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' }),
+          startTime: data.startTime || 'N/A',
+          endTime: data.endTime || '—',
+          startTimeISO: data.startTimeISO,
+          endTimeISO: data.endTimeISO,
+          initialMoistureT1: safe(data.initialMoisture?.T1),
+          initialMoistureT2: safe(data.initialMoisture?.T2),
+          initialMoistureT3: safe(data.initialMoisture?.T3),
+          initialMoistureT4: safe(data.initialMoisture?.T4),
+          initialMoistureT5: safe(data.initialMoisture?.T5),
+          initialMoistureT6: safe(data.initialMoisture?.T6),
+          finalMoistureT1: safe(data.finalMoisture?.T1),
+          finalMoistureT2: safe(data.finalMoisture?.T2),
+          finalMoistureT3: safe(data.finalMoisture?.T3),
+          finalMoistureT4: safe(data.finalMoisture?.T4),
+          finalMoistureT5: safe(data.finalMoisture?.T5),
+          finalMoistureT6: safe(data.finalMoisture?.T6),
+          moistureavg: safe(data.averageMoisture),
+          temperature: data.temperature || 'N/A',
+          humidity: data.humidity || 'N/A',
+          beforeWeightT1: safe(data.beforeWeight?.T1),
+          beforeWeightT2: safe(data.beforeWeight?.T2),
+          beforeWeightT3: safe(data.beforeWeight?.T3),
+          beforeWeightT4: safe(data.beforeWeight?.T4),
+          beforeWeightT5: safe(data.beforeWeight?.T5),
+          beforeWeightT6: safe(data.beforeWeight?.T6),
+          afterWeightT1: safe(data.afterWeight?.T1),
+          afterWeightT2: safe(data.afterWeight?.T2),
+          afterWeightT3: safe(data.afterWeight?.T3),
+          afterWeightT4: safe(data.afterWeight?.T4),
+          afterWeightT5: safe(data.afterWeight?.T5),
+          afterWeightT6: safe(data.afterWeight?.T6),
+          status: data.status || 'Active',
+          userId: data.userId || null,
+          _type: 'session',
+        };
+
+        // Add or update session in history
+        const existingIndex = prev.findIndex(item => 
+          item._id === formattedSession.id || item.id === formattedSession.id
+        );
+        
+        if (existingIndex >= 0) {
+          const updated = [...prev];
+          updated[existingIndex] = formattedSession;
+          return updated;
+        } else {
+          return [formattedSession, ...prev];
+        }
+      });
+    };
+
+    // Register socket event listeners
+    socket.on('history:data_saved', handleHistoryUpdate);
+    socket.on('history:weight_updated', handleWeightUpdate);
+    socket.on('history:session_updated', handleSessionUpdate);
+
+    // Cleanup listeners on unmount
+    return () => {
+      socket.off('history:data_saved', handleHistoryUpdate);
+      socket.off('history:weight_updated', handleWeightUpdate);
+      socket.off('history:session_updated', handleSessionUpdate);
+    };
+  }, [socket]);
+
+  // ── Delete selected records ───────────────────────────────────────────────────────
+  const handleDeleteClick = () => {
+    if (selectedRows.size === 0) {
+      alert('Please select at least one row to delete.');
+      return;
+    }
+    setShowDeleteConfirm(true);
+  };
+
+  const handleDeleteCancel = () => setShowDeleteConfirm(false);
+
+  const handleDeleteConfirm = async () => {
+    try {
+      setLoading(true);
+      const selectedItems = Array.from(selectedRows);
+      
+      // Get the IDs of selected items
+      const idsToDelete = selectedItems.map(id => {
+        const item = historyData.find(item => item.id === id);
+        return item?._id || item.id; // Use MongoDB _id if available, otherwise fallback to local id
+      }).filter(Boolean);
+
+      if (idsToDelete.length === 0) {
+        alert('No valid records to delete.');
+        setLoading(false);
+        setShowDeleteConfirm(false);
+        return;
+      }
+
+      // Call the delete API
+      const token = localStorage.getItem('token');
+      const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001';
+      
+      const response = await fetch(`${API_URL}/api/sensor/history/delete`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ ids: idsToDelete })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to delete records: ${response.status}`);
+      }
+
+      const result = await response.json();
+      
+      if (result.success) {
+        // Remove deleted items from local state
+        setHistoryData(prev => prev.filter(item => !selectedRows.has(item.id)));
+        setSelectedRows(new Set());
+        
+        // Update localStorage
+        const remainingData = historyData.filter(item => !selectedRows.has(item.id));
+        localStorage.setItem('dryingHistory', JSON.stringify(remainingData));
+        
+        // Show success message
+        alert(`Successfully deleted ${selectedItems.length} record(s).`);
+        
+        // Emit to other users via Socket.IO
+        if (socket?.connected) {
+          socket.emit('history:records_deleted', { deletedIds: idsToDelete });
+          console.log('History: Emitted delete event to other users:', { deletedIds: idsToDelete });
+        }
+      } else {
+        throw new Error(result.message || 'Delete operation failed');
+      }
+    } catch (error) {
+      console.error('Delete error:', error);
+      alert(`Error deleting records: ${error.message}`);
+    } finally {
+      setLoading(false);
+      setShowDeleteConfirm(false);
+    }
+  };
   const handleNavigation = (path, tab) => {
     saveCurrentSessionToHistory();
     setActiveTab(tab);
@@ -1098,6 +1385,27 @@ export default function History({ view }) {
         </div>
       )}
 
+      {showDeleteConfirm && (
+        <div className="modal-overlay" onClick={handleDeleteCancel}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <Trash2 size={24} style={{ color: '#ef4444' }} />
+              <h3>Confirm Delete</h3>
+            </div>
+            <div className="modal-body">
+              <p>Are you sure you want to delete {selectedRows.size} selected record{selectedRows.size > 1 ? 's' : ''}?</p>
+              <p style={{ fontSize: '14px', color: '#666', marginTop: '8px' }}>This action cannot be undone and will permanently remove the records from the database.</p>
+            </div>
+            <div className="modal-footer">
+              <button className="modal-button cancel" onClick={handleDeleteCancel}>Cancel</button>
+              <button className="modal-button confirm" onClick={handleDeleteConfirm} style={{ backgroundColor: '#ef4444' }}>
+                Delete {selectedRows.size} Record{selectedRows.size > 1 ? 's' : ''}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <header className="topbar">
         <div className="topbar-logo-section">
           <img src={logo} alt="Logo" className="topbar-logo" />
@@ -1153,6 +1461,15 @@ export default function History({ view }) {
                   {selectedRows.size} row{selectedRows.size > 1 ? 's' : ''} selected
                 </span>
               )}
+              <button
+                className="download-btn"
+                onClick={handleDeleteClick}
+                disabled={selectedRows.size === 0}
+                title={selectedRows.size > 0 ? `Delete ${selectedRows.size} selected row(s)` : 'Select rows to delete'}
+              >
+                <Trash2 size={16} style={{ marginRight: '6px' }} />
+                Delete ({selectedRows.size})
+              </button>
               <button
                 className="download-btn"
                 onClick={handleDownloadExcel}
@@ -1311,20 +1628,20 @@ export default function History({ view }) {
                         <td>{item.humidity}</td>
 
                         {/* Before Weight T1–T6 */}
-                        <td>{savedWeights[1]?.frozen ? savedWeights[1].before.toFixed(2) : item.beforeWeightT1}</td>
-                        <td>{savedWeights[2]?.frozen ? savedWeights[2].before.toFixed(2) : item.beforeWeightT2}</td>
-                        <td>{savedWeights[3]?.frozen ? savedWeights[3].before.toFixed(2) : item.beforeWeightT3}</td>
-                        <td>{savedWeights[4]?.frozen ? savedWeights[4].before.toFixed(2) : item.beforeWeightT4}</td>
-                        <td>{savedWeights[5]?.frozen ? savedWeights[5].before.toFixed(2) : item.beforeWeightT5}</td>
-                        <td>{savedWeights[6]?.frozen ? savedWeights[6].before.toFixed(2) : item.beforeWeightT6}</td>
+                        <td>{savedWeights[1]?.frozen ? formatValue(savedWeights[1].before, 2, 'kg') : formatValue(item.beforeWeightT1, 2, 'kg')}</td>
+                        <td>{savedWeights[2]?.frozen ? formatValue(savedWeights[2].before, 2, 'kg') : formatValue(item.beforeWeightT2, 2, 'kg')}</td>
+                        <td>{savedWeights[3]?.frozen ? formatValue(savedWeights[3].before, 2, 'kg') : formatValue(item.beforeWeightT3, 2, 'kg')}</td>
+                        <td>{savedWeights[4]?.frozen ? formatValue(savedWeights[4].before, 2, 'kg') : formatValue(item.beforeWeightT4, 2, 'kg')}</td>
+                        <td>{savedWeights[5]?.frozen ? formatValue(savedWeights[5].before, 2, 'kg') : formatValue(item.beforeWeightT5, 2, 'kg')}</td>
+                        <td>{savedWeights[6]?.frozen ? formatValue(savedWeights[6].before, 2, 'kg') : formatValue(item.beforeWeightT6, 2, 'kg')}</td>
 
                         {/* After Weight T1–T6 */}
-                        <td>{savedAfterWeights[1]?.frozen ? savedAfterWeights[1].after.toFixed(2) : item.afterWeightT1}</td>
-                        <td>{savedAfterWeights[2]?.frozen ? savedAfterWeights[2].after.toFixed(2) : item.afterWeightT2}</td>
-                        <td>{savedAfterWeights[3]?.frozen ? savedAfterWeights[3].after.toFixed(2) : item.afterWeightT3}</td>
-                        <td>{savedAfterWeights[4]?.frozen ? savedAfterWeights[4].after.toFixed(2) : item.afterWeightT4}</td>
-                        <td>{savedAfterWeights[5]?.frozen ? savedAfterWeights[5].after.toFixed(2) : item.afterWeightT5}</td>
-                        <td>{savedAfterWeights[6]?.frozen ? savedAfterWeights[6].after.toFixed(2) : item.afterWeightT6}</td>
+                        <td>{savedAfterWeights[1]?.frozen ? formatValue(savedAfterWeights[1].after, 2, 'kg') : formatValue(item.afterWeightT1, 2, 'kg')}</td>
+                        <td>{savedAfterWeights[2]?.frozen ? formatValue(savedAfterWeights[2].after, 2, 'kg') : formatValue(item.afterWeightT2, 2, 'kg')}</td>
+                        <td>{savedAfterWeights[3]?.frozen ? formatValue(savedAfterWeights[3].after, 2, 'kg') : formatValue(item.afterWeightT3, 2, 'kg')}</td>
+                        <td>{savedAfterWeights[4]?.frozen ? formatValue(savedAfterWeights[4].after, 2, 'kg') : formatValue(item.afterWeightT4, 2, 'kg')}</td>
+                        <td>{savedAfterWeights[5]?.frozen ? formatValue(savedAfterWeights[5].after, 2, 'kg') : formatValue(item.afterWeightT5, 2, 'kg')}</td>
+                        <td>{savedAfterWeights[6]?.frozen ? formatValue(savedAfterWeights[6].after, 2, 'kg') : formatValue(item.afterWeightT6, 2, 'kg')}</td>
 
                         <td>
                           <span className={`status ${item.status.toLowerCase()}`}>

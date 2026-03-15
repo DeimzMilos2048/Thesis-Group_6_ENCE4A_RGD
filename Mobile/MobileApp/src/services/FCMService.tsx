@@ -7,7 +7,7 @@ const getAPIBaseUrl = () => {
   if (__DEV__) {
     return 'http://192.168.0.109:5001';  // Development: Raspberry Pi
   } else {
-    return 'https://objurgatory-darrell-nonconversantly.ngrok-free.dev';  // Production: ngrok
+    return 'https://mala-backend-u0gt.onrender.com';  // Production: Render backend
   }
 };
 

@@ -1,10 +1,10 @@
 // API Configuration for React Native Mobile App
 
 // Development URL: Use the same IP as socket.io connections
-const DEV_API_URL = 'http://192.168.0.109:5001/api'; // Raspberry Pi
+const DEV_API_URL = 'http://192.168.0.109:5001/api'; 
 
-// Production URL (Render deployment with ngrok)
-const PROD_API_URL = 'https://objurgatory-darrell-nonconversantly.ngrok-free.dev/api';
+// Production URL (Render deployment)
+const PROD_API_URL = 'https://mala-backend-u0gt.onrender.com/api';
 
 // ESP32 Server URL (Raspberry Pi communication)
 const ESP32_API_URL = 'http://10.42.0.1:5001/api/system';

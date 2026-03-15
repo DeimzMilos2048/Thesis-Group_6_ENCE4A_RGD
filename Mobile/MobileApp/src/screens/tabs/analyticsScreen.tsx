@@ -126,10 +126,10 @@ const AnalyticsScreen = () => {
     console.log('Analytics: Attempting to connect to socket...');
 
     const getSocketURL = () => {
-      // Try local Raspberry Pi first, then fallback to ngrok
+      // Try local Raspberry Pi first, then fallback to Render backend
       const urls = [
         'http://192.168.0.109:5001',
-        'https://objurgatory-darrell-nonconversantly.ngrok-free.dev'
+        'https://mala-backend-u0gt.onrender.com'
       ];
       return urls[0]; // Will try first URL, fallback can be implemented if needed
     };

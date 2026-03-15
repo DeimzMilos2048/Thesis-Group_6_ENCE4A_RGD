@@ -37,8 +37,7 @@ export default function Analytics({ view }) {
   isConnected 
 } = useSocket();
 
-  const { savedWeights, savedAfterWeights } = useWeight();
-
+  const { savedWeights, setSavedWeights, savedAfterWeights, setSavedAfterWeights } = useWeight();
   const { 
     isProcessing, 
     dryingSeconds, 
@@ -173,6 +172,63 @@ export default function Analytics({ view }) {
       saveAllData(); // Also save when component unmounts
     };
   }, [savedWeights, savedAfterWeights, isProcessing, dryingSeconds, selectedTemp, selectedMoisture, currentTray]);
+
+  // Listen for real-time weight updates from other users
+  useEffect(() => {
+    if (!socket) return;
+
+    // Listen for weight updates from History component
+    const handleWeightDataUpdate = (event) => {
+      console.log('Analytics: Received weight update from History:', event.detail);
+      
+      // Update local state when weight data changes
+      const { type, tray, weight } = event.detail;
+      if (type === 'before' && tray === currentTray) {
+        // Update before weight for current tray
+        const updatedWeights = { ...savedWeights };
+        updatedWeights[tray] = { ...updatedWeights[tray], before: weight };
+        setSavedWeights(updatedWeights);
+        console.log(`Analytics: Tray ${tray} before weight updated: ${weight.toFixed(2)} kg`);
+      } else if (type === 'after' && tray === currentTray) {
+        // Update after weight for current tray
+        const updatedAfterWeights = { ...savedAfterWeights };
+        updatedAfterWeights[tray] = { ...updatedAfterWeights[tray], after: weight };
+        setSavedAfterWeights(updatedAfterWeights);
+        console.log(`Analytics: Tray ${tray} after weight updated: ${weight.toFixed(2)} kg`);
+      }
+    };
+
+    // Listen for weight updates from other users via Socket.IO
+    const handleWeightUpdateFromSocket = (data) => {
+      console.log('Analytics: Received weight update via socket:', data);
+      
+      // Update local state when weight data changes from other users
+      const { type, tray, weight } = data;
+      if (type === 'before' && tray === currentTray) {
+        // Update before weight for current tray
+        const updatedWeights = { ...savedWeights };
+        updatedWeights[tray] = { ...updatedWeights[tray], before: weight };
+        setSavedWeights(updatedWeights);
+        console.log(`Analytics: Tray ${tray} before weight updated: ${weight.toFixed(2)} kg`);
+      } else if (type === 'after' && tray === currentTray) {
+        // Update after weight for current tray
+        const updatedAfterWeights = { ...savedAfterWeights };
+        updatedAfterWeights[tray] = { ...updatedAfterWeights[tray], after: weight };
+        setSavedAfterWeights(updatedAfterWeights);
+        console.log(`Analytics: Tray ${tray} after weight updated: ${weight.toFixed(2)} kg`);
+      }
+    };
+
+    // Register event listeners
+    window.addEventListener('weightDataUpdated', handleWeightDataUpdate);
+    socket.on('history:weight_updated', handleWeightUpdateFromSocket);
+
+    // Cleanup listeners on unmount
+    return () => {
+      window.removeEventListener('weightDataUpdated', handleWeightDataUpdate);
+      socket.off('history:weight_updated', handleWeightUpdateFromSocket);
+    };
+  }, [socket, currentTray, savedWeights, savedAfterWeights]);
 
   const fmt = (val, unit) => val === null ? 'N/A' : `${Number(val).toFixed(1)}${unit}`;
 

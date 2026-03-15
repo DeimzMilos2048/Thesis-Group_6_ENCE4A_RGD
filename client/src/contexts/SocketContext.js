@@ -276,6 +276,12 @@ export const SocketProvider = ({ children }) => {
       console.log('Drying time update received:', data);
     });
 
+    // Listen for drying time sync events from mobile
+    newSocket.on('drying_time_sync', (data) => {
+      console.log('Drying time sync received from mobile:', data);
+      // This will be handled by DryingContext through localStorage updates
+    });
+
     newSocket.on('error', (error) => {
       console.error('Socket error:', error);
     });
