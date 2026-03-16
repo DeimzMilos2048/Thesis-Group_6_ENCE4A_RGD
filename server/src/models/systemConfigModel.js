@@ -14,7 +14,6 @@ const systemConfigSchema = new mongoose.Schema({
   },
   selectedTray: {
     type: Number,
-    enum: [1,2,3,4,5,6],
     default: 1
   },
   // Drying status and timing - Backend is source of truth

@@ -19,9 +19,6 @@ export default function History({ view }) {
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const [historyData, setHistoryData] = useState([]);
-  const [isMonitoringMoisture, setIsMonitoringMoisture] = useState(false);
-  const [targetMoistureReached, setTargetMoistureReached] = useState(false);
-  const [currentMoisture, setCurrentMoisture] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedRecords, setSelectedRecords] = useState([]);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -136,119 +133,59 @@ export default function History({ view }) {
           const safeToString = (value, fallback = 'N/A') =>
             value !== undefined && value !== null ? value.toString() : fallback;
 
+          // Helper function to format numbers with 2 decimal places
+          const formatNumber = (value) => {
+            const num = parseFloat(value);
+            return isNaN(num) ? 'N/A' : num.toFixed(2);
+          };
+
           const formattedData = sensorData.map((item, index) => {
             return {
               id: item._id || item.id || index + 1,
 
-              // Date & Time - with proper error handling
-              date: (() => {
-                try {
-                  // Try multiple possible date fields
-                  const dateFields = [item.timestamp, item.startTime, item.createdAt, item.date];
-                  for (const field of dateFields) {
-                    if (field) {
-                      const date = new Date(field);
-                      if (!isNaN(date.getTime())) {
-                        return date.toLocaleDateString('en-PH', {
-                          month: '2-digit',
-                          day: '2-digit',
-                          year: 'numeric',
-                        });
-                      }
-                    }
-                  }
-                  return 'N/A';
-                } catch (error) {
-                  console.warn('Invalid date field:', item.timestamp, error);
-                  return 'N/A';
-                }
-              })(),
-              
-              startTime: (() => {
-                try {
-                  // Try multiple possible start time fields
-                  const timeFields = [item.startTime, item.timestamp, item.createdAt];
-                  for (const field of timeFields) {
-                    if (field) {
-                      const date = new Date(field);
-                      if (!isNaN(date.getTime())) {
-                        return date.toLocaleTimeString('en-PH', {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                        hour12: true,
-                      });
-                      }
-                    }
-                  }
-                  return 'N/A';
-                } catch (error) {
-                  console.warn('Invalid start time field:', item.startTime, error);
-                  return 'N/A';
-                }
-              })(),
-              
-              endTime: (() => {
-                try {
-                  // Try multiple possible end time fields
-                  const timeFields = [item.endTime, item.endTimestamp, item.completedAt];
-                  for (const field of timeFields) {
-                    if (field) {
-                      const date = new Date(field);
-                      if (!isNaN(date.getTime())) {
-                        return date.toLocaleTimeString('en-PH', {
-                          hour: '2-digit',
-                          minute: '2-digit',
-                          second: '2-digit',
-                          hour12: true,
-                        });
-                      }
-                    }
-                  }
-                  return 'N/A';
-                } catch (error) {
-                  console.warn('Invalid end time field:', item.endTime, error);
-                  return 'N/A';
-                }
-              })(),
+              // Date & Time - use backend formatted values directly
+              date: item.date || 'N/A',
+              startTime: item.startTime || 'N/A',
+              endTime: item.endTime || '—',
 
               // Initial Moisture per tray (T1–T6)
-              initialMoistureT1: safeToString(item.moisture1),
-              initialMoistureT2: safeToString(item.moisture2),
-              initialMoistureT3: safeToString(item.moisture3),
-              initialMoistureT4: safeToString(item.moisture4),
-              initialMoistureT5: safeToString(item.moisture5),
-              initialMoistureT6: safeToString(item.moisture6),
+              initialMoistureT1: formatNumber(item.moisture1),
+              initialMoistureT2: formatNumber(item.moisture2),
+              initialMoistureT3: formatNumber(item.moisture3),
+              initialMoistureT4: formatNumber(item.moisture4),
+              initialMoistureT5: formatNumber(item.moisture5),
+              initialMoistureT6: formatNumber(item.moisture6),
 
-              // Final Moisture per tray (T1–T6)
-              finalMoistureT1: safeToString(item.finalMoisture1 ?? item.moisture1End),
-              finalMoistureT2: safeToString(item.finalMoisture2 ?? item.moisture2End),
-              finalMoistureT3: safeToString(item.finalMoisture3 ?? item.moisture3End),
-              finalMoistureT4: safeToString(item.finalMoisture4 ?? item.moisture4End),
-              finalMoistureT5: safeToString(item.finalMoisture5 ?? item.moisture5End),
-              finalMoistureT6: safeToString(item.finalMoisture6 ?? item.moisture6End),
+              // Final Moisture per tray (T1–T6) - use direct moisture fields from drying session
+              finalMoistureT1: formatNumber(item.moisture1),
+              finalMoistureT2: formatNumber(item.moisture2),
+              finalMoistureT3: formatNumber(item.moisture3),
+              finalMoistureT4: formatNumber(item.moisture4),
+              finalMoistureT5: formatNumber(item.moisture5),
+              finalMoistureT6: formatNumber(item.moisture6),
 
               // Moisture average
-              moistureavg: safeToString(item.moistureavg),
+              moistureavg: formatNumber(item.moistureavg),
 
               // Temperature & Humidity
-              temperature: item.temperature !== undefined ? `${item.temperature}` : 'N/A',
-              humidity: item.humidity !== undefined ? item.humidity.toString() : 'N/A',
+              temperature: formatNumber(item.temperature),
+              humidity: formatNumber(item.humidity),
 
               // Before Weight — per tray from backend
-              beforeWeightT1: safeToString(item.weight1_t1 ?? item.weight1),
-              beforeWeightT2: safeToString(item.weight1_t2 ?? item.weight1),
-              beforeWeightT3: safeToString(item.weight1_t3 ?? item.weight1),
-              beforeWeightT4: safeToString(item.weight1_t4 ?? item.weight1),
-              beforeWeightT5: safeToString(item.weight1_t5 ?? item.weight1),
-              beforeWeightT6: safeToString(item.weight1_t6 ?? item.weight1),
+              beforeWeightT1: formatNumber(item.weight1_t1 ?? item.weight1),
+              beforeWeightT2: formatNumber(item.weight1_t2 ?? item.weight1),
+              beforeWeightT3: formatNumber(item.weight1_t3 ?? item.weight1),
+              beforeWeightT4: formatNumber(item.weight1_t4 ?? item.weight1),
+              beforeWeightT5: formatNumber(item.weight1_t5 ?? item.weight1),
+              beforeWeightT6: formatNumber(item.weight1_t6 ?? item.weight1),
 
               // After Weight — per tray from backend
-              afterWeightT1: safeToString(item.weight2_t1 ?? item.weight2),
-              afterWeightT2: safeToString(item.weight2_t2 ?? item.weight2),
-              afterWeightT3: safeToString(item.weight2_t3 ?? item.weight2),
-              afterWeightT4: safeToString(item.weight2_t4 ?? item.weight2),
-              afterWeightT5: safeToString(item.weight2_t5 ?? item.weight2),
-              afterWeightT6: safeToString(item.weight2_t6 ?? item.weight2),
+              afterWeightT1: formatNumber(item.weight2_t1 ?? item.weight2),
+              afterWeightT2: formatNumber(item.weight2_t2 ?? item.weight2),
+              afterWeightT3: formatNumber(item.weight2_t3 ?? item.weight2),
+              afterWeightT4: formatNumber(item.weight2_t4 ?? item.weight2),
+              afterWeightT5: formatNumber(item.weight2_t5 ?? item.weight2),
+              afterWeightT6: formatNumber(item.weight2_t6 ?? item.weight2),
 
               // Status
               status: item.status || 'Idle',
@@ -277,105 +214,16 @@ export default function History({ view }) {
     };
   }, [navigate]);
 
-  // Monitor moisture content and auto-stop when reaching 14%
-  useEffect(() => {
-    if (!isMonitoringMoisture || targetMoistureReached) {
-      return; // Don't monitor if not active or already reached target
-    }
-
-    const monitorMoisture = async () => {
-      try {
-        const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001';
-        const token = localStorage.getItem('token');
-        
-        // Fetch latest sensor data
-        const response = await fetch(`${API_URL}/api/sensor/latest`, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        });
-
-        if (!response.ok) {
-          console.warn('Failed to fetch latest sensor data:', response.status);
-          return;
-        }
-
-        const result = await response.json();
-        const sensorData = Array.isArray(result.data) ? result.data[0] : result.data;
-
-        if (sensorData && sensorData.moistureavg !== undefined) {
-          const avgMoisture = parseFloat(sensorData.moistureavg);
-          setCurrentMoisture(avgMoisture);
-
-          // Check if moisture reached target (14%)
-          // Trigger: Consider it "reached" when <= 14
-          if (avgMoisture <= 14 && !targetMoistureReached) {
-            console.log(`✓ Target moisture reached! Average: ${avgMoisture}%`);
-            setTargetMoistureReached(true);
-            setIsMonitoringMoisture(false);
-
-            // Record end time for auto-stop scenario
-            const now = new Date();
-            const endTimeISO = now.toISOString();
-            const endTimeFormatted = now.toLocaleTimeString('en-PH', {
-              hour: '2-digit',
-              minute: '2-digit',
-              second: '2-digit',
-              hour12: true,
-            });
-
-            // Store end time in localStorage for database sync
-            localStorage.setItem('autoStopEndTime', endTimeISO);
-            localStorage.setItem('autoStopEndTimeFormatted', endTimeFormatted);
-            localStorage.setItem('autoStopStatus', 'Target Reached');
-
-            console.log('Auto-stop: Recorded end time:', {
-              endTimeISO,
-              endTimeFormatted,
-              moisture: avgMoisture,
-              status: 'Target Reached'
-            });
-
-            // Auto-stop drying when target reached
-            try {
-              const stopResponse = await dryerService.stopDrying();
-              if (stopResponse.success) {
-                console.log('Drying automatically stopped at target moisture');
-                // Reload history to show new record with end time
-                setTimeout(() => {
-                  window.location.reload();
-                }, 1000);
-              }
-            } catch (err) {
-              console.error('Error auto-stopping drying:', err);
-            }
-          }
-        }
-      } catch (error) {
-        console.warn('Moisture monitoring error:', error);
-      }
-    };
-
-    // Monitor every 10 seconds during active drying
-    const monitoringInterval = setInterval(monitorMoisture, 10000);
-    monitorMoisture(); // Initial check
-
-    return () => clearInterval(monitoringInterval);
-  }, [isMonitoringMoisture, targetMoistureReached]);
-
   const handleNavigation = (path, tab) => {
     setActiveTab(tab);
     navigate(path);
   };
 
   const handleLogoutClick = () => setShowLogoutConfirm(true);
+
   const handleLogoutConfirm = async () => {
     try {
-      // Stop drying process if running
-      await dryerService.stopDrying().catch(() => {});
-      
-      // Clear sensor-related data from localStorage
+      // Clear local data immediately (fast operations)
       localStorage.removeItem('sensorData');
       localStorage.removeItem('savedWeights');
       localStorage.removeItem('savedAfterWeights');
@@ -384,30 +232,28 @@ export default function History({ view }) {
       localStorage.removeItem('targetMoisture');
       localStorage.removeItem('targetTemperature');
       
-      // Call auth logout
-      await authService.logout();
+      // Navigate to login immediately (fast operation)
       navigate('/login');
+      
+      // Stop drying process in background (don't wait for it)
+      dryerService.stopDrying().catch((error) => {
+        console.warn('Background stop drying failed:', error);
+      });
+      
+      // Call auth logout in background (don't wait for it)
+      authService.logout().catch((error) => {
+        console.warn('Background auth logout failed:', error);
+      });
+      
+      console.log('Logout initiated - local data cleared, navigating to login');
     } catch (error) {
       console.error('Logout error:', error);
-      // Still navigate to login even if there's an error
+      // Always navigate to login even if there's an error
       navigate('/login');
     }
   };
+
   const handleLogoutCancel = () => setShowLogoutConfirm(false);
-
-  // Function to start monitoring moisture (can be called from Dashboard when drying starts)
-  const startMoistureMonitoring = () => {
-    setIsMonitoringMoisture(true);
-    setTargetMoistureReached(false);
-    setCurrentMoisture(null);
-    console.log('Started monitoring moisture for auto-stop at 14%');
-  };
-
-  // Function to stop monitoring moisture manually
-  const stopMoistureMonitoring = () => {
-    setIsMonitoringMoisture(false);
-    console.log('Stopped monitoring moisture');
-  };
 
   const handleDownloadExcel = () => {
   if (selectedRecords.length === 0) {
@@ -725,95 +571,46 @@ const handleDeleteConfirm = async () => {
     // Reformat data (same logic as initial fetch)
     const safeToString = (value, fallback = 'N/A') =>
       value !== undefined && value !== null ? value.toString() : fallback;
+
+    // Helper function to format numbers with 2 decimal places
+    const formatNumber = (value) => {
+      const num = parseFloat(value);
+      return isNaN(num) ? 'N/A' : num.toFixed(2);
+    };
     
     const formattedData = sensorData.map((item, index) => ({
       id: item._id || item.id || index + 1,
-      date: (() => {
-        try {
-          const dateFields = [item.timestamp, item.startTime, item.createdAt, item.date];
-          for (const field of dateFields) {
-            if (field) {
-              const date = new Date(field);
-              if (!isNaN(date.getTime())) {
-                return date.toLocaleDateString('en-PH', {
-                  month: '2-digit',
-                  day: '2-digit',
-                  year: 'numeric',
-                });
-              }
-            }
-          }
-          return 'N/A';
-        } catch (error) {
-          return 'N/A';
-        }
-      })(),
-      startTime: (() => {
-        try {
-          const timeFields = [item.startTime, item.timestamp, item.createdAt];
-          for (const field of timeFields) {
-            if (field) {
-              const date = new Date(field);
-              if (!isNaN(date.getTime())) {
-                return date.toLocaleTimeString('en-PH', {
-                  hour: '2-digit',
-                  minute: '2-digit',
-                  second: '2-digit',
-                  hour12: true,
-                });
-              }
-            }
-          }
-          return 'N/A';
-        } catch (error) {
-          return 'N/A';
-        }
-      })(),
-      endTime: (() => {
-        try {
-          if (item.endTime) {
-            const date = new Date(item.endTime);
-            if (!isNaN(date.getTime())) {
-              return date.toLocaleTimeString('en-PH', {
-                hour: '2-digit',
-                minute: '2-digit',
-                second: '2-digit',
-                hour12: true,
-              });
-            }
-          }
-          return 'N/A';
-        } catch (error) {
-          return 'N/A';
-        }
-      })(),
-      initialMoistureT1: safeToString(item.moisture1),
-      initialMoistureT2: safeToString(item.moisture2),
-      initialMoistureT3: safeToString(item.moisture3),
-      initialMoistureT4: safeToString(item.moisture4),
-      initialMoistureT5: safeToString(item.moisture5),
-      initialMoistureT6: safeToString(item.moisture6),
-      finalMoistureT1: safeToString(item.finalMoisture1 ?? item.moisture1End),
-      finalMoistureT2: safeToString(item.finalMoisture2 ?? item.moisture2End),
-      finalMoistureT3: safeToString(item.finalMoisture3 ?? item.moisture3End),
-      finalMoistureT4: safeToString(item.finalMoisture4 ?? item.moisture4End),
-      finalMoistureT5: safeToString(item.finalMoisture5 ?? item.mousture5End),
-      finalMoistureT6: safeToString(item.finalMoisture6 ?? item.moisture6End),
-      moistureavg: safeToString(item.moistureavg),
-      temperature: item.temperature !== undefined ? `${item.temperature}` : 'N/A',
-      humidity: item.humidity !== undefined ? item.humidity.toString() : 'N/A',
-      beforeWeightT1: safeToString(item.weight1_t1 ?? item.weight1),
-      beforeWeightT2: safeToString(item.weight1_t2 ?? item.weight1),
-      beforeWeightT3: safeToString(item.weight1_t3 ?? item.weight1),
-      beforeWeightT4: safeToString(item.weight1_t4 ?? item.weight1),
-      beforeWeightT5: safeToString(item.weight1_t5 ?? item.weight1),
-      beforeWeightT6: safeToString(item.weight1_t6 ?? item.weight1),
-      afterWeightT1: safeToString(item.weight2_t1 ?? item.weight2),
-      afterWeightT2: safeToString(item.weight2_t2 ?? item.weight2),
-      afterWeightT3: safeToString(item.weight2_t3 ?? item.weight2),
-      afterWeightT4: safeToString(item.weight2_t4 ?? item.weight2),
-      afterWeightT5: safeToString(item.weight2_t5 ?? item.weight2),
-      afterWeightT6: safeToString(item.weight2_t6 ?? item.weight2),
+      date: item.date || 'N/A',
+      startTime: item.startTime || 'N/A',
+      endTime: item.endTime || '—',
+      initialMoistureT1: formatNumber(item.moisture1),
+      initialMoistureT2: formatNumber(item.moisture2),
+      initialMoistureT3: formatNumber(item.moisture3),
+      initialMoistureT4: formatNumber(item.moisture4),
+      initialMoistureT5: formatNumber(item.moisture5),
+      initialMoistureT6: formatNumber(item.moisture6),
+      // Final Moisture per tray (T1–T6) - use direct moisture fields from drying session
+      finalMoistureT1: formatNumber(item.moisture1),
+      finalMoistureT2: formatNumber(item.moisture2),
+      finalMoistureT3: formatNumber(item.moisture3),
+      finalMoistureT4: formatNumber(item.moisture4),
+      finalMoistureT5: formatNumber(item.moisture5),
+      finalMoistureT6: formatNumber(item.moisture6),
+      moistureavg: formatNumber(item.moistureavg),
+      temperature: formatNumber(item.temperature),
+      humidity: formatNumber(item.humidity),
+      beforeWeightT1: formatNumber(item.weight1_t1 ?? item.weight1),
+      beforeWeightT2: formatNumber(item.weight1_t2 ?? item.weight1),
+      beforeWeightT3: formatNumber(item.weight1_t3 ?? item.weight1),
+      beforeWeightT4: formatNumber(item.weight1_t4 ?? item.weight1),
+      beforeWeightT5: formatNumber(item.weight1_t5 ?? item.weight1),
+      beforeWeightT6: formatNumber(item.weight1_t6 ?? item.weight1),
+      afterWeightT1: formatNumber(item.weight2_t1 ?? item.weight2),
+      afterWeightT2: formatNumber(item.weight2_t2 ?? item.weight2),
+      afterWeightT3: formatNumber(item.weight2_t3 ?? item.weight2),
+      afterWeightT4: formatNumber(item.weight2_t4 ?? item.weight2),
+      afterWeightT5: formatNumber(item.weight2_t5 ?? item.weight2),
+      afterWeightT6: formatNumber(item.weight2_t6 ?? item.weight2),
       status: item.status || 'Idle',
     }));
     
@@ -1035,58 +832,6 @@ const filteredData = historyData.filter(item => {
               <button className="download-btn delete-btn" onClick={handleDelete}>Delete</button>
             </div>
           </div>
-
-          {/* Moisture Monitoring Status Bar */}
-          {isMonitoringMoisture && (
-            <div style={{
-              backgroundColor: '#FEF3C7',
-              border: '1px solid #FCD34D',
-              borderRadius: '8px',
-              padding: '12px 16px',
-              marginBottom: '16px',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center'
-            }}>
-              <div>
-                <span style={{ fontWeight: '600', color: '#92400E' }}>
-                  ◐ Monitoring Moisture • Current: {currentMoisture !== null ? `${currentMoisture.toFixed(2)}%` : 'Loading...'}
-                </span>
-                <p style={{ fontSize: '12px', color: '#78350F', margin: '4px 0 0 0' }}>
-                  Drying will automatically stop when moisture reaches 14%
-                </p>
-              </div>
-              <button
-                onClick={stopMoistureMonitoring}
-                style={{
-                  padding: '6px 12px',
-                  backgroundColor: '#EF4444',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '4px',
-                  cursor: 'pointer',
-                  fontSize: '12px',
-                  fontWeight: '600'
-                }}
-              >
-                Stop Monitoring
-              </button>
-            </div>
-          )}
-
-          {targetMoistureReached && (
-            <div style={{
-              backgroundColor: '#D1FAE5',
-              border: '1px solid #6EE7B7',
-              borderRadius: '8px',
-              padding: '12px 16px',
-              marginBottom: '16px',
-              color: '#065F46',
-              fontWeight: '600'
-            }}>
-              ✓ Target moisture (14%) reached! Drying session has been completed and saved.
-            </div>
-          )}
           <div className="table-wrapper">
             <table className="history-table">
               <thead>

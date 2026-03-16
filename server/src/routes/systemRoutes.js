@@ -3,8 +3,6 @@ import axios from "axios";
 import SystemConfig from "../models/systemConfigModel.js";
 import DryingSession from "../models/dryingSessionModel.js";
 import SensorData from "../models/sensorDataModel.js";
-import { evaluateSensorData, saveNotificationIfNew } from "../utils/notificationGenerator.js";
-import { broadcastNotification } from "../utils/firebaseNotificationService.js";
 
 const router = express.Router();
 
@@ -16,165 +14,150 @@ router.get("/config", async (req, res) => {
 
     let config = await SystemConfig.findOne();
 
-    if(!config){
+    if (!config) {
       config = await SystemConfig.create({});
     }
 
     res.json({
-      success:true,
-      config
+      config: {
+        selectedTemperature: config.selectedTemperature,
+        selectedMoisture: config.selectedMoisture,
+        selectedTrays: config.selectedTrays || []
+      },
+      running: config.dryerStatus === "drying"
     });
 
-  } catch(err){
-    res.status(500).json({error:err.message});
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
 
 /*
-SET TEMPERATURE BUTTON
+SET TEMPERATURE
 */
-router.post("/temperature", async (req,res)=>{
+router.post("/temperature", async (req, res) => {
 
-  try{
+  try {
 
-    const {value} = req.body;
+    const { value } = req.body;
 
-    if(![40,41,42,43,44,45].includes(value)){
-      return res.status(400).json({error:"Invalid temperature"});
+    if (![40, 41, 42, 43, 44, 45].includes(value)) {
+      return res.status(400).json({ error: "Invalid temperature" });
     }
 
     let config = await SystemConfig.findOne();
-    if(!config) config = new SystemConfig();
+    if (!config) config = new SystemConfig();
 
     config.selectedTemperature = value;
 
     await config.save();
 
     res.json({
-      success:true,
-      message:"Temperature updated",
+      success: true,
+      message: "Temperature updated",
       config
     });
 
-  }catch(err){
-    res.status(500).json({error:err.message});
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 
 });
 
 
 /*
-SET MOISTURE BUTTON
+SET MOISTURE
 */
-router.post("/moisture", async (req,res)=>{
+router.post("/moisture", async (req, res) => {
 
-  try{
+  try {
 
-    const {value} = req.body;
+    const { value } = req.body;
 
-    if(![13,14].includes(value)){
-      return res.status(400).json({error:"Invalid moisture"});
+    if (![13, 14].includes(value)) {
+      return res.status(400).json({ error: "Invalid moisture" });
     }
 
     let config = await SystemConfig.findOne();
-    if(!config) config = new SystemConfig();
+    if (!config) config = new SystemConfig();
 
     config.selectedMoisture = value;
 
     await config.save();
 
     res.json({
-      success:true,
-      message:"Moisture updated",
+      success: true,
+      message: "Moisture updated",
       config
     });
 
-  }catch(err){
-    res.status(500).json({error:err.message});
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 
 });
 
 
 /*
-SET TRAY BUTTON
+SET TRAY
 */
-router.post("/tray", async (req,res)=>{
+router.post("/tray", async (req, res) => {
+  try {
 
-  try{
+    const tray = parseInt(req.body.value, 10);
 
-    const {value} = req.body;
-
-    if(![1,2,3,4,5,6].includes(value)){
-      return res.status(400).json({error:"Invalid tray"});
-    }
-
-    let config = await SystemConfig.findOne();
-    if(!config) config = new SystemConfig();
-
-    config.selectedTray = value;
-
-    await config.save();
+    const config = await SystemConfig.findOneAndUpdate(
+      {},
+      { $addToSet: { selectedTrays: tray } },   // Mongo atomic add
+      { new: true, upsert: true }
+    );
 
     res.json({
-      success:true,
-      message:"Tray updated",
-      config
+      success: true,
+      trays: config.selectedTrays
     });
 
-  }catch(err){
-    res.status(500).json({error:err.message});
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
-
 });
-
 /*
-START DRYING - Backend is source of truth
+START DRYING
 */
 router.post("/dryer/start", async (req, res) => {
   try {
+
     const { temperature, moisture } = req.body;
 
     let config = await SystemConfig.findOne();
     if (!config) config = new SystemConfig();
 
-    // Set drying state with current server timestamp
     config.dryerStatus = "drying";
     config.dryingStartTime = new Date();
     config.dryingElapsedSeconds = 0;
     config.dryingStoppedAt = null;
 
-    // Update temperature and moisture if provided
-    if (temperature && [40, 41, 42, 43, 44, 45].includes(temperature)) {
-      config.selectedTemperature = temperature;
-    }
-    if (moisture && [13, 14].includes(moisture)) {
-      config.selectedMoisture = moisture;
-    }
+    if (temperature) config.selectedTemperature = temperature;
+    if (moisture) config.selectedMoisture = moisture;
 
     await config.save();
 
-    // Send command to ESP32 server
-try {
-  await axios.post("http://10.42.0.1:5001/api/system/start", {
-    temperature: config.selectedTemperature,
-    moisture: config.selectedMoisture,
-    tray: config.selectedTray
-  });
-} catch (error) {
-  console.error("ESP server error:", error.message);
-}
+    await axios.post("http://10.42.0.1:5001/api/system/start", {
+      temperature: config.selectedTemperature,
+      moisture: config.selectedMoisture,
+      trays: config.selectedTrays
+    });
 
-    // Emit socket event for real-time sync across clients
     const io = req.app.get("io");
+
     if (io) {
       io.emit("dryer:status_updated", {
         status: "drying",
         startTime: config.dryingStartTime,
         temperature: config.selectedTemperature,
         moisture: config.selectedMoisture,
-        timestamp: new Date().toISOString(),
+        timestamp: new Date().toISOString()
       });
     }
 
@@ -183,28 +166,34 @@ try {
       message: "Drying started",
       data: {
         status: config.dryerStatus,
-        startTime: config.dryingStartTime,
-        temperature: config.selectedTemperature,
-        moisture: config.selectedMoisture,
-      },
+        startTime: config.dryingStartTime
+      }
     });
+
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
+
+
+
+
 /*
 STOP DRYING
 */
 router.post("/dryer/stop", async (req, res) => {
+
   try {
+
     let config = await SystemConfig.findOne();
+
     if (!config) {
       return res.status(400).json({ error: "System config not found" });
     }
 
-    // Calculate elapsed time
     let elapsedSeconds = 0;
+
     if (config.dryingStartTime) {
       const now = new Date();
       elapsedSeconds = Math.floor(
@@ -212,14 +201,68 @@ router.post("/dryer/stop", async (req, res) => {
       );
     }
 
-    // Get latest sensor data for the drying session record
     const latestSensor = await SensorData.findOne().sort({ timestamp: -1 });
 
-    // Create a drying session record with endTime
+    // Debug: Log the latest sensor data to see what fields are available
+    console.log('Latest sensor data for drying session:', {
+      id: latestSensor?._id,
+      timestamp: latestSensor?.timestamp,
+      weight1_t1: latestSensor?.weight1_t1,
+      weight1_t2: latestSensor?.weight1_t2,
+      weight1_t3: latestSensor?.weight1_t3,
+      weight1_t4: latestSensor?.weight1_t4,
+      weight1_t5: latestSensor?.weight1_t5,
+      weight1_t6: latestSensor?.weight1_t6,
+      weight2_t1: latestSensor?.weight2_t1,
+      weight2_t2: latestSensor?.weight2_t2,
+      weight2_t3: latestSensor?.weight2_t3,
+      weight2_t4: latestSensor?.weight2_t4,
+      weight2_t5: latestSensor?.weight2_t5,
+      weight2_t6: latestSensor?.weight2_t6,
+      weight1: latestSensor?.weight1,
+      weight2: latestSensor?.weight2
+    });
+
+    // Try to get weight data from multiple sources if latest doesn't have weights
+    const getWeightData = async () => {
+      // First try latest sensor data
+      if (latestSensor && (
+        (latestSensor.weight1_t1 && latestSensor.weight1_t1 > 0) ||
+        (latestSensor.weight1 && latestSensor.weight1 > 0)
+      )) {
+        return latestSensor;
+      }
+      
+      // If no weight data in latest, try to find sensor data with weight values
+      // Look back up to 10 records for weight data
+      const sensorWithWeights = await SensorData.findOne({
+        $or: [
+          { weight1_t1: { $gt: 0 } },
+          { weight1_t2: { $gt: 0 } },
+          { weight1_t3: { $gt: 0 } },
+          { weight1_t4: { $gt: 0 } },
+          { weight1_t5: { $gt: 0 } },
+          { weight1_t6: { $gt: 0 } },
+          { weight1: { $gt: 0 } }
+        ]
+      }).sort({ timestamp: -1 }).limit(1);
+      
+      if (sensorWithWeights) {
+        console.log('Found sensor with weight data:', sensorWithWeights._id);
+        return sensorWithWeights;
+      }
+      
+      // If still no weight data, return latest sensor (will use 0 values)
+      console.log('No weight data found, using 0 values');
+      return latestSensor;
+    };
+
+    const sensorWithWeightData = await getWeightData();
+
     const dryingSession = new DryingSession({
       startTime: config.dryingStartTime || new Date(),
       endTime: new Date(),
-      elapsedSeconds: elapsedSeconds,
+      elapsedSeconds,
       temperature: config.selectedTemperature,
       selectedMoisture: config.selectedMoisture,
       humidity: latestSensor?.humidity || 0,
@@ -230,87 +273,24 @@ router.post("/dryer/stop", async (req, res) => {
       moisture5: latestSensor?.moisture5 || 0,
       moisture6: latestSensor?.moisture6 || 0,
       moistureavg: latestSensor?.moistureavg || 0,
-      weight1_t1: latestSensor?.weight1_t1 || null,
-      weight1_t2: latestSensor?.weight1_t2 || null,
-      weight1_t3: latestSensor?.weight1_t3 || null,
-      weight1_t4: latestSensor?.weight1_t4 || null,
-      weight1_t5: latestSensor?.weight1_t5 || null,
-      weight1_t6: latestSensor?.weight1_t6 || null,
-      weight2_t1: latestSensor?.weight2_t1 || null,
-      weight2_t2: latestSensor?.weight2_t2 || null,
-      weight2_t3: latestSensor?.weight2_t3 || null,
-      weight2_t4: latestSensor?.weight2_t4 || null,
-      weight2_t5: latestSensor?.weight2_t5 || null,
-      weight2_t6: latestSensor?.weight2_t6 || null,
-      status: 'Stopped'
+      // Use sensor data that actually has weight values
+      weight1_t1: sensorWithWeightData?.weight1_t1 || sensorWithWeightData?.weight1 || 0,
+      weight1_t2: sensorWithWeightData?.weight1_t2 || sensorWithWeightData?.weight1 || 0,
+      weight1_t3: sensorWithWeightData?.weight1_t3 || sensorWithWeightData?.weight1 || 0,
+      weight1_t4: sensorWithWeightData?.weight1_t4 || sensorWithWeightData?.weight1 || 0,
+      weight1_t5: sensorWithWeightData?.weight1_t5 || sensorWithWeightData?.weight1 || 0,
+      weight1_t6: sensorWithWeightData?.weight1_t6 || sensorWithWeightData?.weight1 || 0,
+      weight2_t1: sensorWithWeightData?.weight2_t1 || sensorWithWeightData?.weight2 || 0,
+      weight2_t2: sensorWithWeightData?.weight2_t2 || sensorWithWeightData?.weight2 || 0,
+      weight2_t3: sensorWithWeightData?.weight2_t3 || sensorWithWeightData?.weight2 || 0,
+      weight2_t4: sensorWithWeightData?.weight2_t4 || sensorWithWeightData?.weight2 || 0,
+      weight2_t5: sensorWithWeightData?.weight2_t5 || sensorWithWeightData?.weight2 || 0,
+      weight2_t6: sensorWithWeightData?.weight2_t6 || sensorWithWeightData?.weight2 || 0,
+      status: "Stopped"
     });
 
     await dryingSession.save();
 
-    // Generate "Drying Process Completed" notification
-    try {
-      const dryingCompletedNotification = {
-        type: 'SUCCESS',
-        event: `DRYING_COMPLETED_${Date.now()}`, // Unique event to avoid duplicate prevention
-        title: '✓ Drying Process Completed',
-        message: `Drying session completed after ${Math.floor(elapsedSeconds / 60)} minutes and ${elapsedSeconds % 60} seconds. Final moisture: ${latestSensor?.moistureavg || 'N/A'}%`,
-        source: 'SYSTEM',
-        deviceId: 'MALA_SYSTEM',
-        sensorData: {
-          temperature: latestSensor?.temperature || 0,
-          humidity: latestSensor?.humidity || 0,
-          moisture1: latestSensor?.moisture1 || 0,
-          moisture2: latestSensor?.moisture2 || 0,
-          moisture3: latestSensor?.moisture3 || 0,
-          moisture4: latestSensor?.moisture4 || 0,
-          moisture5: latestSensor?.moisture5 || 0,
-          moisture6: latestSensor?.moisture6 || 0,
-          moistureavg: latestSensor?.moistureavg || 0,
-        },
-        thresholds: {
-          temperature: { critical: 50, warning: 45, stable: 40 },
-          humidity: { warning: 75, stable: 60 },
-          moisture: { target: config.selectedMoisture || 14, safe: 13 }
-        },
-        dryingSession: {
-          elapsedSeconds: elapsedSeconds,
-          endTime: new Date(),
-          temperature: config.selectedTemperature,
-          selectedMoisture: config.selectedMoisture
-        }
-      };
-
-      console.log('Creating drying completion notification:', dryingCompletedNotification);
-
-      // Save notification to database
-      const savedNotification = await saveNotificationIfNew(dryingCompletedNotification);
-
-      if (savedNotification) {
-        console.log('Drying completion notification saved successfully:', savedNotification._id);
-        
-        // Broadcast notification to web dashboard via Socket.io
-        const io = req.app.get("io");
-        if (io) {
-          io.emit('notification:new', savedNotification);
-          console.log('Drying completed notification broadcasted to web clients');
-        }
-
-        // Send push notification to mobile devices
-        try {
-          await broadcastNotification(savedNotification);
-          console.log('Drying completed notification sent to mobile devices');
-        } catch (fcmError) {
-          console.error('FCM broadcast failed (non-critical):', fcmError.message);
-        }
-      } else {
-        console.log('Drying completion notification was not saved (likely duplicate)');
-      }
-    } catch (notificationError) {
-      console.error('Error generating drying completion notification:', notificationError);
-      // Don't block the stop process if notification fails
-    }
-
-    // Update system config status
     config.dryerStatus = "idle";
     config.dryingElapsedSeconds = elapsedSeconds;
     config.dryingStoppedAt = new Date();
@@ -318,44 +298,58 @@ router.post("/dryer/stop", async (req, res) => {
 
     await config.save();
 
-    // Send stop command to ESP32 server
-try {
-  await axios.post("http://10.42.0.1:5001/api/system/stop");
-} catch (error) {
-  console.error("ESP server error:", error.message);
-}
-
-    // Emit socket event for real-time sync
-    const io = req.app.get("io");
-    if (io) {
-      io.emit("dryer:status_updated", {
-        status: "idle",
-        elapsedSeconds: elapsedSeconds,
-        stoppedAt: config.dryingStoppedAt,
-        timestamp: new Date().toISOString(),
-      });
+    try {
+      await axios.post("http://10.42.0.1:5001/api/system/stop");
+    } catch (error) {
+      console.error("ESP server error:", error.message);
     }
 
     res.json({
       success: true,
       message: "Drying stopped",
-      data: {
-        status: config.dryerStatus,
-        elapsedSeconds: elapsedSeconds,
-        dryingSession: dryingSession
-      },
+      elapsedSeconds
     });
+
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+
+});
+
+//Dryer remove
+
+router.post("/tray/remove", async (req, res) => {
+  try {
+
+    const tray = Number(req.body.value);
+
+    let config = await SystemConfig.findOne();
+    if (!config) return res.status(404).json({ error: "Config not found" });
+
+    if (!config.selectedTrays) config.selectedTrays = [];
+
+    config.selectedTrays = config.selectedTrays.filter(t => t !== tray);
+
+    await config.save();
+
+    res.json({
+      success: true,
+      trays: config.selectedTrays
+    });
+
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
+
 /*
-GET DRYER STATUS AND CALCULATE ELAPSED TIME
-Backend calculates elapsed time, not frontend
+GET DRYER STATUS
 */
 router.get("/dryer/status", async (req, res) => {
+
   try {
+
     let config = await SystemConfig.findOne();
     if (!config) config = new SystemConfig();
 
@@ -367,94 +361,25 @@ router.get("/dryer/status", async (req, res) => {
       elapsedSeconds = Math.floor(
         (now.getTime() - config.dryingStartTime.getTime()) / 1000
       );
-    } else if (config.dryerStatus === "idle") {
-      elapsedSeconds = config.dryingElapsedSeconds;
     }
 
     res.json({
       success: true,
       data: {
         status: config.dryerStatus,
-        isRunning: isRunning,
+        isRunning,
         startTime: config.dryingStartTime,
-        elapsedSeconds: elapsedSeconds,
+        elapsedSeconds,
         temperature: config.selectedTemperature,
         moisture: config.selectedMoisture,
-        tray: config.selectedTray,
-        lastUpdated: new Date().toISOString(),
-      },
+        trays: config.selectedTrays
+      }
     });
+
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
-});
 
-/*
-TEST NOTIFICATION ENDPOINT - For debugging
-*/
-router.post("/test/notification", async (req, res) => {
-  try {
-    const testNotification = {
-      type: 'SUCCESS',
-      event: 'TEST_NOTIFICATION',
-      title: '✓ Test Notification',
-      message: 'This is a test notification to verify the system is working',
-      source: 'SYSTEM',
-      deviceId: 'MALA_SYSTEM',
-      sensorData: {
-        temperature: 45.5,
-        humidity: 65.2,
-        moistureavg: 14.0,
-      },
-      thresholds: {
-        temperature: { critical: 50, warning: 45, stable: 40 },
-        humidity: { warning: 75, stable: 60 },
-        moisture: { target: 14, safe: 13 }
-      }
-    };
-
-    console.log('Creating test notification:', testNotification);
-
-    // Save notification to database
-    const savedNotification = await saveNotificationIfNew(testNotification);
-
-    if (savedNotification) {
-      console.log('Test notification saved successfully:', savedNotification._id);
-      
-      // Broadcast notification to web dashboard via Socket.io
-      const io = req.app.get("io");
-      if (io) {
-        io.emit('notification:new', savedNotification);
-        console.log('Test notification broadcasted to web clients');
-      }
-
-      // Send push notification to mobile devices
-      try {
-        await broadcastNotification(savedNotification);
-        console.log('Test notification sent to mobile devices');
-      } catch (fcmError) {
-        console.error('FCM broadcast failed (non-critical):', fcmError.message);
-      }
-
-      res.json({
-        success: true,
-        message: 'Test notification sent successfully',
-        notification: savedNotification
-      });
-    } else {
-      console.log('Test notification was not saved (likely duplicate)');
-      res.json({
-        success: false,
-        message: 'Test notification was not saved (likely duplicate)'
-      });
-    }
-  } catch (error) {
-    console.error('Error creating test notification:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
-  }
 });
 
 export default router;
