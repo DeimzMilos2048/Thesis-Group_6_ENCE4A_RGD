@@ -45,6 +45,19 @@ const useNotificationService = (sensorData, pollingIntervalMs = 5001, isMonitori
       }
     } catch (err) {
       console.error('Failed to fetch sensor data:', err);
+      
+      // Don't show network errors to user repeatedly
+      if (err.message && err.message.includes('Network error')) {
+        // Network errors are expected when server is down - don't spam console
+        return;
+      }
+      
+      // For other errors, show them
+      if (err.response) {
+        console.error('Server responded with error:', err.response.status, err.response.data);
+      } else if (err.request) {
+        console.error('No response received from server - check if server is running');
+      }
     }
   }, [socket]);
 

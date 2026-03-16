@@ -138,17 +138,52 @@ router.get('/history', async (req, res) => {
       DryingSession.find().sort({ endTime: -1 }).limit(100)
     ]);
 
+    // Helper function to safely format date
+    const safeFormatDate = (timestamp) => {
+      if (!timestamp) return 'N/A';
+      try {
+        const date = new Date(timestamp);
+        if (isNaN(date.getTime())) return 'N/A';
+        return date.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' });
+      } catch (error) {
+        return 'N/A';
+      }
+    };
+
+    // Helper function to safely format time
+    const safeFormatTime = (timestamp) => {
+      if (!timestamp) return 'N/A';
+      try {
+        const date = new Date(timestamp);
+        if (isNaN(date.getTime())) return 'N/A';
+        return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+      } catch (error) {
+        return 'N/A';
+      }
+    };
+
+    // Helper function to safely get timestamp for sorting
+    const safeTimestamp = (timestamp) => {
+      if (!timestamp) return 0;
+      try {
+        const date = new Date(timestamp);
+        return isNaN(date.getTime()) ? 0 : date.getTime();
+      } catch (error) {
+        return 0;
+      }
+    };
+
     // Process sensor data to match frontend expectations
     const processedSensorData = sensorHistory.map(item => ({
       ...item.toObject(),
       _type: 'sensor',
       id: item._id,
       timestamp: item.timestamp,
-      date: new Date(item.timestamp).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' }),
-      startTime: new Date(item.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }),
-      endTime: new Date(item.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }),
-      startTimeISO: item.timestamp,
-      endTimeISO: item.timestamp,
+      date: safeFormatDate(item.timestamp),
+      startTime: safeFormatTime(item.timestamp),
+      endTime: safeFormatTime(item.timestamp),
+      startTimeISO: item.timestamp || null,
+      endTimeISO: item.timestamp || null,
       // Frontend expects these exact field names
       initialMoistureT1: item.moisture1 || 0,
       initialMoistureT2: item.moisture2 || 0,
@@ -183,11 +218,11 @@ router.get('/history', async (req, res) => {
         _type: 'drying',
         id: item._id,
         timestamp: item.endTime, // Use endTime as timestamp for sorting
-        date: new Date(item.endTime).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' }),
-        startTime: new Date(item.startTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }),
-        endTime: new Date(item.endTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }),
-        startTimeISO: item.startTime,
-        endTimeISO: item.endTime,
+        date: safeFormatDate(item.endTime),
+        startTime: safeFormatTime(item.startTime),
+        endTime: safeFormatTime(item.endTime),
+        startTimeISO: item.startTime || null,
+        endTimeISO: item.endTime || null,
         // Frontend expects these exact field names
         initialMoistureT1: initialSensorData?.moisture1 || item.selectedMoisture || 0,
         initialMoistureT2: initialSensorData?.moisture2 || 0,
@@ -213,9 +248,9 @@ router.get('/history', async (req, res) => {
 
     // Combine and sort by timestamp
     const combinedHistory = [...processedSensorData, ...processedDryingData].sort((a, b) => {
-      const timeA = a.timestamp || a.endTime || 0;
-      const timeB = b.timestamp || b.endTime || 0;
-      return new Date(timeB) - new Date(timeA);
+      const timeA = safeTimestamp(a.timestamp || a.endTime);
+      const timeB = safeTimestamp(b.timestamp || b.endTime);
+      return timeB - timeA;
     });
 
     res.json({
@@ -345,6 +380,47 @@ router.get('/current', async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch sensor data'
+    });
+  }
+});
+
+// DELETE /api/sensor/history/:id - Delete single sensor record
+router.delete('/history/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    if (!id) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Please provide a valid record ID' 
+      });
+    }
+
+    // Delete both sensor data and drying session by ID
+    const [sensorResult, sessionResult] = await Promise.all([
+      SensorData.deleteOne({ _id: id }),
+      DryingSession.deleteOne({ _id: id })
+    ]);
+
+    const totalDeleted = (sensorResult.deletedCount || 0) + (sessionResult.deletedCount || 0);
+
+    // Broadcast deletion event to all clients
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('history:record_deleted', { deletedId: id });
+      console.log('History: Broadcasted single deletion event to all clients:', { deletedId: id });
+    }
+
+    res.json({ 
+      success: true, 
+      message: `Successfully deleted 1 record`,
+      deletedCount: totalDeleted
+    });
+  } catch (error) {
+    console.error('Error deleting history record:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
     });
   }
 });
