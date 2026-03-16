@@ -144,7 +144,13 @@ router.get('/history', async (req, res) => {
       try {
         const date = new Date(timestamp);
         if (isNaN(date.getTime())) return 'N/A';
-        return date.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' });
+        // Force Philippines timezone to be consistent across all environments
+        return date.toLocaleDateString('en-PH', { 
+          month: '2-digit', 
+          day: '2-digit', 
+          year: 'numeric',
+          timeZone: 'Asia/Manila'
+        });
       } catch (error) {
         return 'N/A';
       }
@@ -156,7 +162,13 @@ router.get('/history', async (req, res) => {
       try {
         const date = new Date(timestamp);
         if (isNaN(date.getTime())) return 'N/A';
-        return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+        // Force Philippines timezone to be consistent across all environments
+        return date.toLocaleTimeString('en-PH', { 
+          hour: '2-digit', 
+          minute: '2-digit', 
+          hour12: true,
+          timeZone: 'Asia/Manila'
+        });
       } catch (error) {
         return 'N/A';
       }
