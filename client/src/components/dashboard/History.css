@@ -168,6 +168,35 @@
   background-color: #b91c1c;
 }
 
+.save-btn {
+  background-color: #2563eb;
+  color: white;
+}
+
+.save-btn:hover {
+  background-color: #2563eb;
+}
+
+.saved-filter-btn {
+  background-color: #6b7280;
+  color: white;
+  display: flex;
+  align-items: center;
+}
+
+.saved-filter-btn:hover {
+  background-color: #4b5563;
+}
+
+.saved-filter-btn.active {
+  background-color: #2563eb;
+  color: white;
+}
+
+.saved-filter-btn.active:hover {
+  background-color: #2563eb;
+}
+
 .modal-button.confirm.delete {
   background-color: #dc2626;
   color: white;
