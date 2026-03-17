@@ -1,5 +1,50 @@
 import SensorData from './models/sensorDataModel.js';
+import DryingSession from './models/dryingSessionModel.js';
 import { sendDryingNotification } from './controllers/notificationController.js';
+
+// Helper function to check if moisture target was reached for selected trays
+const checkMoistureTargetReached = (session, selectedTrays, targetMoisture) => {
+  if (!selectedTrays || selectedTrays.length === 0) return false;
+  
+  // Check each selected tray's moisture level
+  for (const tray of selectedTrays) {
+    const moistureKey = `moisture${tray}`;
+    const moistureValue = session[moistureKey];
+    
+    if (moistureValue !== undefined && moistureValue !== null && moistureValue <= targetMoisture) {
+      return true; // At least one selected tray reached target
+    }
+  }
+  
+  // Also check average moisture
+  if (session.moistureavg !== undefined && session.moistureavg !== null && session.moistureavg <= targetMoisture) {
+    return true;
+  }
+  
+  return false;
+};
+
+// Helper function to calculate weight change for selected trays
+const calculateWeightChange = (session, selectedTrays) => {
+  if (!selectedTrays || selectedTrays.length === 0) return 0;
+  
+  let totalWeightChange = 0;
+  let validTrays = 0;
+  
+  for (const tray of selectedTrays) {
+    const beforeWeight = session[`weight1_t${tray}`] || 0;
+    const afterWeight = session[`weight2_t${tray}`] || 0;
+    
+    if (beforeWeight > 0 && afterWeight > 0) {
+      const weightChange = beforeWeight - afterWeight;
+      totalWeightChange += weightChange;
+      validTrays++;
+    }
+  }
+  
+  // Return average weight change per tray
+  return validTrays > 0 ? totalWeightChange / validTrays : 0;
+};
 
 // Helper function to build complete sensor data payload with all weight fields
 const buildSensorDataPayload = (reading) => {
@@ -76,11 +121,60 @@ export const initializeSocket = (io) => {
       
       // Send push notifications to all users
       try {
+        // Get the latest drying session with complete sensor data
+        const latestSession = await DryingSession.findOne().sort({ createdAt: -1 });
+        
+        // Get system configuration for tray selection
+        const SystemConfig = require('./models/systemConfigModel.js').default;
+        const systemConfig = await SystemConfig.findOne();
+        
+        // Prepare enhanced sensor data for notification
+        const sensorData = latestSession ? {
+          temperature: latestSession.temperature,
+          humidity: latestSession.humidity,
+          moistureavg: latestSession.moistureavg,
+          moisture1: latestSession.moisture1,
+          moisture2: latestSession.moisture2,
+          moisture3: latestSession.moisture3,
+          moisture4: latestSession.moisture4,
+          moisture5: latestSession.moisture5,
+          moisture6: latestSession.moisture6,
+          // Use the first tray weight for each weight sensor as representative
+          weight1: latestSession.weight1_t1 || 0,
+          weight2: latestSession.weight2_t1 || 0,
+          // Include tray selection information
+          selectedTrays: systemConfig?.selectedTrays || [],
+          targetMoisture: systemConfig?.selectedMoisture || 14,
+          targetTemperature: systemConfig?.selectedTemperature || 40,
+          // Check if moisture target was reached for selected trays
+          moistureTargetReached: checkMoistureTargetReached(latestSession, systemConfig?.selectedTrays || [], systemConfig?.selectedMoisture || 14),
+          // Include weight change data for selected trays
+          weightChange: calculateWeightChange(latestSession, systemConfig?.selectedTrays || [])
+        } : {
+          temperature: data.temperature || 0,
+          humidity: 0,
+          moistureavg: 0,
+          moisture1: 0,
+          moisture2: 0,
+          moisture3: 0,
+          moisture4: 0,
+          moisture5: 0,
+          moisture6: 0,
+          weight1: 0,
+          weight2: 0,
+          selectedTrays: [],
+          targetMoisture: 14,
+          targetTemperature: 40,
+          moistureTargetReached: false,
+          weightChange: 0
+        };
+
         await sendDryingNotification({
           eventType: 'stopped',
           temperature: data.temperature || 0,
           moisture: data.moisture || 0,
-          dryingSeconds: data.dryingSeconds || 0
+          dryingSeconds: data.dryingSeconds || 0,
+          sensorData
         });
       } catch (notifError) {
         console.error('Error sending drying stopped notification:', notifError);

@@ -181,9 +181,10 @@ const DashboardPageScreen: React.FC = () => {
   useEffect(() => {
     const connectSocketWithFallback = async () => {
       const urls = [
-        'http://192.168.0.109:5001',
-        'http://10.0.2.2:5001',
-        'https://mala-backend-u0gt.onrender.com'
+        'https://mala-backend-u0gt.onrender.com',  // Production backend (more reliable)
+        // 'http://192.168.0.109:5001',           // Local development
+        'http://10.30.105.83:5001',
+        'http://10.0.2.2:5001'                // Android emulator host
       ];
       
       for (const url of urls) {

@@ -273,7 +273,7 @@ export default function History({ view }) {
     const toast = document.createElement('div');
     toast.style.cssText = `
       position: fixed;
-      top: 50%;
+      top: 20%;
       left: 50%;
       transform: translate(-50%, -50%) scale(0.8);
       background: ${colors[type] || colors.info};
@@ -307,7 +307,7 @@ export default function History({ view }) {
 
   const handleDownloadExcel = () => {
     if (selectedRecords.length === 0) {
-      showToast('Please select records to export', 'warning');
+      showToast('Please select records to export', 'success');
       return;
     }
 
@@ -527,24 +527,24 @@ export default function History({ view }) {
 
   const handleExportGraph = () => {
     if (selectedRecords.length === 0) {
-      showToast('Please select records to export graph', 'warning');
+      showToast('Please select records to export graph', 'success');
       return;
     }
 
     // Create PDF
     const pdf = new jsPDF();
     
-    // Add title
+    // Add title with more spacing
     pdf.setFontSize(16);
-    pdf.text('MALA Multi-Sensor Analysis Report', pdf.internal.pageSize.width / 2, 20, { align: 'center' });
+    pdf.text('MALA Multi-Sensor Analysis Report', pdf.internal.pageSize.width / 2, 30, { align: 'center' });
     
-    // Add date range
+    // Add date range with increased spacing
     const selectedData = historyData.filter(item => selectedRecords.includes(item.id));
     if (selectedData.length > 0) {
       const startDate = selectedData[0].date;
       const endDate = selectedData[selectedData.length - 1].date;
       pdf.setFontSize(10);
-      pdf.text(`Period: ${startDate} - ${endDate}`, pdf.internal.pageSize.width / 2, 30, { align: 'center' });
+      pdf.text(`Period: ${startDate} - ${endDate}`, pdf.internal.pageSize.width / 2, 40, { align: 'center' });
     }
 
     // Create Temperature Graph (Single Line)
@@ -827,62 +827,62 @@ export default function History({ view }) {
         pdf.addPage();
       }
       
-      let currentY = 20;
+      let currentY = 50; // Start lower to avoid title conflict
       
-      // Record header
+      // Record header with proper spacing
       pdf.setFontSize(14);
       pdf.text(`Record ${index + 1}: ${item.date} - ${item.status}`, pdf.internal.pageSize.width / 2, currentY, { align: 'center' });
-      currentY += 20;
+      currentY += 25;
       
       // Temperature Graph - Page 1
       pdf.setFontSize(12);
       pdf.text('Temperature Analysis', pdf.internal.pageSize.width / 2, currentY, { align: 'center' });
-      currentY += 10;
+      currentY += 15;
       createTemperatureGraph(currentY, item);
       
       // Add new page for Humidity
       pdf.addPage();
-      currentY = 20;
+      currentY = 50; // Consistent start position
       
       // Record header on new page
       pdf.setFontSize(12);
       pdf.text(`Record ${index + 1}: ${item.date} - ${item.status}`, pdf.internal.pageSize.width / 2, currentY, { align: 'center' });
-      currentY += 20;
+      currentY += 25;
       
       // Humidity Graph - Page 2
       pdf.setFontSize(12);
       pdf.text('Humidity Analysis', pdf.internal.pageSize.width / 2, currentY, { align: 'center' });
-      currentY += 10;
+      currentY += 15;
       createHumidityGraph(currentY, item);
       
       // Add new page for Moisture
       pdf.addPage();
-      currentY = 20;
+      currentY = 50; // Consistent start position
       
       // Record header on new page
       pdf.setFontSize(12);
       pdf.text(`Record ${index + 1}: ${item.date} - ${item.status}`, pdf.internal.pageSize.width / 2, currentY, { align: 'center' });
-      currentY += 20;
+      currentY += 25;
       
       // Moisture Graph - Page 3
       pdf.setFontSize(12);
       pdf.text('Moisture Content Analysis', pdf.internal.pageSize.width / 2, currentY, { align: 'center' });
-      currentY += 10;
+      currentY += 15;
       createMoistureGraph(currentY, item);
       
       // Add new page for Weight
       pdf.addPage();
-      currentY = 20;
+      currentY = 50; // Consistent start position
       
       // Record header on new page
       pdf.setFontSize(12);
       pdf.text(`Record ${index + 1}: ${item.date} - ${item.status}`, pdf.internal.pageSize.width / 2, currentY, { align: 'center' });
-      currentY += 20;
+      currentY += 25;
       
       // Weight Graph - Page 4
       pdf.setFontSize(12);
       pdf.text('Weight Analysis', pdf.internal.pageSize.width / 2, currentY, { align: 'center' });
-      currentY += 10;
+      currentY += 15;
       createWeightGraph(currentY, item);
       currentY += 80;
       
@@ -892,15 +892,15 @@ export default function History({ view }) {
     if (selectedData.length >= 2) {
       // Add comparison page
       pdf.addPage();
-      let currentY = 20;
+      let currentY = 50; // Use consistent positioning
       
       pdf.setFontSize(16);
       pdf.text('Comparison Analysis', pdf.internal.pageSize.width / 2, currentY, { align: 'center' });
-      currentY += 20;
+      currentY += 25;
       
       pdf.setFontSize(12);
       pdf.text('Record 1 vs Record 2', pdf.internal.pageSize.width / 2, currentY, { align: 'center' });
-      currentY += 20;
+      currentY += 25;
       
       // Moisture comparison table
       pdf.setFontSize(10);
@@ -976,88 +976,6 @@ export default function History({ view }) {
       pdf.text(`${weightLoss1.toFixed(2)}kg`, 40, currentY);
       pdf.text(`${weightLoss2.toFixed(2)}kg`, 80, currentY);
       pdf.text(`${weightLossDiff.toFixed(2)}kg`, 120, currentY);
-      
-      // Add statistical summary page
-      if (selectedData.length > 2) {
-        pdf.addPage();
-        currentY = 20;
-        
-        pdf.setFontSize(16);
-        pdf.text('Statistical Summary', pdf.internal.pageSize.width / 2, currentY, { align: 'center' });
-        currentY += 20;
-        
-        pdf.setFontSize(10);
-        pdf.text(`Analysis of ${selectedData.length} Records`, pdf.internal.pageSize.width / 2, currentY, { align: 'center' });
-        currentY += 30;
-        
-        // Calculate statistics
-        const calculateStats = (values) => {
-          const nums = values.filter(v => !isNaN(v) && v !== null);
-          if (nums.length === 0) return { min: 0, max: 0, avg: 0, median: 0 };
-          
-          nums.sort((a, b) => a - b);
-          const min = nums[0];
-          const max = nums[nums.length - 1];
-          const avg = nums.reduce((sum, val) => sum + val, 0) / nums.length;
-          const median = nums.length % 2 === 0 
-            ? (nums[nums.length / 2 - 1] + nums[nums.length / 2]) / 2 
-            : nums[Math.floor(nums.length / 2)];
-          
-          return { min: min.toFixed(2), max: max.toFixed(2), avg: avg.toFixed(2), median: median.toFixed(2) };
-        };
-        
-        // Moisture statistics
-        pdf.setFontSize(10);
-        pdf.text('Moisture Content Statistics:', 15, currentY);
-        currentY += 10;
-        
-        pdf.setFontSize(8);
-        pdf.text('Tray', 15, currentY);
-        pdf.text('Avg (%)', 40, currentY);
-        pdf.text('Min (%)', 70, currentY);
-        pdf.text('Max (%)', 100, currentY);
-        pdf.text('Median (%)', 130, currentY);
-        currentY += 8;
-        
-        for (let i = 1; i <= 6; i++) {
-          const moistureValues = selectedData.map(item => parseFloat(item[`initialMoistureT${i}`]) || 0);
-          const stats = calculateStats(moistureValues);
-          
-          pdf.text(`T${i}`, 15, currentY);
-          pdf.text(stats.avg, 40, currentY);
-          pdf.text(stats.min, 70, currentY);
-          pdf.text(stats.max, 100, currentY);
-          pdf.text(stats.median, 130, currentY);
-          currentY += 8;
-        }
-        
-        currentY += 15;
-        
-        // Temperature and Humidity statistics
-        pdf.setFontSize(10);
-        pdf.text('Environmental Statistics:', 15, currentY);
-        currentY += 10;
-        
-        const tempValues = selectedData.map(item => parseFloat(item.temperature) || 0);
-        const tempStats = calculateStats(tempValues);
-        
-        const humidityValues = selectedData.map(item => parseFloat(item.humidity) || 0);
-        const humidityStats = calculateStats(humidityValues);
-        
-        pdf.setFontSize(8);
-        pdf.text('Temperature', 15, currentY);
-        pdf.text(`${tempStats.avg}°C`, 40, currentY);
-        pdf.text(`${tempStats.min}°C`, 70, currentY);
-        pdf.text(`${tempStats.max}°C`, 100, currentY);
-        pdf.text(`${tempStats.median}°C`, 130, currentY);
-        currentY += 10;
-        
-        pdf.text('Humidity', 15, currentY);
-        pdf.text(`${humidityStats.avg}%`, 40, currentY);
-        pdf.text(`${humidityStats.min}%`, 70, currentY);
-        pdf.text(`${humidityStats.max}%`, 100, currentY);
-        pdf.text(`${humidityStats.median}%`, 130, currentY);
-      }
     }
 
     // Save PDF
@@ -1066,7 +984,7 @@ export default function History({ view }) {
 
   const handleDelete = () => {
     if (selectedRecords.length === 0) {
-      showToast('Please select records to delete', 'warning');
+      showToast('Please select records to delete', 'success');
       return;
     }
 
@@ -1225,7 +1143,7 @@ export default function History({ view }) {
 
   const handleSave = () => {
     if (selectedRecords.length === 0) {
-      showToast('Please select records to save', 'warning');
+      showToast('Please select records to save', 'success');
       return;
     }
 
@@ -1239,8 +1157,12 @@ export default function History({ view }) {
     localStorage.setItem('savedHistoryRecords', JSON.stringify(updatedSaved));
     setSavedRecords(updatedSaved.map(record => record.id));
   
-    // Show success notification
-    showToast(`Successfully saved ${selectedRecords.length} record(s)`, 'success');
+    // Show success notification with actual count of newly saved records
+    if (newSavedRecords.length > 0) {
+      showToast(`Successfully saved ${newSavedRecords.length} record(s)`, 'success');
+    } else {
+      showToast('Selected records are already saved', 'info');
+    }
   };
 
   const handleRecordSelect = (recordId) => {
@@ -1466,20 +1388,41 @@ export default function History({ view }) {
                     const isSelected = selectedRecords.includes(item.id);
                     const isSaved = savedRecords.includes(item.id);
                     
-                    // Calculate duration
+                    // Calculate duration - Fixed for cross-day sessions
                     let duration = '—';
                     if (item.startTime !== 'N/A' && item.endTime !== '—') {
                       try {
+                        // Parse start and end times properly
                         const startDateTime = new Date(item.date + ' ' + item.startTime);
-                        const endDateTime = new Date(item.date + ' ' + item.endTime);
+                        let endDateTime;
+                        
+                        // Handle cross-day sessions
+                        if (item.endTime.includes('AM') && item.startTime.includes('PM')) {
+                          // If start is PM and end is AM, it's next day
+                          const nextDay = new Date(item.date);
+                          nextDay.setDate(nextDay.getDate() + 1);
+                          endDateTime = new Date(nextDay.toDateString().split(' ').slice(0, 4).join(' ') + ' ' + item.endTime);
+                        } else {
+                          // Same day
+                          endDateTime = new Date(item.date + ' ' + item.endTime);
+                        }
+                        
                         if (!isNaN(startDateTime.getTime()) && !isNaN(endDateTime.getTime())) {
                           const diffMs = endDateTime.getTime() - startDateTime.getTime();
-                          const hours = Math.floor(diffMs / (1000 * 60 * 60));
-                          const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+                          
+                          // Handle negative differences (shouldn't happen with fix, but just in case)
+                          const adjustedDiffMs = diffMs < 0 ? diffMs + (24 * 60 * 60 * 1000) : diffMs;
+                          
+                          const hours = Math.floor(adjustedDiffMs / (1000 * 60 * 60));
+                          const minutes = Math.floor((adjustedDiffMs % (1000 * 60 * 60)) / (1000 * 60));
                           duration = `${hours}h ${minutes}m`;
                         }
                       } catch (error) {
-                        console.warn('Duration calculation error:', error);
+                        console.warn('Duration calculation error:', error, {
+                          date: item.date,
+                          startTime: item.startTime,
+                          endTime: item.endTime
+                        });
                       }
                     }
                     
@@ -1580,4 +1523,5 @@ export default function History({ view }) {
       </div>
     </div>
   );
+  
 };
