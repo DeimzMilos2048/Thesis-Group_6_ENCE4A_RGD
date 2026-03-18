@@ -271,24 +271,26 @@ export default function RiceDryingDashboard({ view }) {
 
     // reset weight locally
     resetBeforeWeight(currentTray);
-
+    
     // remove tray from MongoDB
     await fetch("http://10.42.0.1:5002/api/system/tray/remove", {
-      method: "POST",
+      method: 'POST',
+
       headers: {
         "Content-Type": "application/json"
       },
       body: JSON.stringify({ value: currentTray })
     });
 
-    showToast('success', `Tray ${currentTray} removed and before weight reset.`);
-  } catch (error) {
-    console.error("Tray removal failed:", error);
-    showToast('error', 'Failed to remove tray.');
-  } finally {
-    setWeightOperationLoading(false);
-  }
-};
+    // Show success message immediately (optimistic UI)
+    showToast('success', `Tray ${currentTray} before weight reset.`);
+    } catch (error) {
+      console.error('Error resetting before weight:', error);
+      showToast('error', 'Failed to reset before weight. Please try again.');
+    } finally {
+      setWeightOperationLoading(false);
+    }
+  };
 
   const handleResetAfterWeight = async () => {
     if (!canResetAfter) return;
