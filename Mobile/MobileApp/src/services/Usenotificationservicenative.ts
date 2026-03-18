@@ -62,6 +62,7 @@ interface UseNotificationServiceReturn {
   notificationSettings: NotificationSettings;
   updateNotificationSettings: (settings: Partial<NotificationSettings>) => Promise<void>;
   requestNotificationPermission: () => Promise<boolean>;
+  triggerStopNotification: (sensorData: SensorSnapshot) => Promise<void>;
 }
 
 const defaultSettings: NotificationSettings = {
@@ -97,6 +98,33 @@ export const configurePushNotifications = async (): Promise<void> => {
 
     messaging().onMessage(async remoteMessage => {
       console.log('[FirebaseMessaging] Foreground message received:', remoteMessage);
+      
+      // Show notification in foreground
+      if (remoteMessage.notification) {
+        const notificationService = NotificationServiceManager.getInstance();
+        await notificationService.showLocalNotification(
+          'INFO',
+          remoteMessage.notification.title || 'New Notification',
+          remoteMessage.notification.body || 'You have a new notification',
+          remoteMessage.data
+        );
+      }
+    });
+
+    // Handle background/quit state notifications
+    messaging().setBackgroundMessageHandler(async remoteMessage => {
+      console.log('[FirebaseMessaging] Background message received:', remoteMessage);
+      
+      // Show notification when app is in background
+      if (remoteMessage.notification) {
+        const notificationService = NotificationServiceManager.getInstance();
+        await notificationService.showLocalNotification(
+          'INFO',
+          remoteMessage.notification.title || 'New Notification',
+          remoteMessage.notification.body || 'You have a new notification',
+          remoteMessage.data
+        );
+      }
     });
 
     messaging().onNotificationOpenedApp(remoteMessage => {
@@ -272,6 +300,38 @@ class NotificationServiceManager {
 
   // ── Local notification display ────────────────────────────────────────────
 
+  private formatNotificationMessage = (type: AlertType, title: string, message: string, data?: any): string => {
+    if (!data) return message;
+
+    const temp = data.temperature ?? null;
+    const humidity = data.humidity ?? null;
+    const moisture1 = data.moisture1 ?? null;
+    const moisture2 = data.moisture2 ?? null;
+    const weight1 = data.weight1 ?? null;
+    const weight2 = data.weight2 ?? null;
+
+    // Format sensor values with proper fallbacks
+    const tempStr = temp !== null && temp !== 0 ? `${temp.toFixed(1)}°C` : 'N/A°C';
+    const humidityStr = humidity !== null && humidity !== 0 ? `${humidity.toFixed(1)}%` : 'N/A%';
+    const moisture1Str = moisture1 !== null && moisture1 !== 0 ? `${moisture1.toFixed(1)}%` : 'N/A%';
+    const moisture2Str = moisture2 !== null && moisture2 !== 0 ? `${moisture2.toFixed(1)}%` : 'N/A%';
+    const weight1Str = weight1 !== null && weight1 !== 0 ? `${weight1.toFixed(2)}kg` : 'N/Akg';
+    const weight2Str = weight2 !== null && weight2 !== 0 ? `${weight2.toFixed(2)}kg` : 'N/Akg';
+
+    // Build sensor data summary
+    const sensorSummary = [
+      tempStr,
+      `M1: ${moisture1Str}`,
+      `M2: ${moisture2Str}`,
+      humidityStr,
+      `W1: ${weight1Str}`,
+      `W2: ${weight2Str}`
+    ].join('\n');
+
+    // Combine original message with sensor data
+    return `${message}\n\n${sensorSummary}`;
+  };
+
   async showLocalNotification(
     type: AlertType,
     title: string,
@@ -294,6 +354,9 @@ class NotificationServiceManager {
         return;
       }
 
+      // Format message with sensor data
+      const formattedMessage = this.formatNotificationMessage(type, title, message, data);
+
       if (type === 'CRITICAL') {
         console.log(`[NotificationServiceManager] Showing ${type} notification:`, title);
 
@@ -304,7 +367,7 @@ class NotificationServiceManager {
           try {
             Alert.alert(
               title,
-              message,
+              formattedMessage,
               [
                 {
                   text: 'View',
@@ -323,6 +386,42 @@ class NotificationServiceManager {
       }
     } catch (error) {
       console.error('[NotificationServiceManager] Error showing local notification:', error);
+    }
+  }
+
+  // ── Stop button notification ───────────────────────────────────────────────
+
+  async triggerStopNotification(sensorData: SensorSnapshot, apiBaseUrl: string): Promise<void> {
+    try {
+      const title = 'Drying Stopped';
+      const message = 'Drying process stopped by user. Current sensor readings:';
+      
+      // Show local notification with sensor data
+      await this.showLocalNotification('INFO', title, message, sensorData);
+      
+      // Save to backend
+      if (apiBaseUrl && typeof apiBaseUrl === 'string') {
+        try {
+          await axios.post(
+            `${apiBaseUrl}/api/notifications`,
+            {
+              type: 'INFO',
+              title,
+              message,
+              sensorData,
+              event: 'DRYING_STOPPED',
+              source: 'USER',
+            },
+            { timeout: 10000 }
+          );
+          
+          console.log('[NotificationServiceManager] Stop notification saved to backend');
+        } catch (apiError: any) {
+          console.error('[NotificationServiceManager] Failed to save stop notification:', apiError.message);
+        }
+      }
+    } catch (error) {
+      console.error('[NotificationServiceManager] Error triggering stop notification:', error);
     }
   }
 
@@ -444,7 +543,7 @@ export const useNotificationServiceNative = (
         }
 
         // Show on device via service manager (respects all settings/gates)
-        await notificationService.showLocalNotification(type, title, message);
+        await notificationService.showLocalNotification(type, title, message, snapshot);
 
         // Persist to backend
         if (apiBaseUrl && typeof apiBaseUrl === 'string') {
@@ -711,6 +810,10 @@ export const useNotificationServiceNative = (
     return notificationService.requestNotificationPermission();
   }, [notificationService]);
 
+  const triggerStopNotification = useCallback(async (sensorData: SensorSnapshot) => {
+    await notificationService.triggerStopNotification(sensorData, apiBaseUrl);
+  }, [notificationService, apiBaseUrl]);
+
   // ── Return ──────────────────────────────────────────────────────────────
 
   const unreadCount = notifications.filter(n => !n.isRead).length;
@@ -727,6 +830,7 @@ export const useNotificationServiceNative = (
     notificationSettings,
     updateNotificationSettings,
     requestNotificationPermission,
+    triggerStopNotification,
   };
 };
 

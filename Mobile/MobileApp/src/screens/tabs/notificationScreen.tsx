@@ -344,10 +344,7 @@ const NotificationScreen: React.FC = () => {
   const [unreadCount, setUnreadCount] = useState(0);
 
   const { fcmToken } = useMessaging();
-
-  // ── FIX 1: getAPIBaseUrls was broken — the else branch had code injected
-  //           into the middle of the array literal. Fixed by closing the array
-  //           properly and separating the fetch logic into fetchAlerts below.
+  
   const getAPIBaseUrls = () => {
     if (__DEV__) {
       return [
@@ -362,7 +359,6 @@ const NotificationScreen: React.FC = () => {
     }
   };
 
-  // ── FIX 2: fetchWithTimeout was missing entirely — referenced but never defined
   const fetchWithTimeout = (url: string, options: RequestInit, timeout = 10000): Promise<Response> => {
     return Promise.race([
       fetch(url, options),
@@ -372,9 +368,6 @@ const NotificationScreen: React.FC = () => {
     ]);
   };
 
-  // ── FIX 3: fetchAlerts was split across getAPIBaseUrls and deleteAlert —
-  //           the loop body was orphaned outside any function. Restored as its
-  //           own standalone async function.
   const fetchAlerts = async () => {
     const urls = getAPIBaseUrls();
     let lastError = null;

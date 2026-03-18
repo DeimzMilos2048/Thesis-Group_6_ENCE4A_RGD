@@ -5,7 +5,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // Get the correct API base URL based on environment
 const getAPIBaseUrl = () => {
   if (__DEV__) {
-    return 'http://192.168.0.109:5001';  // Development: Raspberry Pi
+    return 'http://192.168.86.255:5001';  // Development: Raspberry Pi
   } else {
     return 'https://mala-backend-u0gt.onrender.com';  // Production: Render backend
   }

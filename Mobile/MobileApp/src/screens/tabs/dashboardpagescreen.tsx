@@ -63,14 +63,14 @@ const Header: React.FC<{ onNotificationPress: () => void; unreadCount: number }>
 const DashboardPageScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
   const { systemData, isConnected, startDrying, stopDrying } = useSystemControl();
-  const { savedWeights, savedAfterWeights } = useWeight();
+  const { savedWeights, savedAfterWeights, loadWeightsFromBackend } = useWeight();
   const [isLoading, setIsLoading] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [unreadCount, setUnreadCount] = useState(0);
 
   // Test notification service
   const apiBaseUrl = __DEV__ 
-    ? 'http://192.168.0.109:5001'
+    ? 'http://192.168.86.255:5001'
     : 'https://mala-backend-u0gt.onrender.com';
     
   const { 
@@ -83,7 +83,7 @@ const DashboardPageScreen: React.FC = () => {
   const getAPIBaseUrl = () => {
     // Try local Raspberry Pi first, then fallback to ngrok
     const urls = [
-      'http://192.168.0.109:5001',
+      'http://192.168.86.255:5001',
       'https://mala-backend-u0gt.onrender.com'
     ];
     return urls[0]; // Will try first URL, fallback can be implemented if needed
@@ -91,7 +91,7 @@ const DashboardPageScreen: React.FC = () => {
 
   const fetchUnreadCount = async () => {
     const urls = [
-      'http://192.168.0.109:5001',
+      'http://192.168.86.255:5001',
       'https://mala-backend-u0gt.onrender.com'
     ];
     
@@ -194,7 +194,7 @@ const DashboardPageScreen: React.FC = () => {
     const connectSocketWithFallback = async () => {
       const urls = [
         'https://mala-backend-u0gt.onrender.com',  // Production backend (more reliable)
-        'http://192.168.0.109:5001',           // Local development
+        'http://192.168.86.255:5001',           // Local development
         //'http://10.30.105.83:5001',
         'http://10.0.2.2:5001'                // Android emulator host
       ];
@@ -294,6 +294,31 @@ const DashboardPageScreen: React.FC = () => {
           ...prev,
           dryingSeconds: data.dryingSeconds || 0,
         }));
+      });
+
+      // Listen for weight save events from web
+      socket.on('weight:saved_before', (data: any) => {
+        console.log('[Dashboard] Weight saved before event received from web:', data);
+        // Reload weights from backend to get the latest saved data
+        loadWeightsFromBackend();
+      });
+
+      socket.on('weight:saved_after', (data: any) => {
+        console.log('[Dashboard] Weight saved after event received from web:', data);
+        // Reload weights from backend to get the latest saved data
+        loadWeightsFromBackend();
+      });
+
+      socket.on('weight:reset_before', (data: any) => {
+        console.log('[Dashboard] Weight reset before event received from web:', data);
+        // Reload weights from backend to get the latest saved data
+        loadWeightsFromBackend();
+      });
+
+      socket.on('weight:reset_after', (data: any) => {
+        console.log('[Dashboard] Weight reset after event received from web:', data);
+        // Reload weights from backend to get the latest saved data
+        loadWeightsFromBackend();
       });
 
       socket.on('disconnect', () => console.log('Socket disconnected'));
@@ -402,6 +427,11 @@ const DashboardPageScreen: React.FC = () => {
             const beforeVal  = userBeforeWeight || (sensorData[`weightbefore${i}` as keyof typeof sensorData] as number || 0);
             const afterVal   = userAfterWeight  || (sensorData[`weightafter${i}`  as keyof typeof sensorData] as number || 0);
             const weightLoss = beforeVal > 0 && afterVal > 0 ? ((beforeVal - afterVal) / beforeVal * 100) : 0;
+            
+            // Check if weights are reset (null/undefined) or have valid values
+            const hasBeforeWeight = userBeforeWeight !== null && userBeforeWeight !== undefined && userBeforeWeight > 0;
+            const hasAfterWeight = userAfterWeight !== null && userAfterWeight !== undefined && userAfterWeight > 0;
+            
             return (
               <View style={styles.weightCard} key={`weight-tray-${i}`}>
                 <View style={styles.weightHeader}>
@@ -418,12 +448,12 @@ const DashboardPageScreen: React.FC = () => {
                 <View style={styles.weightRow}>
                   <View style={styles.weightCol}>
                     <Text style={styles.weightBadgeBefore}>Before</Text>
-                    <Text style={styles.weightVal}>{beforeVal > 0 ? `${beforeVal.toFixed(2)} kg` : '—'}</Text>
+                    <Text style={styles.weightVal}>{hasBeforeWeight ? `${beforeVal.toFixed(2)} kg` : '—'}</Text>
                   </View>
                   <View style={styles.weightDivider} />
                   <View style={styles.weightCol}>
                     <Text style={styles.weightBadgeAfter}>After</Text>
-                    <Text style={styles.weightVal}>{afterVal > 0 ? `${afterVal.toFixed(2)} kg` : '—'}</Text>
+                    <Text style={styles.weightVal}>{hasAfterWeight ? `${afterVal.toFixed(2)} kg` : '—'}</Text>
                   </View>
                 </View>
                 <Text style={styles.sub}>Weight reduction from drying</Text>

@@ -136,15 +136,52 @@ export const WeightProvider: React.FC<WeightProviderProps> = ({ children }) => {
       // Show in-app notification
       Alert.alert(
         'Weight Reset',
-        `Tray ${data.tray} after weight has been reset from web interface.`,
+        `Tray ${data.tray} after weight has been reset from web application.`,
         [{ text: 'OK' }]
       );
+    });
+
+    // Listen for weight save events from web
+    socket.on('weight:saved_before', (data: { tray: number, weight: number, timestamp: string }) => {
+      console.log(`[Mobile] Received weight saved before event for tray ${data.tray}`, data);
+      
+      // Update local state immediately
+      setSavedWeights(prev => ({
+        ...prev,
+        [data.tray]: {
+          before: data.weight,
+          timestamp: data.timestamp,
+          unit: 'kg'
+        }
+      }));
+
+      // Also reload from backend to ensure consistency
+      loadWeightsFromBackend();
+    });
+
+    socket.on('weight:saved_after', (data: { tray: number, weight: number, timestamp: string }) => {
+      console.log(`[Mobile] Received weight saved after event for tray ${data.tray}`, data);
+      
+      // Update local state immediately
+      setSavedAfterWeights(prev => ({
+        ...prev,
+        [data.tray]: {
+          after: data.weight,
+          timestamp: data.timestamp,
+          unit: 'kg'
+        }
+      }));
+
+      // Also reload from backend to ensure consistency
+      loadWeightsFromBackend();
     });
 
     return () => {
       console.log('[Mobile] WeightContext - Cleaning up socket listeners');
       socket.off('weight:reset_before');
       socket.off('weight:reset_after');
+      socket.off('weight:saved_before');
+      socket.off('weight:saved_after');
     };
   }, [socket]);
 
@@ -197,7 +234,7 @@ export const WeightProvider: React.FC<WeightProviderProps> = ({ children }) => {
         return;
       }
 
-      const response = await fetch('http://192.168.0.109:5001/api/sensor/latest/weights', {
+      const response = await fetch('http://192.168.86.255:5001/api/sensor/latest/weights', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',

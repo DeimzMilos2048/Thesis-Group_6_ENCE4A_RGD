@@ -11,6 +11,7 @@ import authService from '../../api/authService';
 import dryerService from '../../api/dryerService';
 import logo from "../../assets/images/logo2.png";
 import useNotificationService from './Usenotificationservice.js';
+import { useSocket } from '../../contexts/SocketContext.js';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
@@ -30,6 +31,9 @@ export default function History({ view }) {
   const chartRef = useRef(null);
   const navigate = useNavigate();
   const location = useLocation();
+
+  // Add socket for real-time sync with mobile
+  const { socket } = useSocket();
 
   // Add notification service for badge
   const { unreadCount } = useNotificationService(null, 15000);
@@ -1148,7 +1152,7 @@ export default function History({ view }) {
     }
 
     const selectedData = historyData.filter(item => selectedRecords.includes(item.id));
-  
+    
     // Save to localStorage
     const existingSaved = JSON.parse(localStorage.getItem('savedHistoryRecords') || '[]');
     const newSavedRecords = selectedData.filter(item => !existingSaved.some(saved => saved.id === item.id));
@@ -1162,6 +1166,45 @@ export default function History({ view }) {
       showToast(`Successfully saved ${newSavedRecords.length} record(s)`, 'success');
     } else {
       showToast('Selected records are already saved', 'info');
+    }
+
+    // Emit socket events to sync with mobile app
+    if (socket) {
+      selectedData.forEach(record => {
+        // Emit before weight save events
+        if (record.beforeWeightT1 !== null && record.beforeWeightT1 !== 'N/A') {
+          socket.emit('weight:saved_before', {
+            tray: 1,
+            weight: parseFloat(record.beforeWeightT1),
+            timestamp: new Date().toISOString()
+          });
+        }
+        if (record.beforeWeightT2 !== null && record.beforeWeightT2 !== 'N/A') {
+          socket.emit('weight:saved_before', {
+            tray: 2,
+            weight: parseFloat(record.beforeWeightT2),
+            timestamp: new Date().toISOString()
+          });
+        }
+        
+        // Emit after weight save events
+        if (record.afterWeightT1 !== null && record.afterWeightT1 !== 'N/A') {
+          socket.emit('weight:saved_after', {
+            tray: 1,
+            weight: parseFloat(record.afterWeightT1),
+            timestamp: new Date().toISOString()
+          });
+        }
+        if (record.afterWeightT2 !== null && record.afterWeightT2 !== 'N/A') {
+          socket.emit('weight:saved_after', {
+            tray: 2,
+            weight: parseFloat(record.afterWeightT2),
+            timestamp: new Date().toISOString()
+          });
+        }
+      });
+      
+      console.log(`History: Emitted weight save events for ${newSavedRecords.length} records`);
     }
   };
 

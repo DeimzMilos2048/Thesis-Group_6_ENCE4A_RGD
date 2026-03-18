@@ -4,10 +4,11 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const getBaseURL = () => {
   if (__DEV__) {
     return [
-      'https://mala-backend-u0gt.onrender.com',
-      'http://192.168.0.109:5001',
-      'http://10.0.2.2:5001',
-      'http://127.0.0.1:5001',
+      'http://192.168.86.255:5001',  // Local development (primary)
+      'http://192.168.0.109:5001',   // Backup local IP
+      'http://10.0.2.2:5001',        // Android emulator
+      'http://127.0.0.1:5001',       // Localhost
+      'https://mala-backend-u0gt.onrender.com',  // Production fallback
     ];
   } else {
     return ['https://mala-backend-u0gt.onrender.com'];
