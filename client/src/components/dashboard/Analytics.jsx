@@ -9,6 +9,7 @@ import dryerService from '../../api/dryerService';
 import logo from "../../assets/images/logo2.png";
 import { useSocket } from '../../contexts/SocketContext.js';
 import { useWeight } from '../../contexts/WeightContext.js';
+import { useDrying } from '../../contexts/DryingContext.js';
 import WeightGroupedBarChart from './WeightGroupedBarChart.jsx';
 import useNotificationService from './Usenotificationservice.js';
 
@@ -36,10 +37,40 @@ export default function Analytics({ view }) {
   isConnected 
 } = useSocket();
 
-  const { savedWeights, savedAfterWeights } = useWeight();
+  const { savedWeights, setSavedWeights, savedAfterWeights, setSavedAfterWeights } = useWeight();
+  const { 
+    isProcessing, 
+    dryingSeconds, 
+    selectedTemp, 
+    selectedMoisture, 
+    currentTray 
+  } = useDrying();
 
   // Add notification service for badge
   const { unreadCount } = useNotificationService(null, 15000);
+
+  // Function to save all current data to localStorage
+  const saveAllData = () => {
+    try {
+      // Save weight data
+      localStorage.setItem('savedWeights', JSON.stringify(savedWeights));
+      localStorage.setItem('savedAfterWeights', JSON.stringify(savedAfterWeights));
+      
+      // Save drying data
+      localStorage.setItem('isProcessing', JSON.stringify(isProcessing));
+      localStorage.setItem('dryingSeconds', JSON.stringify(dryingSeconds));
+      localStorage.setItem('selectedTemp', JSON.stringify(selectedTemp));
+      localStorage.setItem('selectedMoisture', JSON.stringify(selectedMoisture));
+      localStorage.setItem('currentTray', JSON.stringify(currentTray));
+      
+      // Save timestamp for last save
+      localStorage.setItem('lastDataSave', JSON.stringify(new Date().toISOString()));
+      
+      console.log('All data saved successfully at:', new Date().toISOString());
+    } catch (error) {
+      console.error('Error saving data:', error);
+    }
+  };
 
   useEffect(() => {
     const path = location.pathname;
@@ -89,23 +120,26 @@ export default function Analytics({ view }) {
   }, [navigate]);
 
   const handleNavigation = (path, tab) => {
+    saveAllData();
     setActiveTab(tab);
     navigate(path);
   };
 
   const handleLogoutClick = () => {
+    saveAllData();
     setShowLogoutConfirm(true);
   };
 
   const handleLogoutConfirm = async () => {
     try {
+      // Save all data before logging out
+      saveAllData();
+      
       // Stop drying process if running
       await dryerService.stopDrying().catch(() => {});
       
       // Clear sensor-related data from localStorage
       localStorage.removeItem('sensorData');
-      localStorage.removeItem('savedWeights');
-      localStorage.removeItem('savedAfterWeights');
       localStorage.removeItem('dryingStatus');
       localStorage.removeItem('dryingStartTime');
       localStorage.removeItem('targetMoisture');
@@ -124,6 +158,77 @@ export default function Analytics({ view }) {
   const handleLogoutCancel = () => {
     setShowLogoutConfirm(false);
   };
+
+  // Save data when page is about to unload (browser close, tab close, etc.)
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      saveAllData();
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      saveAllData(); // Also save when component unmounts
+    };
+  }, [savedWeights, savedAfterWeights, isProcessing, dryingSeconds, selectedTemp, selectedMoisture, currentTray]);
+
+  // Listen for real-time weight updates from other users
+  useEffect(() => {
+    if (!socket) return;
+
+    // Listen for weight updates from History component
+    const handleWeightDataUpdate = (event) => {
+      console.log('Analytics: Received weight update from History:', event.detail);
+      
+      // Update local state when weight data changes
+      const { type, tray, weight } = event.detail;
+      if (type === 'before' && tray === currentTray) {
+        // Update before weight for current tray
+        const updatedWeights = { ...savedWeights };
+        updatedWeights[tray] = { ...updatedWeights[tray], before: weight };
+        setSavedWeights(updatedWeights);
+        console.log(`Analytics: Tray ${tray} before weight updated: ${weight.toFixed(2)} kg`);
+      } else if (type === 'after' && tray === currentTray) {
+        // Update after weight for current tray
+        const updatedAfterWeights = { ...savedAfterWeights };
+        updatedAfterWeights[tray] = { ...updatedAfterWeights[tray], after: weight };
+        setSavedAfterWeights(updatedAfterWeights);
+        console.log(`Analytics: Tray ${tray} after weight updated: ${weight.toFixed(2)} kg`);
+      }
+    };
+
+    // Listen for weight updates from other users via Socket.IO
+    const handleWeightUpdateFromSocket = (data) => {
+      console.log('Analytics: Received weight update via socket:', data);
+      
+      // Update local state when weight data changes from other users
+      const { type, tray, weight } = data;
+      if (type === 'before' && tray === currentTray) {
+        // Update before weight for current tray
+        const updatedWeights = { ...savedWeights };
+        updatedWeights[tray] = { ...updatedWeights[tray], before: weight };
+        setSavedWeights(updatedWeights);
+        console.log(`Analytics: Tray ${tray} before weight updated: ${weight.toFixed(2)} kg`);
+      } else if (type === 'after' && tray === currentTray) {
+        // Update after weight for current tray
+        const updatedAfterWeights = { ...savedAfterWeights };
+        updatedAfterWeights[tray] = { ...updatedAfterWeights[tray], after: weight };
+        setSavedAfterWeights(updatedAfterWeights);
+        console.log(`Analytics: Tray ${tray} after weight updated: ${weight.toFixed(2)} kg`);
+      }
+    };
+
+    // Register event listeners
+    window.addEventListener('weightDataUpdated', handleWeightDataUpdate);
+    socket.on('history:weight_updated', handleWeightUpdateFromSocket);
+
+    // Cleanup listeners on unmount
+    return () => {
+      window.removeEventListener('weightDataUpdated', handleWeightDataUpdate);
+      socket.off('history:weight_updated', handleWeightUpdateFromSocket);
+    };
+  }, [socket, currentTray, savedWeights, savedAfterWeights]);
 
   const fmt = (val, unit) => val === null ? 'N/A' : `${Number(val).toFixed(1)}${unit}`;
 
@@ -383,42 +488,55 @@ export default function Analytics({ view }) {
                   <Droplets size={24} /> Moisture Content
                 </div>
                 <div className="sensor-badges">
-                  <span className="sensor-badge" style={{ color: '#22c55e', backgroundColor: 'white' }}>
-                    S1: {fmt(latestValuesFromSocket.moisture1, '%')}
-                  </span>
-                  <span className="sensor-badge" style={{ color: '#16a34a', backgroundColor: 'white' }}>
-                    S2: {fmt(latestValuesFromSocket.moisture2, '%')}
-                  </span>
-                  <span className="sensor-badge" style={{ color: '#15803d', backgroundColor: 'white' }}>
-                    S3: {fmt(latestValuesFromSocket.moisture3, '%')}
-                  </span>
-                  <span className="sensor-badge" style={{ color: '#166534', backgroundColor: 'white' }}>
-                    S4: {fmt(latestValuesFromSocket.moisture4, '%')}
-                  </span>
-                  <span className="sensor-badge" style={{ color: '#14532d', backgroundColor: 'white' }}>
-                    S5: {fmt(latestValuesFromSocket.moisture5, '%')}
-                  </span>
-                  <span className="sensor-badge" style={{ color: '#052e16', backgroundColor: 'white' }}>
-                    S6: {fmt(latestValuesFromSocket.moisture6, '%')}
-                  </span>
+                  {[1, 2, 3, 4, 5, 6].map(i => {
+                    const isSelected = savedWeights[i]?.frozen;
+                    if (!isSelected) return null;
+                    const moistureValue = latestValuesFromSocket[`moisture${i}`];
+                    return (
+                      <span 
+                        key={`moisture-badge-${i}`}
+                        className="sensor-badge" 
+                        style={{ 
+                          color: ['#22c55e', '#16a34a', '#15803d', '#166534', '#14532d', '#052e16'][i-1], 
+                          backgroundColor: 'white',
+                          border: '2px solid #10b981',
+                          boxShadow: '0 0 0 2px rgba(16, 185, 129, 0.3)'
+                        }}
+                      >
+                        S{i}: {fmt(moistureValue, '%')}
+                      </span>
+                    );
+                  })}
+                  {Object.keys(savedWeights).filter(trayNum => savedWeights[trayNum]?.frozen).length === 0 && (
+                    <span className="sensor-badge" style={{ color: '#9ca3af', backgroundColor: 'white' }}>
+                      No trays selected
+                    </span>
+                  )}
                 </div>
               </h3>
               <div className="analytics-card-status">
-                <MultiLineGraph
-                  arrays={[
-                    Array.isArray(chartDataFromSocket.moisture1) ? chartDataFromSocket.moisture1 : [],
-                    Array.isArray(chartDataFromSocket.moisture2) ? chartDataFromSocket.moisture2 : [],
-                    Array.isArray(chartDataFromSocket.moisture3) ? chartDataFromSocket.moisture3 : [],
-                    Array.isArray(chartDataFromSocket.moisture4) ? chartDataFromSocket.moisture4 : [],
-                    Array.isArray(chartDataFromSocket.moisture5) ? chartDataFromSocket.moisture5 : [],
-                    Array.isArray(chartDataFromSocket.moisture6) ? chartDataFromSocket.moisture6 : [],
-                  ]}
-                  colors={['#22c55e', '#16a34a', '#15803d', '#166534', '#14532d', '#052e16']}
-                  names={['Sensor 1', 'Sensor 2', 'Sensor 3', 'Sensor 4', 'Sensor 5', 'Sensor 6']}
-                  unit="%"
-                  minValue={0}
-                  maxValue={30}
-                />
+                {Object.keys(savedWeights).filter(trayNum => savedWeights[trayNum]?.frozen).length > 0 ? (
+                  <MultiLineGraph
+                    arrays={[1, 2, 3, 4, 5, 6].filter(i => savedWeights[i]?.frozen).map(i => 
+                      Array.isArray(chartDataFromSocket[`moisture${i}`]) ? chartDataFromSocket[`moisture${i}`] : []
+                    )}
+                    colors={[1, 2, 3, 4, 5, 6].filter(i => savedWeights[i]?.frozen).map(i => 
+                      ['#22c55e', '#16a34a', '#15803d', '#166534', '#14532d', '#052e16'][i-1]
+                    )}
+                    names={[1, 2, 3, 4, 5, 6].filter(i => savedWeights[i]?.frozen).map(i => `Sensor ${i}`)}
+                    unit="%"
+                    minValue={0}
+                    maxValue={30}
+                  />
+                ) : (
+                  <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%', flexDirection: 'column' }}>
+                    <Droplets size={48} style={{ color: '#d1d5db', marginBottom: '16px' }} />
+                    <p style={{ color: '#9ca3af', textAlign: 'center' }}>
+                      No trays selected<br />
+                      <span style={{ fontSize: '14px' }}>Select and save trays from Dashboard to view moisture data</span>
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
 

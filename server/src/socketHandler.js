@@ -1,5 +1,50 @@
 import SensorData from './models/sensorDataModel.js';
+import DryingSession from './models/dryingSessionModel.js';
 import { sendDryingNotification } from './controllers/notificationController.js';
+
+// Helper function to check if moisture target was reached for selected trays
+const checkMoistureTargetReached = (session, selectedTrays, targetMoisture) => {
+  if (!selectedTrays || selectedTrays.length === 0) return false;
+  
+  // Check each selected tray's moisture level
+  for (const tray of selectedTrays) {
+    const moistureKey = `moisture${tray}`;
+    const moistureValue = session[moistureKey];
+    
+    if (moistureValue !== undefined && moistureValue !== null && moistureValue <= targetMoisture) {
+      return true; // At least one selected tray reached target
+    }
+  }
+  
+  // Also check average moisture
+  if (session.moistureavg !== undefined && session.moistureavg !== null && session.moistureavg <= targetMoisture) {
+    return true;
+  }
+  
+  return false;
+};
+
+// Helper function to calculate weight change for selected trays
+const calculateWeightChange = (session, selectedTrays) => {
+  if (!selectedTrays || selectedTrays.length === 0) return 0;
+  
+  let totalWeightChange = 0;
+  let validTrays = 0;
+  
+  for (const tray of selectedTrays) {
+    const beforeWeight = session[`weight1_t${tray}`] || 0;
+    const afterWeight = session[`weight2_t${tray}`] || 0;
+    
+    if (beforeWeight > 0 && afterWeight > 0) {
+      const weightChange = beforeWeight - afterWeight;
+      totalWeightChange += weightChange;
+      validTrays++;
+    }
+  }
+  
+  // Return average weight change per tray
+  return validTrays > 0 ? totalWeightChange / validTrays : 0;
+};
 
 // Helper function to build complete sensor data payload with all weight fields
 const buildSensorDataPayload = (reading) => {
@@ -76,16 +121,156 @@ export const initializeSocket = (io) => {
       
       // Send push notifications to all users
       try {
+        // Get the latest drying session with complete sensor data
+        const latestSession = await DryingSession.findOne().sort({ createdAt: -1 });
+        
+        // Get system configuration for tray selection
+        const SystemConfig = require('./models/systemConfigModel.js').default;
+        const systemConfig = await SystemConfig.findOne();
+        
+        // Prepare enhanced sensor data for notification
+        const sensorData = latestSession ? {
+          temperature: latestSession.temperature,
+          humidity: latestSession.humidity,
+          moistureavg: latestSession.moistureavg,
+          moisture1: latestSession.moisture1,
+          moisture2: latestSession.moisture2,
+          moisture3: latestSession.moisture3,
+          moisture4: latestSession.moisture4,
+          moisture5: latestSession.moisture5,
+          moisture6: latestSession.moisture6,
+          // Use the first tray weight for each weight sensor as representative
+          weight1: latestSession.weight1_t1 || 0,
+          weight2: latestSession.weight2_t1 || 0,
+          // Include tray selection information
+          selectedTrays: systemConfig?.selectedTrays || [],
+          targetMoisture: systemConfig?.selectedMoisture || 14,
+          targetTemperature: systemConfig?.selectedTemperature || 40,
+          // Check if moisture target was reached for selected trays
+          moistureTargetReached: checkMoistureTargetReached(latestSession, systemConfig?.selectedTrays || [], systemConfig?.selectedMoisture || 14),
+          // Include weight change data for selected trays
+          weightChange: calculateWeightChange(latestSession, systemConfig?.selectedTrays || [])
+        } : {
+          temperature: data.temperature || 0,
+          humidity: 0,
+          moistureavg: 0,
+          moisture1: 0,
+          moisture2: 0,
+          moisture3: 0,
+          moisture4: 0,
+          moisture5: 0,
+          moisture6: 0,
+          weight1: 0,
+          weight2: 0,
+          selectedTrays: [],
+          targetMoisture: 14,
+          targetTemperature: 40,
+          moistureTargetReached: false,
+          weightChange: 0
+        };
+
         await sendDryingNotification({
           eventType: 'stopped',
           temperature: data.temperature || 0,
           moisture: data.moisture || 0,
-          dryingSeconds: data.dryingSeconds || 0
+          dryingSeconds: data.dryingSeconds || 0,
+          sensorData
         });
       } catch (notifError) {
         console.error('Error sending drying stopped notification:', notifError);
         // Don't fail the entire event if notification fails
       }
+    });
+
+    // Handle drying time sync between web and mobile
+    socket.on('drying_time_sync', (data) => {
+      console.log('Drying time sync received:', data);
+      // Broadcast to all connected clients for synchronization
+      io.emit('drying_time_sync', {
+        ...data,
+        clientId: socket.id
+      });
+    });
+
+    // Handle history data synchronization between users
+    socket.on('history:session_saved', (data) => {
+      console.log('History session saved:', data);
+      // Broadcast to all other users
+      socket.broadcast.emit('history:session_saved', data);
+    });
+
+    socket.on('history:weight_updated', (data) => {
+      console.log('Dashboard weight updated:', data);
+      // Broadcast to all other users
+      socket.broadcast.emit('history:weight_updated', data);
+    });
+
+    socket.on('history:data_saved', (data) => {
+      console.log('History data saved:', data);
+      // Broadcast to all other users
+      socket.broadcast.emit('history:data_saved', data);
+    });
+
+    socket.on('history:session_updated', (data) => {
+      console.log('History session updated:', data);
+      // Broadcast to all other users
+      socket.broadcast.emit('history:session_updated', data);
+    });
+
+    // Handle web foreground notifications
+    socket.on('notification:web:foreground', (data) => {
+      console.log('Web foreground notification:', data);
+      // Broadcast to all other web clients
+      socket.broadcast.emit('notification:web:foreground', data);
+      
+      // Also broadcast to mobile clients for cross-platform sync
+      socket.broadcast.emit('notification:mobile:sync', {
+        ...data,
+        sourcePlatform: 'web',
+        notificationType: 'foreground'
+      });
+    });
+
+    // Handle web background notifications
+    socket.on('notification:web:background', (data) => {
+      console.log('Web background notification:', data);
+      // Broadcast to all other web clients
+      socket.broadcast.emit('notification:web:background', data);
+      
+      // Also broadcast to mobile clients for cross-platform sync
+      socket.broadcast.emit('notification:mobile:sync', {
+        ...data,
+        sourcePlatform: 'web',
+        notificationType: 'background'
+      });
+    });
+
+    // Handle mobile foreground notifications
+    socket.on('notification:mobile:foreground', (data) => {
+      console.log('Mobile foreground notification:', data);
+      // Broadcast to all other mobile clients
+      socket.broadcast.emit('notification:mobile:foreground', data);
+      
+      // Also broadcast to web clients for cross-platform sync
+      socket.broadcast.emit('notification:web:sync', {
+        ...data,
+        sourcePlatform: 'mobile',
+        notificationType: 'foreground'
+      });
+    });
+
+    // Handle mobile background notifications
+    socket.on('notification:mobile:background', (data) => {
+      console.log('Mobile background notification:', data);
+      // Broadcast to all other mobile clients
+      socket.broadcast.emit('notification:mobile:background', data);
+      
+      // Also broadcast to web clients for cross-platform sync
+      socket.broadcast.emit('notification:web:sync', {
+        ...data,
+        sourcePlatform: 'mobile',
+        notificationType: 'background'
+      });
     });
 
     socket.on('error', (error) => {

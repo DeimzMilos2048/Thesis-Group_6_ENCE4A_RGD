@@ -44,6 +44,22 @@ export const SystemControlProvider: React.FC<{ children: React.ReactNode }> = ({
   const [dryingSeconds, setDryingSeconds] = useState(0);
   const dryingIntervalRef = useRef<any>(null);
 
+  // FIX: Use a ref for socket so the cleanup effect always has the latest value
+  const socketRef = useRef<Socket | null>(null);
+
+  // FIX: Use refs for userId and socket inside callbacks to avoid stale closures
+  const userIdRef = useRef<string | null>(null);
+  const socketCallbackRef = useRef<Socket | null>(null);
+
+  useEffect(() => {
+    userIdRef.current = userId;
+  }, [userId]);
+
+  useEffect(() => {
+    socketCallbackRef.current = socket;
+    socketRef.current = socket;
+  }, [socket]);
+
   // Drying timer effect with sync
   useEffect(() => {
     console.log('[DryingTimer] isDrying=', isDrying, 'dryingSeconds=', dryingSeconds);
@@ -53,16 +69,18 @@ export const SystemControlProvider: React.FC<{ children: React.ReactNode }> = ({
         setDryingSeconds(prev => {
           const newSeconds = prev + 1;
           console.log('[DryingTimer] Incrementing:', prev, '->', newSeconds);
-          
-          // Emit sync to all devices for this user
-          if (socket && userId) {
-            socket.emit('drying_time_sync', {
+
+          // FIX: Use refs to avoid stale closure over socket and userId
+          const currentSocket = socketCallbackRef.current;
+          const currentUserId = userIdRef.current;
+          if (currentSocket && currentUserId) {
+            currentSocket.emit('drying_time_sync', {
               dryingSeconds: newSeconds,
-              userId,
-              timestamp: new Date().toISOString()
+              userId: currentUserId,
+              timestamp: new Date().toISOString(),
             });
           }
-          
+
           return newSeconds;
         });
       }, 1000);
@@ -71,8 +89,6 @@ export const SystemControlProvider: React.FC<{ children: React.ReactNode }> = ({
       if (dryingIntervalRef.current) {
         clearInterval(dryingIntervalRef.current);
       }
-      // Don't reset dryingSeconds when stopping - keep the final elapsed time
-      // It will be set by the dryer:status_updated event from backend
     }
 
     return () => {
@@ -80,7 +96,164 @@ export const SystemControlProvider: React.FC<{ children: React.ReactNode }> = ({
         clearInterval(dryingIntervalRef.current);
       }
     };
-  }, [isDrying, userId, socket]);
+  }, [isDrying]); // FIX: removed userId and socket from deps — accessed via refs instead
+
+  const setupSocketHandlers = (newSocket: Socket) => {
+    // FIX: Removed the orphaned `} catch` block that was here in the original
+    newSocket.on('disconnect', () => {
+      console.log('[Socket] Disconnected');
+      setIsConnected(false);
+    });
+
+    newSocket.on('connect_error', (error: any) => {
+      console.error('[Socket] Connection error:', error);
+    });
+
+    // Listen for dryer status updates from backend
+    newSocket.on('dryer:status_updated', (data: any) => {
+      console.log('[Socket] Dryer status updated:', data);
+      const currentUserId = userIdRef.current;
+
+      if (data.status === 'drying') {
+        console.log('[Socket] Drying started - Setting isDrying to true and dryingSeconds to 0');
+        setIsDrying(true);
+        setDryingSeconds(0);
+        setSystemData(prev => ({
+          ...prev,
+          isDrying: true,
+          dryingSeconds: 0,
+          dryingTime: undefined,
+          targetTemperature: data.temperature,
+          targetMoisture: data.moisture,
+          timestamp: new Date().toISOString(),
+        }));
+
+        FCMService.sendLocalNotification({
+          title: 'Drying Started',
+          body: `Target: ${data.temperature}°C, Moisture: ${data.moisture}%`,
+          data: { type: 'DRYING_STARTED', userId: currentUserId },
+        });
+
+      } else if (data.status === 'idle') {
+        console.log('[Socket] Drying stopped - Setting isDrying to false');
+        const elapsedSeconds = data.elapsedSeconds || 0;
+        setIsDrying(false);
+        setDryingSeconds(elapsedSeconds);
+        setSystemData(prev => ({
+          ...prev,
+          isDrying: false,
+          dryingTime: elapsedSeconds,
+          dryingSeconds: elapsedSeconds,
+          timestamp: new Date().toISOString(),
+        }));
+
+        const hours = Math.floor(elapsedSeconds / 3600);
+        const minutes = Math.floor((elapsedSeconds % 3600) / 60);
+        FCMService.sendLocalNotification({
+          title: 'Drying Completed',
+          body: `Total drying time: ${hours}h ${minutes}m`,
+          data: { type: 'DRYING_COMPLETED', userId: currentUserId },
+        });
+      }
+    });
+
+    // Listen for system control updates from web
+    newSocket.on('system_control_update', (data: SystemControlData) => {
+      console.log('System control update received:', data);
+      setSystemData(prev => ({
+        ...prev,
+        ...data,
+        timestamp: new Date().toISOString(),
+      }));
+    });
+
+    // Listen for drying time sync across all devices
+    newSocket.on('drying_time_sync', (data: { dryingSeconds: number; userId: string; timestamp: string }) => {
+      console.log('[Socket] Drying time sync received:', data);
+      const currentUserId = userIdRef.current;
+
+      if (!currentUserId || data.userId === currentUserId) {
+        setDryingSeconds(data.dryingSeconds);
+        setSystemData(prev => ({
+          ...prev,
+          dryingSeconds: data.dryingSeconds,
+          dryingTime: data.dryingSeconds,
+          timestamp: data.timestamp,
+        }));
+      }
+    });
+
+    // Listen for user logout notifications
+    newSocket.on('user_logout_notification', (data: { userId: string; message: string }) => {
+      console.log('[Socket] User logout notification:', data);
+      const currentUserId = userIdRef.current;
+
+      if (data.userId === currentUserId) {
+        Alert.alert('Session Ended', data.message, [
+          {
+            text: 'OK',
+            onPress: () => {
+              AsyncStorage.multiRemove(['token', 'userId', 'fcmToken']);
+            },
+          },
+        ]);
+      }
+    });
+
+    // FIX: Set socket state here after all handlers are attached
+    setSocket(newSocket);
+  };
+
+  // FIX: connectSocketWithFallback now properly stops after first successful connection
+  const connectSocketWithFallback = async () => {
+    const urls = [
+      'https://mala-backend-u0gt.onrender.com',  // Production backend (more reliable)
+      // 'http://10.30.105.83:5001',
+      'http://192.168.86.255:5001'           
+    ];
+
+    for (const url of urls) {
+      try {
+        const connected = await new Promise<boolean>(resolve => {
+          const newSocket = io(url, {
+            transports: ['websocket', 'polling'],
+            reconnection: true,          // FIX: re-enable built-in reconnection
+            reconnectionAttempts: 5,
+            reconnectionDelay: 2000,
+            timeout: 5000,
+          });
+
+          const connectTimeout = setTimeout(() => {
+            newSocket.disconnect();
+            resolve(false);
+          }, 6000);
+
+          newSocket.on('connect', () => {
+            clearTimeout(connectTimeout);
+            console.log(`[Socket] Connected to: ${url}, ID:`, newSocket.id);
+            setIsConnected(true);
+            setupSocketHandlers(newSocket);
+            resolve(true);
+          });
+
+          newSocket.on('connect_error', (err: any) => {
+            clearTimeout(connectTimeout);
+            console.warn(`[Socket] Failed to connect to ${url}:`, err.message);
+            newSocket.disconnect();
+            resolve(false);
+          });
+        });
+
+        if (connected) {
+          return; // FIX: stop trying other URLs once one succeeds
+        }
+      } catch (error) {
+        console.warn(`[Socket] Error creating socket for ${url}:`, error);
+      }
+    }
+
+    console.error('[Socket] All socket connection attempts failed');
+  };
 
   // Initialize system control
   const initializeSystem = async () => {
@@ -88,12 +261,11 @@ export const SystemControlProvider: React.FC<{ children: React.ReactNode }> = ({
       // Get user ID from AsyncStorage
       const token = await AsyncStorage.getItem('token');
       if (token) {
-        // Extract user ID from token or get from user profile
         const savedUserId = await AsyncStorage.getItem('userId');
         if (savedUserId) {
           setUserId(savedUserId);
-          
-          // Initialize FCM with error handling
+          userIdRef.current = savedUserId;
+
           try {
             console.log('Initializing FCM...');
             const fcmInitialized = await FCMService.initializeFCM();
@@ -106,146 +278,11 @@ export const SystemControlProvider: React.FC<{ children: React.ReactNode }> = ({
             }
           } catch (fcmError) {
             console.warn('FCM initialization failed, continuing without FCM:', fcmError);
-            // Don't fail the entire system if FCM fails
           }
         }
       }
 
-      // Connect to socket for real-time updates
-      const getSocketURL = () => {
-        // Try local Raspberry Pi first, then fallback to ngrok
-        const urls = [
-          'http://192.168.0.109:5001',
-          'https://objurgatory-darrell-nonconversantly.ngrok-free.dev'
-        ];
-        return urls[0]; // Will try first URL, fallback can be implemented if needed
-      };
-
-      const SOCKET_URL = getSocketURL();
-
-      console.log('[Socket] Connecting to:', SOCKET_URL, '(__DEV__=' + __DEV__ + ')');
-
-      const newSocket = io(SOCKET_URL, {
-        transports: ['websocket', 'polling'],
-        reconnection: true,
-        reconnectionDelay: 1000,
-        reconnectionAttempts: Infinity,
-        timeout: 10000,
-        forceNew: true,
-        autoConnect: true,
-        upgrade: true,
-      });
-
-      newSocket.on('connect', () => {
-        console.log('[Socket] Connected successfully, socket ID:', newSocket.id);
-        setIsConnected(true);
-      });
-
-      newSocket.on('disconnect', () => {
-        console.log('[Socket] Disconnected');
-        setIsConnected(false);
-      });
-
-      newSocket.on('connect_error', (error) => {
-        console.error('[Socket] Connection error:', error);
-      });
-
-      // Listen for dryer status updates from backend
-      newSocket.on('dryer:status_updated', (data: any) => {
-        console.log('[Socket] Dryer status updated:', data);
-        
-        if (data.status === 'drying') {
-          console.log('[Socket] Drying started - Setting isDrying to true and dryingSeconds to 0');
-          setIsDrying(true);
-          setDryingSeconds(0);
-          setSystemData(prev => ({
-            ...prev,
-            isDrying: true,
-            dryingSeconds: 0,
-            dryingTime: undefined,
-            targetTemperature: data.temperature,
-            targetMoisture: data.moisture,
-            timestamp: new Date().toISOString(),
-          }));
-          
-          // Send FCM notification for drying started
-          FCMService.sendLocalNotification({
-            title: 'Drying Started',
-            body: `Target: ${data.temperature}°C, Moisture: ${data.moisture}%`,
-            data: { type: 'DRYING_STARTED', userId }
-          });
-          
-        } else if (data.status === 'idle') {
-          console.log('[Socket] Drying stopped - Setting isDrying to false');
-          const elapsedSeconds = data.elapsedSeconds || 0;
-          setIsDrying(false);
-          setDryingSeconds(elapsedSeconds);
-          setSystemData(prev => ({
-            ...prev,
-            isDrying: false,
-            dryingTime: elapsedSeconds,
-            dryingSeconds: elapsedSeconds,
-            timestamp: new Date().toISOString(),
-          }));
-          
-          // Send FCM notification for drying completed
-          const hours = Math.floor(elapsedSeconds / 3600);
-          const minutes = Math.floor((elapsedSeconds % 3600) / 60);
-          FCMService.sendLocalNotification({
-            title: 'Drying Completed',
-            body: `Total drying time: ${hours}h ${minutes}m`,
-            data: { type: 'DRYING_COMPLETED', userId }
-          });
-        }
-      });
-
-      // Listen for system control updates from web
-      newSocket.on('system_control_update', (data: SystemControlData) => {
-        console.log('System control update received:', data);
-        setSystemData(prev => ({
-          ...prev,
-          ...data,
-          timestamp: new Date().toISOString(),
-        }));
-      });
-
-      // Listen for drying time updates from backend (sync across all devices)
-      newSocket.on('drying_time_sync', (data: { dryingSeconds: number, userId: string, timestamp: string }) => {
-        console.log('[Socket] Drying time sync received:', data);
-        
-        // Only update if it's from the same user or if no user ID is set
-        if (!userId || data.userId === userId) {
-          setDryingSeconds(data.dryingSeconds);
-          setSystemData(prev => ({
-            ...prev,
-            dryingSeconds: data.dryingSeconds,
-            dryingTime: data.dryingSeconds,
-            timestamp: data.timestamp,
-          }));
-        }
-      });
-
-      // Listen for user logout notifications
-      newSocket.on('user_logout_notification', (data: { userId: string, message: string }) => {
-        console.log('[Socket] User logout notification:', data);
-        
-        if (data.userId === userId) {
-          Alert.alert(
-            'Session Ended',
-            data.message,
-            [
-              { text: 'OK', onPress: () => {
-                // Clear local storage and navigate to login
-                AsyncStorage.multiRemove(['token', 'userId', 'fcmToken']);
-                // Navigate to login screen (you'll need to implement this navigation)
-              }}
-            ]
-          );
-        }
-      });
-
-      setSocket(newSocket);
-
+      await connectSocketWithFallback();
     } catch (error) {
       console.error('Error initializing system control:', error);
     }
@@ -255,21 +292,20 @@ export const SystemControlProvider: React.FC<{ children: React.ReactNode }> = ({
     initializeSystem();
 
     return () => {
-      // Cleanup FCM handlers
       try {
         FCMService.cleanup();
       } catch (error) {
         console.error('Error during FCM cleanup:', error);
       }
-      
-      // Disconnect socket
-      if (socket) {
-        socket.disconnect();
+
+      // FIX: Use ref so the cleanup always disconnects the actual socket instance
+      if (socketRef.current) {
+        socketRef.current.disconnect();
       }
     };
   }, []);
 
-  // Sync drying status from backend only on startup and when drying state changes
+  // Sync drying status from backend on startup
   useEffect(() => {
     const syncDryingStatus = async () => {
       try {
@@ -277,8 +313,7 @@ export const SystemControlProvider: React.FC<{ children: React.ReactNode }> = ({
         if (response.success && response.data) {
           const { isRunning, elapsedSeconds } = response.data;
           console.log('[Backend Sync] isRunning=', isRunning, 'elapsedSeconds=', elapsedSeconds);
-          
-          // Only update if state differs from current state
+
           if (isRunning !== isDrying || (isRunning && Math.abs(elapsedSeconds - dryingSeconds) > 2)) {
             setIsDrying(isRunning);
             setDryingSeconds(elapsedSeconds);
@@ -289,11 +324,10 @@ export const SystemControlProvider: React.FC<{ children: React.ReactNode }> = ({
       }
     };
 
-    // Initial sync only
     syncDryingStatus();
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Start drying via backend API with sync
+  // Start drying via backend API
   const startDrying = async (temperature: number, moisture: number) => {
     try {
       const response = await dryerService.startDrying(temperature, moisture);
@@ -308,21 +342,18 @@ export const SystemControlProvider: React.FC<{ children: React.ReactNode }> = ({
           targetMoisture: moisture,
           timestamp: new Date().toISOString(),
         }));
-        
-        // Emit drying time sync to all devices for this user
-        if (socket && userId) {
-          socket.emit('drying_time_sync', {
+
+        const currentSocket = socketRef.current;
+        const currentUserId = userIdRef.current;
+        if (currentSocket && currentUserId) {
+          currentSocket.emit('drying_time_sync', {
             dryingSeconds: 0,
-            userId,
-            timestamp: new Date().toISOString()
+            userId: currentUserId,
+            timestamp: new Date().toISOString(),
           });
         }
-        
-        Alert.alert(
-          'Drying Started',
-          `Target: ${temperature}°C, Moisture: ${moisture}%`,
-          [{ text: 'OK' }]
-        );
+
+        Alert.alert('Drying Started', `Target: ${temperature}°C, Moisture: ${moisture}%`, [{ text: 'OK' }]);
       }
     } catch (error) {
       console.error('Error starting drying:', error);
@@ -345,13 +376,10 @@ export const SystemControlProvider: React.FC<{ children: React.ReactNode }> = ({
           dryingTime: elapsedSeconds,
           timestamp: new Date().toISOString(),
         }));
+
         const hours = Math.floor(elapsedSeconds / 3600);
         const minutes = Math.floor((elapsedSeconds % 3600) / 60);
-        Alert.alert(
-          'Drying Completed',
-          `Total drying time: ${hours}h ${minutes}m`,
-          [{ text: 'OK' }]
-        );
+        Alert.alert('Drying Completed', `Total drying time: ${hours}h ${minutes}m`, [{ text: 'OK' }]);
       }
     } catch (error) {
       console.error('Error stopping drying:', error);
@@ -363,8 +391,8 @@ export const SystemControlProvider: React.FC<{ children: React.ReactNode }> = ({
   const value: SystemControlContextType = {
     systemData: {
       ...systemData,
-      dryingSeconds: dryingSeconds,
-      isDrying: isDrying,
+      dryingSeconds,
+      isDrying,
     },
     isConnected,
     userId,

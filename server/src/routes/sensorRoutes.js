@@ -137,21 +137,144 @@ router.get('/history', async (req, res) => {
       DryingSession.find().sort({ endTime: -1 }).limit(100)
     ]);
 
-    // Combine and sort by timestamp (using timestamp for sensor data, endTime for drying sessions)
-    const combinedHistory = [
-      ...sensorHistory.map(item => ({
-        ...item.toObject(),
-        _type: 'sensor'
-      })),
-      ...dryingHistory.map(item => ({
+    // Helper function to safely format date
+    const safeFormatDate = (timestamp) => {
+      if (!timestamp) return 'N/A';
+      try {
+        const date = new Date(timestamp);
+        if (isNaN(date.getTime())) return 'N/A';
+        // Force Philippines timezone to be consistent across all environments
+        return date.toLocaleDateString('en-PH', { 
+          month: '2-digit', 
+          day: '2-digit', 
+          year: 'numeric',
+          timeZone: 'Asia/Manila'
+        });
+      } catch (error) {
+        return 'N/A';
+      }
+    };
+
+    // Helper function to safely format time
+    const safeFormatTime = (timestamp) => {
+      if (!timestamp) return 'N/A';
+      try {
+        const date = new Date(timestamp);
+        if (isNaN(date.getTime())) return 'N/A';
+        // Force Philippines timezone to be consistent across all environments
+        return date.toLocaleTimeString('en-PH', { 
+          hour: '2-digit', 
+          minute: '2-digit', 
+          hour12: true,
+          timeZone: 'Asia/Manila'
+        });
+      } catch (error) {
+        return 'N/A';
+      }
+    };
+
+    // Helper function to safely get timestamp for sorting
+    const safeTimestamp = (timestamp) => {
+      if (!timestamp) return 0;
+      try {
+        const date = new Date(timestamp);
+        return isNaN(date.getTime()) ? 0 : date.getTime();
+      } catch (error) {
+        return 0;
+      }
+    };
+
+    // Process sensor data to match frontend expectations
+    const processedSensorData = sensorHistory.map(item => ({
+      ...item.toObject(),
+      _type: 'sensor',
+      id: item._id,
+      timestamp: item.timestamp,
+      date: safeFormatDate(item.timestamp),
+      startTime: safeFormatTime(item.timestamp),
+      endTime: safeFormatTime(item.timestamp),
+      startTimeISO: item.timestamp || null,
+      endTimeISO: item.timestamp || null,
+      // Frontend expects these exact field names
+      initialMoistureT1: item.moisture1 || 0,
+      initialMoistureT2: item.moisture2 || 0,
+      initialMoistureT3: item.moisture3 || 0,
+      initialMoistureT4: item.moisture4 || 0,
+      initialMoistureT5: item.moisture5 || 0,
+      initialMoistureT6: item.moisture6 || 0,
+      finalMoistureT1: item.moisture1 || 0,
+      finalMoistureT2: item.moisture2 || 0,
+      finalMoistureT3: item.moisture3 || 0,
+      finalMoistureT4: item.moisture4 || 0,
+      finalMoistureT5: item.moisture5 || 0,
+      finalMoistureT6: item.moisture6 || 0,
+      moistureavg: item.moistureavg || 0,
+      temperature: item.temperature !== undefined ? `${parseFloat(item.temperature).toFixed(2)}°` : 'N/A',
+      humidity: item.humidity !== undefined ? parseFloat(item.humidity).toFixed(2) : 'N/A',
+      beforeWeight: calculateBeforeWeight(item),
+      afterWeight: calculateAfterWeight(item),
+      status: 'Idle',
+      completionStatus: getCompletionStatus(item.moistureavg, 'Idle')
+    }));
+
+    // Process drying session data to match frontend expectations
+    const processedDryingData = dryingHistory.map(item => {
+      // Get initial sensor data from start time
+      const initialSensorData = sensorHistory.find(sensor => 
+        new Date(sensor.timestamp) <= new Date(item.startTime)
+      );
+      
+      return {
         ...item.toObject(),
         _type: 'drying',
-        timestamp: item.endTime  // Use endTime as timestamp for sorting
-      }))
-    ].sort((a, b) => {
-      const timeA = a.timestamp || a.endTime || 0;
-      const timeB = b.timestamp || b.endTime || 0;
-      return new Date(timeB) - new Date(timeA);
+        id: item._id,
+        timestamp: item.endTime, // Use endTime as timestamp for sorting
+        date: safeFormatDate(item.endTime),
+        startTime: safeFormatTime(item.startTime),
+        endTime: safeFormatTime(item.endTime),
+        startTimeISO: item.startTime || null,
+        endTimeISO: item.endTime || null,
+        // Frontend expects these exact field names
+        initialMoistureT1: initialSensorData?.moisture1 || item.selectedMoisture || 0,
+        initialMoistureT2: initialSensorData?.moisture2 || 0,
+        initialMoistureT3: initialSensorData?.moisture3 || 0,
+        initialMoistureT4: initialSensorData?.moisture4 || 0,
+        initialMoistureT5: initialSensorData?.moisture5 || 0,
+        initialMoistureT6: initialSensorData?.moisture6 || 0,
+        finalMoistureT1: item.moisture1 || 0,
+        finalMoistureT2: item.moisture2 || 0,
+        finalMoistureT3: item.moisture3 || 0,
+        finalMoistureT4: item.moisture4 || 0,
+        finalMoistureT5: item.moisture5 || 0,
+        finalMoistureT6: item.moisture6 || 0,
+        moistureavg: item.moistureavg || 0,
+        temperature: item.temperature !== undefined ? `${parseFloat(item.temperature).toFixed(2)}°` : 'N/A',
+        humidity: item.humidity !== undefined ? parseFloat(item.humidity).toFixed(2) : 'N/A',
+        // Individual tray weights - before and after
+        beforeWeightT1: item.weight1_t1 || item.weight1 || 0,
+        beforeWeightT2: item.weight1_t2 || item.weight1 || 0,
+        beforeWeightT3: item.weight1_t3 || item.weight1 || 0,
+        beforeWeightT4: item.weight1_t4 || item.weight1 || 0,
+        beforeWeightT5: item.weight1_t5 || item.weight1 || 0,
+        beforeWeightT6: item.weight1_t6 || item.weight1 || 0,
+        afterWeightT1: item.weight2_t1 || item.weight2 || 0,
+        afterWeightT2: item.weight2_t2 || item.weight2 || 0,
+        afterWeightT3: item.weight2_t3 || item.weight2 || 0,
+        afterWeightT4: item.weight2_t4 || item.weight2 || 0,
+        afterWeightT5: item.weight2_t5 || item.weight2 || 0,
+        afterWeightT6: item.weight2_t6 || item.weight2 || 0,
+        beforeWeight: calculateAverageBeforeWeight(item),
+        afterWeight: calculateAverageAfterWeight(item),
+        status: item.status || 'Stopped',
+        completionStatus: getCompletionStatus(item.moistureavg, item.status)
+      };
+    });
+
+    // Combine and sort by timestamp
+    const combinedHistory = [...processedSensorData, ...processedDryingData].sort((a, b) => {
+      const timeA = safeTimestamp(a.timestamp || a.endTime);
+      const timeB = safeTimestamp(b.timestamp || b.endTime);
+      return timeB - timeA;
     });
 
     res.json({
@@ -165,6 +288,59 @@ router.get('/history', async (req, res) => {
     });
   }
 });
+
+// Helper function to determine completion status
+function getCompletionStatus(moistureavg, status) {
+  if (status === 'Error') return 'Error';
+  if (status === 'Completed') return 'Completed';
+  if (moistureavg <= 13) return 'Target Reached';
+  if (moistureavg <= 14) return 'Near Target';
+  return 'In Progress';
+}
+
+// Helper function to calculate before weight for sensor data
+function calculateBeforeWeight(item) {
+  const weights = [
+    item.weight1_t1, item.weight1_t2, item.weight1_t3,
+    item.weight1_t4, item.weight1_t5, item.weight1_t6
+  ].filter(w => w !== null && w !== undefined && w > 0);
+  
+  if (weights.length === 0) return 0;
+  return (weights.reduce((sum, w) => sum + w, 0) / weights.length).toFixed(2);
+}
+
+// Helper function to calculate after weight for sensor data
+function calculateAfterWeight(item) {
+  const weights = [
+    item.weight2_t1, item.weight2_t2, item.weight2_t3,
+    item.weight2_t4, item.weight2_t5, item.weight2_t6
+  ].filter(w => w !== null && w !== undefined && w > 0);
+  
+  if (weights.length === 0) return 0;
+  return (weights.reduce((sum, w) => sum + w, 0) / weights.length).toFixed(2);
+}
+
+// Helper function to calculate average before weight for drying sessions
+function calculateAverageBeforeWeight(item) {
+  const weights = [
+    item.weight1_t1, item.weight1_t2, item.weight1_t3,
+    item.weight1_t4, item.weight1_t5, item.weight1_t6
+  ].filter(w => w !== null && w !== undefined && w > 0);
+  
+  if (weights.length === 0) return 0;
+  return (weights.reduce((sum, w) => sum + w, 0) / weights.length).toFixed(2);
+}
+
+// Helper function to calculate average after weight for drying sessions
+function calculateAverageAfterWeight(item) {
+  const weights = [
+    item.weight2_t1, item.weight2_t2, item.weight2_t3,
+    item.weight2_t4, item.weight2_t5, item.weight2_t6
+  ].filter(w => w !== null && w !== undefined && w > 0);
+  
+  if (weights.length === 0) return 0;
+  return (weights.reduce((sum, w) => sum + w, 0) / weights.length).toFixed(2);
+}
 
 // PATCH /api/sensor/latest/weights — save per-tray before/after weight onto latest record
 router.patch('/latest/weights', async (req, res) => {
@@ -228,6 +404,88 @@ router.get('/current', async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch sensor data'
+    });
+  }
+});
+
+// DELETE /api/sensor/history/:id - Delete single sensor record
+router.delete('/history/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    if (!id) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Please provide a valid record ID' 
+      });
+    }
+
+    // Delete both sensor data and drying session by ID
+    const [sensorResult, sessionResult] = await Promise.all([
+      SensorData.deleteOne({ _id: id }),
+      DryingSession.deleteOne({ _id: id })
+    ]);
+
+    const totalDeleted = (sensorResult.deletedCount || 0) + (sessionResult.deletedCount || 0);
+
+    // Broadcast deletion event to all clients
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('history:record_deleted', { deletedId: id });
+      console.log('History: Broadcasted single deletion event to all clients:', { deletedId: id });
+    }
+
+    res.json({ 
+      success: true, 
+      message: `Successfully deleted 1 record`,
+      deletedCount: totalDeleted
+    });
+  } catch (error) {
+    console.error('Error deleting history record:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+});
+
+// DELETE /api/sensor/history/delete - Delete multiple sensor records
+router.delete('/history/delete', async (req, res) => {
+  try {
+    const { ids } = req.body;
+    
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Please provide an array of IDs to delete' 
+      });
+    }
+
+    // Delete both sensor data and drying sessions by IDs
+    const [sensorResult, sessionResult] = await Promise.all([
+      SensorData.deleteMany({ _id: { $in: ids } }),
+      DryingSession.deleteMany({ _id: { $in: ids } })
+    ]);
+
+    const totalDeleted = (sensorResult.deletedCount || 0) + (sessionResult.deletedCount || 0);
+
+    // Broadcast deletion event to all clients
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('history:records_deleted', { deletedIds: ids });
+      console.log('History: Broadcasted deletion event to all clients:', { deletedIds: ids });
+    }
+
+    res.json({ 
+      success: true, 
+      message: `Successfully deleted ${totalDeleted} record(s)`,
+      deletedCount: totalDeleted
+    });
+  } catch (error) {
+    console.error('Error deleting history records:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
     });
   }
 });

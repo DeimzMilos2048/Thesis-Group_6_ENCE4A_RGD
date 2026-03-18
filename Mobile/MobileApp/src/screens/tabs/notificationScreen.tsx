@@ -34,6 +34,15 @@ interface Alert {
     weight2?: number;
     moisture1?: number;
     moisture2?: number;
+    moisture3?: number;
+    moisture4?: number;
+    moisture5?: number;
+    moisture6?: number;
+    selectedTrays?: number[];
+    targetMoisture?: number;
+    targetTemperature?: number;
+    moistureTargetReached?: boolean;
+    weightChange?: number;
   };
 }
 
@@ -335,141 +344,217 @@ const NotificationScreen: React.FC = () => {
   const [unreadCount, setUnreadCount] = useState(0);
 
   const { fcmToken } = useMessaging();
-
-  const getAPIBaseUrl = () => {
+  
+  const getAPIBaseUrls = () => {
     if (__DEV__) {
-      return 'http://192.168.0.109:5001';
+      return [
+        'http://192.168.0.109:5001',
+        'http://10.0.2.2:5001',
+        'https://mala-backend-u0gt.onrender.com',
+      ];
     } else {
-      return 'https://objurgatory-darrell-nonconversantly.ngrok-free.dev';
+      return [
+        'https://mala-backend-u0gt.onrender.com',
+      ];
     }
   };
 
+  const fetchWithTimeout = (url: string, options: RequestInit, timeout = 10000): Promise<Response> => {
+    return Promise.race([
+      fetch(url, options),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('Request timed out')), timeout)
+      ),
+    ]);
+  };
+
   const fetchAlerts = async () => {
-    try {
-      const token = await AsyncStorage.getItem('token');
-      if (!token) return;
+    const urls = getAPIBaseUrls();
+    let lastError = null;
 
-      const response = await fetch(`${getAPIBaseUrl()}/api/notifications`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
+    for (const baseUrl of urls) {
+      try {
+        const token = await AsyncStorage.getItem('token');
+        if (!token) return;
 
-      if (response.ok) {
-        const data = await response.json();
-        setAlerts(Array.isArray(data) ? data : []);
-        const unread = Array.isArray(data) ? data.filter((a: Alert) => !a.isRead).length : 0;
-        setUnreadCount(unread);
+        console.log(`Trying to fetch notifications from: ${baseUrl}`);
+        const response = await fetchWithTimeout(`${baseUrl}/api/notifications`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setAlerts(Array.isArray(data) ? data : []);
+          const unread = Array.isArray(data) ? data.filter((a: Alert) => !a.isRead).length : 0;
+          setUnreadCount(unread);
+          console.log(`Successfully fetched notifications from: ${baseUrl}`);
+          return;
+        } else {
+          lastError = `HTTP ${response.status}: ${response.statusText}`;
+        }
+      } catch (error) {
+        lastError = error;
+        console.warn(`Failed to fetch notifications from ${baseUrl}:`, error);
       }
-    } catch (error) {
-      console.error('Error fetching notifications:', error);
+    }
+
+    if (lastError) {
+      console.error('All URLs failed for fetching notifications:', lastError);
     }
   };
 
   const acknowledgeAlert = async (alertId: string) => {
-    try {
-      const token = await AsyncStorage.getItem('token');
-      if (!token) return;
+    const urls = getAPIBaseUrls();
+    let lastError = null;
 
-      const response = await fetch(`${getAPIBaseUrl()}/api/notifications/${alertId}/read`, {
-        method: 'PATCH',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
+    for (const baseUrl of urls) {
+      try {
+        const token = await AsyncStorage.getItem('token');
+        if (!token) return;
 
-      if (response.ok) {
-        setAlerts(prev =>
-          prev.map(alert =>
-            alert._id === alertId || alert.id === alertId
-              ? { ...alert, isRead: true }
-              : alert
-          )
-        );
-        setUnreadCount(prev => Math.max(0, prev - 1));
-        setSelectedAlert(null);
+        const response = await fetchWithTimeout(`${baseUrl}/api/notifications/${alertId}/read`, {
+          method: 'PATCH',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (response.ok) {
+          setAlerts(prev =>
+            prev.map(alert =>
+              alert._id === alertId || alert.id === alertId
+                ? { ...alert, isRead: true }
+                : alert
+            )
+          );
+          setUnreadCount(prev => Math.max(0, prev - 1));
+          setSelectedAlert(null);
+          return;
+        }
+      } catch (error) {
+        lastError = error;
+        console.warn(`Failed to acknowledge notification from ${baseUrl}:`, error);
       }
-    } catch (error) {
-      console.error('Error acknowledging notification:', error);
+    }
+
+    if (lastError) {
+      console.error('All URLs failed for acknowledging notification:', lastError);
     }
   };
 
   const acknowledgeAllAlerts = async () => {
-    try {
-      const token = await AsyncStorage.getItem('token');
-      if (!token) return;
+    const urls = getAPIBaseUrls();
+    let lastError = null;
 
-      const response = await fetch(`${getAPIBaseUrl()}/api/notifications/read-all`, {
-        method: 'PATCH',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
+    for (const baseUrl of urls) {
+      try {
+        const token = await AsyncStorage.getItem('token');
+        if (!token) return;
 
-      if (response.ok) {
-        setAlerts(prev => prev.map(alert => ({ ...alert, isRead: true })));
-        setUnreadCount(0);
+        const response = await fetchWithTimeout(`${baseUrl}/api/notifications/read-all`, {
+          method: 'PATCH',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (response.ok) {
+          setAlerts(prev => prev.map(alert => ({ ...alert, isRead: true })));
+          setUnreadCount(0);
+          return;
+        }
+      } catch (error) {
+        lastError = error;
+        console.warn(`Failed to acknowledge all notifications from ${baseUrl}:`, error);
       }
-    } catch (error) {
-      console.error('Error acknowledging all notifications:', error);
+    }
+
+    if (lastError) {
+      console.error('All URLs failed for acknowledging all notifications:', lastError);
     }
   };
 
   const markAllAsUnread = async () => {
-    try {
-      const token = await AsyncStorage.getItem('token');
-      if (!token) return;
+    const urls = getAPIBaseUrls();
+    let lastError = null;
 
-      const response = await fetch(`${getAPIBaseUrl()}/api/notifications/unread-all`, {
-        method: 'PATCH',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
+    for (const baseUrl of urls) {
+      try {
+        const token = await AsyncStorage.getItem('token');
+        if (!token) return;
 
-      if (response.ok) {
-        setAlerts(prev => prev.map(alert => ({ ...alert, isRead: false })));
-        setUnreadCount(alerts.length);
-      }
-    } catch (error) {
-      console.error('Error marking all as unread:', error);
-    }
-  };
+        const response = await fetchWithTimeout(`${baseUrl}/api/notifications/unread-all`, {
+          method: 'PATCH',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        });
 
-  const deleteAlert = async (alertId: string) => {
-    try {
-      const token = await AsyncStorage.getItem('token');
-      if (!token) return;
-
-      const response = await fetch(`${getAPIBaseUrl()}/api/notifications/${alertId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (response.ok) {
-        setAlerts(prev => prev.filter(alert => alert._id !== alertId && alert.id !== alertId));
-        const deletedAlert = alerts.find(alert => alert._id === alertId || alert.id === alertId);
-        if (deletedAlert && !deletedAlert.isRead) {
-          setUnreadCount(prev => Math.max(0, prev - 1));
+        if (response.ok) {
+          setAlerts(prev => prev.map(alert => ({ ...alert, isRead: false })));
+          setUnreadCount(alerts.length);
+          return;
         }
-        setSelectedAlert(null);
+      } catch (error) {
+        lastError = error;
+        console.warn(`Failed to mark all as unread from ${baseUrl}:`, error);
       }
-    } catch (error) {
-      console.error('Error deleting notification:', error);
+    }
+
+    if (lastError) {
+      console.error('All URLs failed for marking all as unread:', lastError);
     }
   };
 
+  // ── FIX 4: deleteAlert had checkConnectivityAndLoad, useFocusEffect, and
+  //           onRefresh all jammed inside its body after the response.ok block.
+  //           Extracted them out as proper top-level declarations.
+  const deleteAlert = async (alertId: string) => {
+    const urls = getAPIBaseUrls();
+    let lastError = null;
+
+    for (const baseUrl of urls) {
+      try {
+        const token = await AsyncStorage.getItem('token');
+        if (!token) return;
+
+        const response = await fetchWithTimeout(`${baseUrl}/api/notifications/${alertId}`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (response.ok) {
+          setAlerts(prev => prev.filter(alert => alert._id !== alertId && alert.id !== alertId));
+          const deletedAlert = alerts.find(alert => alert._id === alertId || alert.id === alertId);
+          if (deletedAlert && !deletedAlert.isRead) {
+            setUnreadCount(prev => Math.max(0, prev - 1));
+          }
+          setSelectedAlert(null);
+          return;
+        }
+      } catch (error) {
+        lastError = error;
+        console.warn(`Failed to delete notification from ${baseUrl}:`, error);
+      }
+    }
+
+    if (lastError) {
+      console.error('All URLs failed for deleting notification:', lastError);
+    }
+  };
+
+  // ── FIX 5: useFocusEffect was orphaned inside deleteAlert. Restored here.
   useFocusEffect(
     useCallback(() => {
-      setLoading(true);
-
       const checkConnectivityAndLoad = async () => {
         try {
           const netInfoState = await NetInfo.fetch();
@@ -486,6 +571,7 @@ const NotificationScreen: React.FC = () => {
     }, [])
   );
 
+  // ── FIX 6: onRefresh was also trapped inside deleteAlert. Restored here.
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
@@ -600,10 +686,7 @@ const NotificationScreen: React.FC = () => {
                 {alerts.map(alert => (
                   <TouchableOpacity
                     key={alert._id || alert.id}
-                    style={[
-                      styles.alertCard,
-                      !alert.isRead && styles.unreadAlert,
-                    ]}
+                    style={[styles.alertCard, !alert.isRead && styles.unreadAlert]}
                     onPress={() => setSelectedAlert(alert)}
                   >
                     <View style={styles.alertLeft}>
@@ -617,12 +700,41 @@ const NotificationScreen: React.FC = () => {
                       <Text style={styles.alertTitle}>{alert.title}</Text>
                       <Text style={styles.alertMessage}>{alert.message}</Text>
                       <Text style={styles.alertSensorData}>
-                        {alert.sensorData?.temperature ? `${alert.sensorData.temperature}°C | ` : ''}
-                        {alert.sensorData?.moistureavg ? `Moisture: ${alert.sensorData.moistureavg.toFixed(1)}%` : ''}
-                        {alert.sensorData?.moisture1 && alert.sensorData?.moisture2
-                          ? `M1: ${alert.sensorData.moisture1}% M2: ${alert.sensorData.moisture2}%`
+                        {alert.sensorData?.temperature != null ? `${alert.sensorData.temperature}°C | ` : 'N/A°C | '}
+                        {alert.sensorData?.moistureavg != null ? `Moisture: ${alert.sensorData.moistureavg.toFixed(1)}%` : 'N/A%'}
+                        {alert.sensorData?.moisture1 != null && alert.sensorData?.moisture2 != null
+                          ? ` | M1: ${alert.sensorData.moisture1}% M2: ${alert.sensorData.moisture2}%`
+                          : alert.sensorData?.moisture1 != null
+                            ? ` | M1: ${alert.sensorData.moisture1}%`
+                            : alert.sensorData?.moisture2 != null
+                              ? ` | M2: ${alert.sensorData.moisture2}%`
+                              : ' | M1: N/A% M2: N/A%'}
+                        {alert.sensorData?.moisture3 != null ? ` | M3: ${alert.sensorData.moisture3}%` : ''}
+                        {alert.sensorData?.moisture4 != null ? ` | M4: ${alert.sensorData.moisture4}%` : ''}
+                        {alert.sensorData?.moisture5 != null ? ` | M5: ${alert.sensorData.moisture5}%` : ''}
+                        {alert.sensorData?.moisture6 != null ? ` | M6: ${alert.sensorData.moisture6}%` : ''}
+                        {alert.sensorData?.humidity != null ? ` | Humidity: ${alert.sensorData.humidity}%` : ' | Humidity: N/A%'}
+                        {alert.sensorData?.weight1 != null && alert.sensorData?.weight2 != null
+                          ? ` | W1: ${alert.sensorData.weight1}kg W2: ${alert.sensorData.weight2}kg`
+                          : alert.sensorData?.weight1 != null
+                            ? ` | W1: ${alert.sensorData.weight1}kg`
+                            : alert.sensorData?.weight2 != null
+                              ? ` | W2: ${alert.sensorData.weight2}kg`
+                              : ' | W1: N/Akg W2: N/Akg'}
+                        {alert.sensorData?.selectedTrays && alert.sensorData.selectedTrays.length > 0
+                          ? ` | Trays: ${alert.sensorData.selectedTrays.join(', ')}`
                           : ''}
-                        {alert.sensorData?.humidity ? `Humidity: ${alert.sensorData.humidity}%` : ''}
+                        {alert.sensorData?.targetMoisture != null
+                          ? ` | Target: ${alert.sensorData.targetMoisture}%`
+                          : ''}
+                        {alert.sensorData?.moistureTargetReached === true
+                          ? ` | Target reached`
+                          : alert.sensorData?.moistureTargetReached === false
+                            ? ` | Target not reached`
+                            : ''}
+                        {alert.sensorData?.weightChange != null && alert.sensorData.weightChange > 0
+                          ? ` | Weight loss: ${alert.sensorData.weightChange.toFixed(1)}kg`
+                          : ''}
                       </Text>
                     </View>
                     <View style={styles.alertRight}>
@@ -647,6 +759,7 @@ const NotificationScreen: React.FC = () => {
         >
           <View style={styles.modalOverlay}>
             <View style={styles.modalContent}>
+
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>{selectedAlert?.title}</Text>
                 <TouchableOpacity onPress={() => setSelectedAlert(null)}>
@@ -658,46 +771,94 @@ const NotificationScreen: React.FC = () => {
 
               {selectedAlert?.sensorData && (
                 <View style={styles.sensorGrid}>
-                  {selectedAlert.sensorData.temperature != null && (
+                  <View style={styles.sensorItem}>
+                    <Ionicons name="thermometer" size={16} color="#666" />
+                    <Text style={styles.sensorText}>
+                      {selectedAlert.sensorData.temperature != null ? `${selectedAlert.sensorData.temperature}°C` : 'N/A°C'}
+                    </Text>
+                  </View>
+                  <View style={styles.sensorItem}>
+                    <Ionicons name="water" size={16} color="#666" />
+                    <Text style={styles.sensorText}>
+                      {selectedAlert.sensorData.moistureavg != null
+                        ? `Moisture: ${selectedAlert.sensorData.moistureavg.toFixed(1)}%`
+                        : 'N/A%'}
+                    </Text>
+                  </View>
+                  <View style={styles.sensorItem}>
+                    <Ionicons name="water" size={16} color="#666" />
+                    <Text style={styles.sensorText}>
+                      {selectedAlert.sensorData.moisture1 != null
+                        ? `M1: ${selectedAlert.sensorData.moisture1}%`
+                        : 'M1: N/A%'}
+                    </Text>
+                  </View>
+                  <View style={styles.sensorItem}>
+                    <Ionicons name="water" size={16} color="#666" />
+                    <Text style={styles.sensorText}>
+                      {selectedAlert.sensorData.moisture2 != null
+                        ? `M2: ${selectedAlert.sensorData.moisture2}%`
+                        : 'M2: N/A%'}
+                    </Text>
+                  </View>
+                  <View style={styles.sensorItem}>
+                    <Ionicons name="cloud" size={16} color="#666" />
+                    <Text style={styles.sensorText}>
+                      {selectedAlert.sensorData.humidity != null
+                        ? `${selectedAlert.sensorData.humidity}%`
+                        : 'N/A%'}
+                    </Text>
+                  </View>
+                  <View style={styles.sensorItem}>
+                    <Ionicons name="scale" size={16} color="#666" />
+                    <Text style={styles.sensorText}>
+                      {selectedAlert.sensorData.weight1 != null
+                        ? `W1: ${selectedAlert.sensorData.weight1}kg`
+                        : 'W1: N/Akg'}
+                    </Text>
+                  </View>
+                  <View style={styles.sensorItem}>
+                    <Ionicons name="scale" size={16} color="#666" />
+                    <Text style={styles.sensorText}>
+                      {selectedAlert.sensorData.weight2 != null
+                        ? `W2: ${selectedAlert.sensorData.weight2}kg`
+                        : 'W2: N/Akg'}
+                    </Text>
+                  </View>
+                  {selectedAlert.sensorData?.selectedTrays && selectedAlert.sensorData.selectedTrays.length > 0 && (
                     <View style={styles.sensorItem}>
-                      <Ionicons name="thermometer" size={16} color="#666" />
-                      <Text style={styles.sensorText}>{selectedAlert.sensorData.temperature}°C</Text>
+                      <Ionicons name="grid" size={16} color="#666" />
+                      <Text style={styles.sensorText}>
+                        Trays: {selectedAlert.sensorData.selectedTrays.join(', ')}
+                      </Text>
                     </View>
                   )}
-                  {selectedAlert.sensorData.moistureavg != null && (
+                  {selectedAlert.sensorData?.targetMoisture != null && (
                     <View style={styles.sensorItem}>
-                      <Ionicons name="water" size={16} color="#666" />
-                      <Text style={styles.sensorText}>Moisture: {selectedAlert.sensorData.moistureavg.toFixed(1)}%</Text>
+                      <Ionicons name="flag" size={16} color="#666" />
+                      <Text style={styles.sensorText}>
+                        Target: {selectedAlert.sensorData.targetMoisture}%
+                      </Text>
                     </View>
                   )}
-                  {selectedAlert.sensorData.moisture1 != null && (
+                  {selectedAlert.sensorData?.moistureTargetReached !== undefined && (
                     <View style={styles.sensorItem}>
-                      <Ionicons name="water" size={16} color="#666" />
-                      <Text style={styles.sensorText}>M1: {selectedAlert.sensorData.moisture1}%</Text>
+                      <Ionicons
+                        name={selectedAlert.sensorData.moistureTargetReached ? 'checkmark-circle' : 'close-circle'}
+                        size={16}
+                        color={selectedAlert.sensorData.moistureTargetReached ? '#27AE60' : '#F39C12'}
+                      />
+                      <Text style={styles.sensorText}>
+                        {selectedAlert.sensorData.moistureTargetReached ? 'Target reached' : 'Target not reached'}
+                      </Text>
                     </View>
                   )}
-                  {selectedAlert.sensorData.moisture2 != null && (
+                  {selectedAlert.sensorData?.weightChange != null && selectedAlert.sensorData.weightChange > 0 && (
                     <View style={styles.sensorItem}>
-                      <Ionicons name="water" size={16} color="#666" />
-                      <Text style={styles.sensorText}>M2: {selectedAlert.sensorData.moisture2}%</Text>
-                    </View>
-                  )}
-                  {selectedAlert.sensorData.humidity != null && (
-                    <View style={styles.sensorItem}>
-                      <Ionicons name="cloud" size={16} color="#666" />
-                      <Text style={styles.sensorText}>{selectedAlert.sensorData.humidity}%</Text>
-                    </View>
-                  )}
-                  {selectedAlert.sensorData.weight1 != null && (
-                    <View style={styles.sensorItem}>
-                      <Ionicons name="scale" size={16} color="#666" />
-                      <Text style={styles.sensorText}>W1: {selectedAlert.sensorData.weight1}kg</Text>
-                    </View>
-                  )}
-                  {selectedAlert.sensorData.weight2 != null && (
-                    <View style={styles.sensorItem}>
-                      <Ionicons name="scale" size={16} color="#666" />
-                      <Text style={styles.sensorText}>W2: {selectedAlert.sensorData.weight2}kg</Text>
+                      <Ionicons name="trending-down" size={16} color="#666" />
+                      <Text style={styles.sensorText}>
+                        Weight loss: {selectedAlert.sensorData.weightChange.toFixed(1)}kg
+                      </Text>
                     </View>
                   )}
                 </View>
@@ -726,9 +887,11 @@ const NotificationScreen: React.FC = () => {
                   <Text style={styles.closeButtonText}>Close</Text>
                 </TouchableOpacity>
               </View>
+
             </View>
           </View>
         </Modal>
+
       </View>
     </SafeAreaView>
   );

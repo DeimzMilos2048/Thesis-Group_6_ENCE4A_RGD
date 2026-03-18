@@ -75,7 +75,6 @@ export function DryingProvider({ children }) {
       syncWithBackend();
     }, 5001);
 
-    // Initial sync
     syncWithBackend();
 
     return () => clearInterval(syncIntervalRef.current);
@@ -85,18 +84,34 @@ export function DryingProvider({ children }) {
   useEffect(() => {
     if (isProcessing) {
       intervalRef.current = setInterval(() => {
-        setDryingSeconds(prev => prev + 1);
+        setDryingSeconds(prev => {
+          const newSeconds = prev + 1;
+          
+          // Emit sync to all connected devices (mobile/web)
+          if (socket && socket.connected) {
+            socket.emit('drying_time_sync', {
+              dryingSeconds: newSeconds,
+              timestamp: new Date().toISOString()
+            });
+          }
+          
+          return newSeconds;
+        });
       }, 1000);
     } else {
       clearInterval(intervalRef.current);
     }
     return () => clearInterval(intervalRef.current);
-  }, [isProcessing]);
+  }, [isProcessing, socket]);
 
   const startDrying = async (temp, moisture) => {
     try {
       setSelectedTemp(temp);
       setSelectedMoisture(moisture);
+      
+      // Record start time when drying begins
+      const startISO = new Date().toISOString();
+      localStorage.setItem('dryingStartTime', startISO);
       
       // Call backend API - backend is source of truth
       const response = await dryerService.startDrying(temp, moisture);
@@ -109,7 +124,7 @@ export function DryingProvider({ children }) {
           socket.emit('drying_started', {
             temperature: temp,
             moisture: moisture,
-            timestamp: new Date().toISOString(),
+            timestamp: startISO,
           });
         }
       }
@@ -122,6 +137,10 @@ export function DryingProvider({ children }) {
 
   const stopDrying = async () => {
     try {
+      // Record end time when drying stops
+      const endISO = new Date().toISOString();
+      localStorage.setItem('dryingEndTime', endISO);
+      
       // Call backend API
       const response = await dryerService.stopDrying();
       if (response.success) {
@@ -134,7 +153,7 @@ export function DryingProvider({ children }) {
         if (socket && socket.connected) {
           socket.emit('drying_stopped', {
             dryingSeconds: elapsedSeconds,
-            timestamp: new Date().toISOString(),
+            timestamp: endISO,
           });
         }
       }

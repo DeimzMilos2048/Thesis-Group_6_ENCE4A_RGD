@@ -45,6 +45,19 @@ const useNotificationService = (sensorData, pollingIntervalMs = 5001, isMonitori
       }
     } catch (err) {
       console.error('Failed to fetch sensor data:', err);
+      
+      // Don't show network errors to user repeatedly
+      if (err.message && err.message.includes('Network error')) {
+        // Network errors are expected when server is down - don't spam console
+        return;
+      }
+      
+      // For other errors, show them
+      if (err.response) {
+        console.error('Server responded with error:', err.response.status, err.response.data);
+      } else if (err.request) {
+        console.error('No response received from server - check if server is running');
+      }
     }
   }, [socket]);
 
@@ -80,9 +93,11 @@ const useNotificationService = (sensorData, pollingIntervalMs = 5001, isMonitori
     }
   }, []);
 
-  const triggerNotification = useCallback(async (type, title, message, sensorSnapshot, eventData = 'SENSOR_ALERT', trayNumber = null) => {
-    // Show toast immediately
-    addToast(type.toLowerCase(), message, title);
+  const triggerNotification = useCallback(async (type, title, message, sensorSnapshot, eventData = 'SENSOR_ALERT', trayNumber = null, isForeground = true) => {
+    // Show toast immediately for foreground notifications
+    if (isForeground) {
+      addToast(type.toLowerCase(), message, title);
+    }
 
     try {
       // Save notification to database
@@ -95,6 +110,18 @@ const useNotificationService = (sensorData, pollingIntervalMs = 5001, isMonitori
         source: 'SENSOR',
         deviceId: sensorSnapshot.deviceId || 'ESP32_001',
         timestamp: new Date().toISOString(),
+        platform: 'web',
+        isForeground: isForeground,
+        // Add formatted sensor data for display
+        formattedSensorData: {
+          temperature: sensorSnapshot.temperature != null ? `${sensorSnapshot.temperature}°C` : 'N/A°C',
+          moistureavg: sensorSnapshot.moistureavg != null ? `${sensorSnapshot.moistureavg.toFixed(1)}%` : 'N/A%',
+          moisture1: sensorSnapshot.moisture1 != null ? `${sensorSnapshot.moisture1}%` : 'N/A%',
+          moisture2: sensorSnapshot.moisture2 != null ? `${sensorSnapshot.moisture2}%` : 'N/A%',
+          humidity: sensorSnapshot.humidity != null ? `${sensorSnapshot.humidity}%` : 'N/A%',
+          weight1: sensorSnapshot.weight1 != null ? `${sensorSnapshot.weight1}kg` : 'N/Akg',
+          weight2: sensorSnapshot.weight2 != null ? `${sensorSnapshot.weight2}kg` : 'N/Akg'
+        }
       };
 
       // Add tray_number if provided
@@ -108,9 +135,16 @@ const useNotificationService = (sensorData, pollingIntervalMs = 5001, isMonitori
       // Emit real-time notification via socket
       if (socket && socket.connected) {
         socket.emit('notification:trigger', notificationPayload);
+        
+        // Emit platform-specific events
+        if (isForeground) {
+          socket.emit('notification:web:foreground', notificationPayload);
+        } else {
+          socket.emit('notification:web:background', notificationPayload);
+        }
       }
 
-      console.log(`✓ ${eventData} notification triggered:`, title);
+      console.log(`✓ ${eventData} notification triggered (${isForeground ? 'foreground' : 'background'}):`, title);
     } catch (err) {
       console.error('Failed to save notification:', err);
     }
@@ -123,6 +157,14 @@ const useNotificationService = (sensorData, pollingIntervalMs = 5001, isMonitori
     if (!isMonitoring || !isDryingActive) return;
     
     const prev = prevSensorRef.current;
+
+    // Helper function to format sensor values with N/A fallback
+    const formatValue = (value, unit = '', decimals = 1) => {
+      if (value === null || value === undefined || isNaN(value)) {
+        return `N/A${unit}`;
+      }
+      return `${parseFloat(value).toFixed(decimals)}${unit}`;
+    };
 
     const moistureAvg = current.moistureavg ?? null;
     const temp        = current.temperature  ?? null;
@@ -158,7 +200,7 @@ const useNotificationService = (sensorData, pollingIntervalMs = 5001, isMonitori
         triggerNotification(
           'SUCCESS',
           `Tray ${trayNum} Ready for Removal`,
-          `Tray ${trayNum} moisture content reached 14% (${trayMoisture.toFixed(1)}%). Please take out the tray.`,
+          `Tray ${trayNum} moisture content reached 14% (${formatValue(trayMoisture, '%')}). Please take out the tray.`,
           current,
           'TRAY_READY',
           trayNum
@@ -172,7 +214,7 @@ const useNotificationService = (sensorData, pollingIntervalMs = 5001, isMonitori
       triggerNotification(
         'STABLE',
         'Tray Ready for Removal',
-        `Average moisture content is optimal (${moistureAvg.toFixed(1)}%). Tray is ready for removal.`,
+        `Average moisture content is optimal (${formatValue(moistureAvg, '%')}). Tray is ready for removal.`,
         current,
         'TRAY_READY'
       );
@@ -181,7 +223,7 @@ const useNotificationService = (sensorData, pollingIntervalMs = 5001, isMonitori
       triggerNotification(
         'WARNING',
         'Moisture Warning',
-        `Warning: Average moisture level is approaching threshold (${moistureAvg.toFixed(1)}%). Monitor closely.`,
+        `Warning: Average moisture level is approaching threshold (${formatValue(moistureAvg, '%')}). Monitor closely.`,
         current,
         'MOISTURE_WARNING'
       );
@@ -190,7 +232,7 @@ const useNotificationService = (sensorData, pollingIntervalMs = 5001, isMonitori
       triggerNotification(
         'CRITICAL',
         'Critical Moisture Alert',
-        `Critical: Average moisture level reached ${moistureAvg.toFixed(1)}%. Immediate action required.`,
+        `Critical: Average moisture level reached ${formatValue(moistureAvg, '%')}. Immediate action required.`,
         current,
         'MOISTURE_CRITICAL'
       );
@@ -209,7 +251,7 @@ const useNotificationService = (sensorData, pollingIntervalMs = 5001, isMonitori
       triggerNotification(
         'INFO',
         'Weight Change Detected',
-        `Scale 1 weight ${direction} by ${Math.abs(change).toFixed(1)}kg (${prevWeight1.toFixed(1)}kg → ${weight1.toFixed(1)}kg).`,
+        `Scale 1 weight ${direction} by ${Math.abs(change).toFixed(1)}kg (${formatValue(prevWeight1, 'kg')} → ${formatValue(weight1, 'kg')}).`,
         current,
         'WEIGHT_CHANGE'
       );
@@ -222,7 +264,7 @@ const useNotificationService = (sensorData, pollingIntervalMs = 5001, isMonitori
       triggerNotification(
         'INFO',
         'Weight Change Detected',
-        `Scale 2 weight ${direction} by ${Math.abs(change).toFixed(1)}kg (${prevWeight2.toFixed(1)}kg → ${weight2.toFixed(1)}kg).`,
+        `Scale 2 weight ${direction} by ${Math.abs(change).toFixed(1)}kg (${formatValue(prevWeight2, 'kg')} → ${formatValue(weight2, 'kg')}).`,
         current,
         'WEIGHT_CHANGE'
       );
@@ -234,7 +276,7 @@ const useNotificationService = (sensorData, pollingIntervalMs = 5001, isMonitori
       triggerNotification(
         'CRITICAL',
         'Critical Temperature Alert',
-        `Critical: Temperature reached ${temp.toFixed(1)}°C. Immediate action required.`,
+        `Critical: Temperature reached ${formatValue(temp, '°C')}. Immediate action required.`,
         current,
         'TEMPERATURE_CRITICAL'
       );
@@ -243,7 +285,7 @@ const useNotificationService = (sensorData, pollingIntervalMs = 5001, isMonitori
       triggerNotification(
         'WARNING',
         'Temperature Warning',
-        `Warning: Temperature exceeded ${THRESHOLDS.temperature.warningMax}°C (${temp.toFixed(1)}°C). Monitor closely.`,
+        `Warning: Temperature exceeded ${THRESHOLDS.temperature.warningMax}°C (${formatValue(temp, '°C')}). Monitor closely.`,
         current,
         'TEMPERATURE_WARNING'
       );
@@ -252,7 +294,7 @@ const useNotificationService = (sensorData, pollingIntervalMs = 5001, isMonitori
       triggerNotification(
         'WARNING',
         'Low Temperature Alert',
-        `Please put some rice husk to maintain heat. Current temperature: ${temp.toFixed(1)}°C.`,
+        `Please put some rice husk to maintain heat. Current temperature: ${formatValue(temp, '°C')}.`,
         current,
         'TEMPERATURE_WARNING'
       );
@@ -264,7 +306,7 @@ const useNotificationService = (sensorData, pollingIntervalMs = 5001, isMonitori
       triggerNotification(
         'CRITICAL',
         'Critical Humidity Alert',
-        `Critical: Humidity reached ${humidity.toFixed(1)}%. Immediate action required.`,
+        `Critical: Humidity reached ${formatValue(humidity, '%')}. Immediate action required.`,
         current,
         'HUMIDITY_CRITICAL'
       );
@@ -273,7 +315,7 @@ const useNotificationService = (sensorData, pollingIntervalMs = 5001, isMonitori
       triggerNotification(
         'WARNING',
         'Humidity Warning',
-        `Warning: Humidity is approaching threshold (${humidity.toFixed(1)}%). Increase ventilation.`,
+        `Warning: Humidity is approaching threshold (${formatValue(humidity, '%')}). Increase ventilation.`,
         current,
         'HUMIDITY_WARNING'
       );

@@ -40,7 +40,7 @@ export default function RiceDryingDashboard({ view }) {
     setSocket: setSocketInDrying,
   } = useDrying();
 
-  const { savedWeights, savedAfterWeights, saveBeforeWeight, saveAfterWeight, resetBeforeWeight, resetAfterWeight } = useWeight();
+  const { savedWeights, setSavedWeights, savedAfterWeights, setSavedAfterWeights, saveBeforeWeight, saveAfterWeight, resetBeforeWeight, resetAfterWeight } = useWeight();
   const { showToast } = useToast();
   const { unreadCount, isMonitoring, setIsMonitoring } = useNotifications();
   const [tabNotifications, setTabNotifications] = useState({
@@ -104,12 +104,19 @@ export default function RiceDryingDashboard({ view }) {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
       
-      // Navigate immediately
+      // Navigate immediately without waiting for anything
       navigate('/login');
       
-      // Run cleanup operations in background without blocking
-      dryerService.stopDrying().catch(() => {});
-      authService.logout().catch(() => {});
+      // Run cleanup operations in background without blocking navigation
+      // Use setTimeout to ensure these don't block the UI
+      setTimeout(() => {
+        dryerService.stopDrying().catch((err) => {
+          console.warn('Failed to stop drying during logout:', err);
+        });
+        authService.logout().catch((err) => {
+          console.warn('Failed to logout from server:', err);
+        });
+      }, 0);
       
     } catch (error) {
       console.error('Logout error:', error);
@@ -194,21 +201,31 @@ export default function RiceDryingDashboard({ view }) {
     if (savedWeights[currentTray]?.frozen) { showToast('error', `Tray ${currentTray} weight is already saved and locked.`); return; }
     if (currentWeight <= 0) { showToast('error', `No weight data available for Tray ${currentTray}.`); return; }
     
-    // Save the current tray's before weight
+    // Save the current tray's before weight - this should be instant now
     saveBeforeWeight(currentTray, currentWeight);
+    
+    // Show success immediately
     showToast('success', `Tray ${currentTray} before weight saved: ${currentWeight.toFixed(2)} kg`);
     setTabNotifications(prev => ({ ...prev, history: true }));
     
-    // Send notification to web and mobile
-    if (socket && socket.connected) {
-      socket.emit('tray:weight:saved', {
-        trayNumber: currentTray,
-        weight: currentWeight,
-        type: 'before',
-        timestamp: new Date().toISOString(),
-        message: `Tray ${currentTray} before weight saved: ${currentWeight.toFixed(2)} kg`
-      });
-    }
+    // Run socket emissions in background to avoid any potential delays
+    setTimeout(() => {
+      // Send notification to web and mobile
+      if (socket && socket.connected) {
+        socket.emit('tray:weight:saved', {
+          trayNumber: currentTray,
+          weight: currentWeight,
+          type: 'before',
+          timestamp: new Date().toISOString(),
+          message: `Tray ${currentTray} before weight saved: ${currentWeight.toFixed(2)} kg`
+        });
+      }
+      
+      // Dispatch custom event for History component
+      window.dispatchEvent(new CustomEvent('weightDataUpdated', {
+        detail: { type: 'before', tray: currentTray, weight: currentWeight }
+      }));
+    }, 0);
   };
 
   const handleSaveAfterWeight = () => {
@@ -216,20 +233,32 @@ export default function RiceDryingDashboard({ view }) {
     if (!savedWeights[currentTray]?.frozen) { showToast('error', `Please save the before weight for Tray ${currentTray} first.`); return; }
     if (savedAfterWeights[currentTray]?.frozen) { showToast('error', `Tray ${currentTray} after weight is already saved and locked.`); return; }
     if (currentWeight <= 0) { showToast('error', `No weight data available for Tray ${currentTray}.`); return; }
+    
+    // Save the current tray's after weight - this should be instant now
     saveAfterWeight(currentTray, currentWeight);
+    
+    // Show success immediately
     showToast('success', `Tray ${currentTray} after weight saved: ${currentWeight.toFixed(2)} kg`);
     setTabNotifications(prev => ({ ...prev, history: true }));
     
-    // Send notification to web and mobile
-    if (socket && socket.connected) {
-      socket.emit('tray:weight:saved', {
-        trayNumber: currentTray,
-        weight: currentWeight,
-        type: 'after',
-        timestamp: new Date().toISOString(),
-        message: `Tray ${currentTray} after weight saved: ${currentWeight.toFixed(2)} kg`
-      });
-    }
+    // Run socket emissions in background to avoid any potential delays
+    setTimeout(() => {
+      // Send notification to web and mobile
+      if (socket && socket.connected) {
+        socket.emit('tray:weight:saved', {
+          trayNumber: currentTray,
+          weight: currentWeight,
+          type: 'after',
+          timestamp: new Date().toISOString(),
+          message: `Tray ${currentTray} after weight saved: ${currentWeight.toFixed(2)} kg`
+        });
+      }
+      
+      // Dispatch custom event for History component
+      window.dispatchEvent(new CustomEvent('weightDataUpdated', {
+        detail: { type: 'after', tray: currentTray, weight: currentWeight }
+      }));
+    }, 0);
   };
 
  const handleResetBeforeWeight = async () => {
@@ -340,6 +369,63 @@ export default function RiceDryingDashboard({ view }) {
       }
     });
   }, [sensorData, isProcessing, socket, showToast]);
+
+  // Listen for real-time weight updates from other users
+  useEffect(() => {
+    if (!socket) return;
+
+    // Listen for weight updates from History component
+    const handleWeightDataUpdate = (event) => {
+      console.log('Dashboard: Received weight update from History:', event.detail);
+      
+      // Update local state when weight data changes
+      const { type, tray, weight } = event.detail;
+      if (type === 'before' && tray === currentTray) {
+        // Update before weight for current tray
+        const updatedWeights = { ...savedWeights };
+        updatedWeights[tray] = { ...updatedWeights[tray], before: weight };
+        setSavedWeights(updatedWeights);
+        showToast('info', `Tray ${tray} before weight updated: ${weight.toFixed(2)} kg`);
+      } else if (type === 'after' && tray === currentTray) {
+        // Update after weight for current tray
+        const updatedAfterWeights = { ...savedAfterWeights };
+        updatedAfterWeights[tray] = { ...updatedAfterWeights[tray], after: weight };
+        setSavedAfterWeights(updatedAfterWeights);
+        showToast('info', `Tray ${tray} after weight updated: ${weight.toFixed(2)} kg`);
+      }
+    };
+
+    // Listen for weight updates from other users via Socket.IO
+    const handleWeightUpdateFromSocket = (data) => {
+      console.log('Dashboard: Received weight update via socket:', data);
+      
+      // Update local state when weight data changes from other users
+      const { type, tray, weight } = data;
+      if (type === 'before' && tray === currentTray) {
+        // Update before weight for current tray
+        const updatedWeights = { ...savedWeights };
+        updatedWeights[tray] = { ...updatedWeights[tray], before: weight };
+        setSavedWeights(updatedWeights);
+        showToast('info', `Tray ${tray} before weight updated: ${weight.toFixed(2)} kg`);
+      } else if (type === 'after' && tray === currentTray) {
+        // Update after weight for current tray
+        const updatedAfterWeights = { ...savedAfterWeights };
+        updatedAfterWeights[tray] = { ...updatedAfterWeights[tray], after: weight };
+        setSavedAfterWeights(updatedAfterWeights);
+        showToast('info', `Tray ${tray} after weight updated: ${weight.toFixed(2)} kg`);
+      }
+    };
+
+    // Register event listeners
+    window.addEventListener('weightDataUpdated', handleWeightDataUpdate);
+    socket.on('history:weight_updated', handleWeightUpdateFromSocket);
+
+    // Cleanup listeners on unmount
+    return () => {
+      window.removeEventListener('weightDataUpdated', handleWeightDataUpdate);
+      socket.off('history:weight_updated', handleWeightUpdateFromSocket);
+    };
+  }, [socket, currentTray, savedWeights, savedAfterWeights, showToast]);
 
   // Send notifications for average moisture calculations
   useEffect(() => {

@@ -29,25 +29,39 @@ const Header = () => (
 );
 
 interface LiveLineGraphProps {
-  data: number[];
+  data: ChartDataPoint[];
   color: string;
   unit: string;
   minValue: number;
   maxValue: number;
 }
 
+//  Sanitize a number — replace Infinity, -Infinity, NaN with fallback
+const sanitize = (val: number, fallback: number = 0): number => {
+  if (!isFinite(val) || isNaN(val)) return fallback;
+  return val;
+};
+
 const LiveLineGraph: FC<LiveLineGraphProps> = ({ data, color, unit, minValue, maxValue }) => {
   const safeData = Array.isArray(data) ? data : [];
-  const chartData = safeData.length >= 2 ? safeData : [minValue, minValue];
+
+  // Sanitize every chart value before passing to LineChart
+  const chartValues = safeData.length > 0
+    ? safeData.map(point => sanitize(point.value, minValue))
+    : [minValue]; // fallback so chart doesn't crash on empty data
+
+  const chartLabels = safeData.length > 0
+    ? safeData.map((_, i) => (i % 5 === 0 ? safeData[i]?.time || '' : ''))
+    : [''];
 
   return (
     <LineChart
       data={{
-        labels: [], //chartData.map((_, i) => (i % 5 === 0 ? i.toString() : ''))
+        labels: chartLabels,
         datasets: [
-          { data: chartData },
-          { data: [minValue], withDots: false },
-          { data: [maxValue], withDots: false },
+          { data: chartValues },
+          { data: [sanitize(minValue, 0)], withDots: false },
+          { data: [sanitize(maxValue, 100)], withDots: false },
         ],
       }}
       width={screenWidth - 40}
@@ -79,9 +93,12 @@ const LiveLineGraph: FC<LiveLineGraphProps> = ({ data, color, unit, minValue, ma
   );
 };
 
-const latestValue = (arr: number[], unit: string): string => {
+const latestValue = (arr: ChartDataPoint[], unit: string): string => {
   if (!Array.isArray(arr) || arr.length === 0) return 'N/A';
-  return `${arr[arr.length - 1].toFixed(1)}${unit}`;
+  const lastValue = arr[arr.length - 1];
+  if (!lastValue || typeof lastValue.value !== 'number') return 'N/A';
+  if (!isFinite(lastValue.value) || isNaN(lastValue.value)) return 'N/A';
+  return `${lastValue.value.toFixed(1)}${unit}`;
 };
 
 interface LatestValues {
@@ -96,7 +113,36 @@ interface LatestValues {
   weight1: number | null;
 }
 
+interface ChartDataPoint {
+  time: string;
+  value: number;
+}
+
+interface ChartData {
+  moisture1: ChartDataPoint[];
+  moisture2: ChartDataPoint[];
+  moisture3: ChartDataPoint[];
+  moisture4: ChartDataPoint[];
+  moisture5: ChartDataPoint[];
+  moisture6: ChartDataPoint[];
+  humidity: ChartDataPoint[];
+  temperature: ChartDataPoint[];
+  weight1: ChartDataPoint[];
+}
+
 const MAX_POINTS = 20;
+
+//  Sanitize incoming socket number values
+const safeNum = (val: any): number | null => {
+  if (typeof val !== 'number') return null;
+  if (!isFinite(val) || isNaN(val)) return null;
+  return val;
+};
+
+const safePoint = (timestamp: string, val: any): ChartDataPoint => ({
+  time: timestamp,
+  value: sanitize(typeof val === 'number' ? val : 0),
+});
 
 const AnalyticsScreen = () => {
   const { savedWeights, savedAfterWeights } = useWeight();
@@ -107,34 +153,28 @@ const AnalyticsScreen = () => {
     humidity: null, temperature: null, weight1: null,
   });
 
-  const [chartData, setChartData] = useState({
-    moisture1: [] as number[],
-    moisture2: [] as number[],
-    moisture3: [] as number[],
-    moisture4: [] as number[],
-    moisture5: [] as number[],
-    moisture6: [] as number[],
-    humidity: [] as number[],
-    temperature: [] as number[],
-    weight1: [] as number[],
+  const [chartData, setChartData] = useState<ChartData>({
+    moisture1: [] as ChartDataPoint[],
+    moisture2: [] as ChartDataPoint[],
+    moisture3: [] as ChartDataPoint[],
+    moisture4: [] as ChartDataPoint[],
+    moisture5: [] as ChartDataPoint[],
+    moisture6: [] as ChartDataPoint[],
+    humidity: [] as ChartDataPoint[],
+    temperature: [] as ChartDataPoint[],
+    weight1: [] as ChartDataPoint[],
   });
 
-  const fmt = (val: number | null, unit: string): string =>
-    val === null ? 'N/A' : `${Number(val).toFixed(1)}${unit}`;
+  const fmt = (val: number | null, unit: string): string => {
+    if (val === null) return 'N/A';
+    if (!isFinite(val) || isNaN(val)) return 'N/A';
+    return `${Number(val).toFixed(1)}${unit}`;
+  };
 
   useEffect(() => {
     console.log('Analytics: Attempting to connect to socket...');
 
-    const getSocketURL = () => {
-      // Try local Raspberry Pi first, then fallback to ngrok
-      const urls = [
-        'http://192.168.0.109:5001',
-        'https://objurgatory-darrell-nonconversantly.ngrok-free.dev'
-      ];
-      return urls[0]; // Will try first URL, fallback can be implemented if needed
-    };
-
-    const SOCKET_URL = getSocketURL();
+    const SOCKET_URL = 'https://mala-backend-u0gt.onrender.com';
 
     const socket = io(SOCKET_URL, {
       transports: ['websocket', 'polling'],
@@ -158,28 +198,32 @@ const AnalyticsScreen = () => {
     socket.on('sensor_readings_table', (data) => {
       console.log('Analytics: Sensor data received:', data);
 
+      const timestamp = new Date(data.timestamp || Date.now()).toLocaleTimeString();
+
+      //  Use safeNum to filter out Infinity/NaN before storing
       setLatestValuesFromSocket({
-        moisture1:   typeof data.moisture1   === 'number' ? data.moisture1   : null,
-        moisture2:   typeof data.moisture2   === 'number' ? data.moisture2   : null,
-        moisture3:   typeof data.moisture3   === 'number' ? data.moisture3   : null,
-        moisture4:   typeof data.moisture4   === 'number' ? data.moisture4   : null,
-        moisture5:   typeof data.moisture5   === 'number' ? data.moisture5   : null,
-        moisture6:   typeof data.moisture6   === 'number' ? data.moisture6   : null,
-        humidity:    typeof data.humidity    === 'number' ? data.humidity    : null,
-        temperature: typeof data.temperature === 'number' ? data.temperature : null,
-        weight1:     typeof data.weight1     === 'number' ? data.weight1     : null,
+        moisture1:   safeNum(data.moisture1),
+        moisture2:   safeNum(data.moisture2),
+        moisture3:   safeNum(data.moisture3),
+        moisture4:   safeNum(data.moisture4),
+        moisture5:   safeNum(data.moisture5),
+        moisture6:   safeNum(data.moisture6),
+        humidity:    safeNum(data.humidity),
+        temperature: safeNum(data.temperature),
+        weight1:     safeNum(data.weight1),
       });
 
+      // ✅ Use safePoint to sanitize chart values before pushing
       setChartData(prev => ({
-        moisture1:   [...prev.moisture1,   typeof data.moisture1   === 'number' ? data.moisture1   : 0].slice(-MAX_POINTS),
-        moisture2:   [...prev.moisture2,   typeof data.moisture2   === 'number' ? data.moisture2   : 0].slice(-MAX_POINTS),
-        moisture3:   [...prev.moisture3,   typeof data.moisture3   === 'number' ? data.moisture3   : 0].slice(-MAX_POINTS),
-        moisture4:   [...prev.moisture4,   typeof data.moisture4   === 'number' ? data.moisture4   : 0].slice(-MAX_POINTS),
-        moisture5:   [...prev.moisture5,   typeof data.moisture5   === 'number' ? data.moisture5   : 0].slice(-MAX_POINTS),
-        moisture6:   [...prev.moisture6,   typeof data.moisture6   === 'number' ? data.moisture6   : 0].slice(-MAX_POINTS),
-        humidity:    [...prev.humidity,    typeof data.humidity    === 'number' ? data.humidity    : 0].slice(-MAX_POINTS),
-        temperature: [...prev.temperature, typeof data.temperature === 'number' ? data.temperature : 0].slice(-MAX_POINTS),
-        weight1:     [...prev.weight1,     typeof data.weight1     === 'number' ? data.weight1     : 0].slice(-MAX_POINTS),
+        moisture1:   [...prev.moisture1,   safePoint(timestamp, data.moisture1)].slice(-MAX_POINTS),
+        moisture2:   [...prev.moisture2,   safePoint(timestamp, data.moisture2)].slice(-MAX_POINTS),
+        moisture3:   [...prev.moisture3,   safePoint(timestamp, data.moisture3)].slice(-MAX_POINTS),
+        moisture4:   [...prev.moisture4,   safePoint(timestamp, data.moisture4)].slice(-MAX_POINTS),
+        moisture5:   [...prev.moisture5,   safePoint(timestamp, data.moisture5)].slice(-MAX_POINTS),
+        moisture6:   [...prev.moisture6,   safePoint(timestamp, data.moisture6)].slice(-MAX_POINTS),
+        humidity:    [...prev.humidity,    safePoint(timestamp, data.humidity)].slice(-MAX_POINTS),
+        temperature: [...prev.temperature, safePoint(timestamp, data.temperature)].slice(-MAX_POINTS),
+        weight1:     [...prev.weight1,     safePoint(timestamp, data.weight1)].slice(-MAX_POINTS),
       }));
     });
 
@@ -252,11 +296,11 @@ const AnalyticsScreen = () => {
                 <View style={styles.sensorRow}>
                   <Text style={styles.sensorLabel}>Sensor {i}</Text>
                   <Text style={styles.sensorValue}>
-                    {latestValue(chartData[`moisture${i}` as keyof typeof chartData] as number[], '%')}
+                    {latestValue(chartData[`moisture${i}` as keyof ChartData], '%')}
                   </Text>
                 </View>
                 <LiveLineGraph
-                  data={chartData[`moisture${i}` as keyof typeof chartData] as number[]}
+                  data={chartData[`moisture${i}` as keyof ChartData]}
                   color={moistureColors[i - 1]}
                   unit="%"
                   minValue={0}

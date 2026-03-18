@@ -7,12 +7,14 @@ import {
   TextStyle,
   ScrollView,
   Switch,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import React, { useState, useEffect } from 'react';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useNotificationServiceNative, NotificationSettings } from '../../services/Usenotificationservicenative';
 
 interface Notifications {
   webNotifications: boolean;
@@ -24,8 +26,7 @@ interface Notifications {
   weightAlerts: boolean;
 }
 
-const defaultNotifications: Notifications = {
-  webNotifications: true,
+const defaultNotifications: NotificationSettings = {
   mobileNotifications: false,
   systemAlerts: true,
   moistureAlerts: true,
@@ -36,40 +37,68 @@ const defaultNotifications: Notifications = {
 
 const editnotificationscreen: React.FC = () => {
   const navigation = useNavigation();
-  const [notifications, setNotifications] = useState<Notifications>(defaultNotifications);
+  const apiBaseUrl = __DEV__ 
+    ? 'http://192.168.86.255:5001'
+    : 'https://mala-backend-u0gt.onrender.com';
 
-  // Load notification settings from AsyncStorage on mount
+  const {
+    notificationSettings,
+    updateNotificationSettings,
+    requestNotificationPermission,
+    fcmToken,
+  } = useNotificationServiceNative(apiBaseUrl);
+
+  const [localSettings, setLocalSettings] = useState<NotificationSettings>(defaultNotifications);
+
+  // Load notification settings from service on mount
   useEffect(() => {
-    loadNotificationSettings();
-  }, []);
+    setLocalSettings(notificationSettings);
+  }, [notificationSettings]);
 
-  // Save notification settings whenever they change
-  useEffect(() => {
-    saveNotificationSettings();
-  }, [notifications]);
-
-  const loadNotificationSettings = async () => {
-    try {
-      const saved = await AsyncStorage.getItem('notificationSettings');
-      if (saved) {
-        setNotifications(JSON.parse(saved));
+  // Handle mobile notification toggle with permission request
+  const handleMobileNotificationToggle = async () => {
+    const newValue = !localSettings.mobileNotifications;
+    
+    if (newValue) {
+      // Request permission when enabling mobile notifications
+      const hasPermission = await requestNotificationPermission();
+      if (!hasPermission) {
+        Alert.alert(
+          'Permission Required',
+          'Mobile notifications require permission to send alerts. Please enable notification permissions in your device settings.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Try Again', onPress: handleMobileNotificationToggle }
+          ]
+        );
+        return;
       }
-    } catch (error) {
-      console.error('Error loading notification settings:', error);
-      setNotifications(defaultNotifications);
+      
+      if (!fcmToken) {
+        Alert.alert(
+          'Setup Required',
+          'Firebase Cloud Messaging is being configured. Please try again in a moment.',
+          [{ text: 'OK', style: 'default' }]
+        );
+        return;
+      }
     }
+
+    // Update local state immediately
+    setLocalSettings(prev => ({ ...prev, mobileNotifications: newValue }));
+    
+    // Update service settings
+    await updateNotificationSettings({ mobileNotifications: newValue });
   };
 
-  const saveNotificationSettings = async () => {
-    try {
-      await AsyncStorage.setItem('notificationSettings', JSON.stringify(notifications));
-    } catch (error) {
-      console.error('Error saving notification settings:', error);
+  const handleNotificationToggle = async (field: keyof NotificationSettings) => {
+    if (field === 'mobileNotifications') {
+      await handleMobileNotificationToggle();
+    } else {
+      const newValue = !localSettings[field];
+      setLocalSettings(prev => ({ ...prev, [field]: newValue }));
+      await updateNotificationSettings({ [field]: newValue });
     }
-  };
-
-  const handleNotificationToggle = (field: keyof Notifications) => {
-    setNotifications((prev) => ({ ...prev, [field]: !prev[field] }));
   };
 
   return (
@@ -102,37 +131,15 @@ const editnotificationscreen: React.FC = () => {
                 <View style={styles.notificationItem}>
                   <View style={styles.notificationInfo}>
                     <Text style={styles.notificationTitle}>
-                      Web Alert Notification
-                    </Text>
-                    <Text style={styles.notificationDescription}>
-                      Receive notifications via web
-                    </Text>
-                  </View>
-                  <Switch
-                    value={notifications.webNotifications}
-                    onValueChange={() =>
-                      handleNotificationToggle('webNotifications')
-                    }
-                    trackColor={{ false: '#D1D1D6', true: '#34C759' }}
-                    thumbColor="#FFFFFF"
-                    ios_backgroundColor="#D1D1D6"
-                  />
-                </View>
-
-                <View style={styles.notificationItem}>
-                  <View style={styles.notificationInfo}>
-                    <Text style={styles.notificationTitle}>
                       Mobile Alert Notification
                     </Text>
                     <Text style={styles.notificationDescription}>
-                      Receive notifications via mobile
+                      Receive notifications via mobile app
                     </Text>
                   </View>
                   <Switch
-                    value={notifications.mobileNotifications}
-                    onValueChange={() =>
-                      handleNotificationToggle('mobileNotifications')
-                    }
+                    value={localSettings.mobileNotifications}
+                    onValueChange={() => handleNotificationToggle('mobileNotifications')}
                     trackColor={{ false: '#D1D1D6', true: '#34C759' }}
                     thumbColor="#FFFFFF"
                     ios_backgroundColor="#D1D1D6"
@@ -152,10 +159,8 @@ const editnotificationscreen: React.FC = () => {
                     </Text>
                   </View>
                   <Switch
-                    value={notifications.systemAlerts}
-                    onValueChange={() =>
-                      handleNotificationToggle('systemAlerts')
-                    }
+                    value={localSettings.systemAlerts}
+                    onValueChange={() => handleNotificationToggle('systemAlerts')}
                     trackColor={{ false: '#D1D1D6', true: '#34C759' }}
                     thumbColor="#FFFFFF"
                     ios_backgroundColor="#D1D1D6"
@@ -172,10 +177,8 @@ const editnotificationscreen: React.FC = () => {
                     </Text>
                   </View>
                   <Switch
-                    value={notifications.moistureAlerts}
-                    onValueChange={() =>
-                      handleNotificationToggle('moistureAlerts')
-                    }
+                    value={localSettings.moistureAlerts}
+                    onValueChange={() => handleNotificationToggle('moistureAlerts')}
                     trackColor={{ false: '#D1D1D6', true: '#34C759' }}
                     thumbColor="#FFFFFF"
                     ios_backgroundColor="#D1D1D6"
@@ -192,10 +195,8 @@ const editnotificationscreen: React.FC = () => {
                     </Text>
                   </View>
                   <Switch
-                    value={notifications.humidityAlerts}
-                    onValueChange={() =>
-                      handleNotificationToggle('humidityAlerts')
-                    }
+                    value={localSettings.humidityAlerts}
+                    onValueChange={() => handleNotificationToggle('humidityAlerts')}
                     trackColor={{ false: '#D1D1D6', true: '#34C759' }}
                     thumbColor="#FFFFFF"
                     ios_backgroundColor="#D1D1D6"
@@ -212,10 +213,8 @@ const editnotificationscreen: React.FC = () => {
                     </Text>
                   </View>
                   <Switch
-                    value={notifications.temperatureAlerts}
-                    onValueChange={() =>
-                      handleNotificationToggle('temperatureAlerts')
-                    }
+                    value={localSettings.temperatureAlerts}
+                    onValueChange={() => handleNotificationToggle('temperatureAlerts')}
                     trackColor={{ false: '#D1D1D6', true: '#34C759' }}
                     thumbColor="#FFFFFF"
                     ios_backgroundColor="#D1D1D6"
@@ -230,10 +229,8 @@ const editnotificationscreen: React.FC = () => {
                     </Text>
                   </View>
                   <Switch
-                    value={notifications.weightAlerts}
-                    onValueChange={() =>
-                      handleNotificationToggle('weightAlerts')
-                    }
+                    value={localSettings.weightAlerts}
+                    onValueChange={() => handleNotificationToggle('weightAlerts')}
                     trackColor={{ false: '#D1D1D6', true: '#34C759' }}
                     thumbColor="#FFFFFF"
                     ios_backgroundColor="#D1D1D6"
@@ -258,6 +255,7 @@ interface Styles {
   profileSection: ViewStyle;
   sectionHeader: ViewStyle;
   sectionTitle: TextStyle;
+  statusText: TextStyle;
   notificationSettings: ViewStyle;
   notificationGroup: ViewStyle;
   groupTitle: TextStyle;
@@ -309,6 +307,12 @@ const styles = StyleSheet.create<Styles>({
     fontSize: 22,
     fontWeight: '700',
     color: '#000000',
+  },
+  statusText: {
+    fontSize: 14,
+    color: '#27AE60',
+    fontWeight: '600',
+    marginTop: 8,
   },
   notificationSettings: {
     gap: 24,

@@ -151,10 +151,11 @@ const sendNotificationToMultiple = async (userIds, notificationData) => {
  * @param {Number} dryingData.temperature - Target temperature
  * @param {Number} dryingData.moisture - Target moisture
  * @param {Number} dryingData.dryingSeconds - Duration in seconds
+ * @param {Object} dryingData.sensorData - Enhanced sensor readings with tray info
  */
 const sendDryingNotification = async (dryingData) => {
   try {
-    const { eventType, temperature, moisture, dryingSeconds } = dryingData;
+    const { eventType, temperature, moisture, dryingSeconds, sensorData } = dryingData;
 
     let title, message;
     if (eventType === 'started') {
@@ -164,7 +165,26 @@ const sendDryingNotification = async (dryingData) => {
       const hours = Math.floor(dryingSeconds / 3600);
       const minutes = Math.floor((dryingSeconds % 3600) / 60);
       title = 'Drying Process Completed';
-      message = `Duration: ${hours}h ${minutes}m`;
+      
+      // Enhanced message based on tray selection and moisture target
+      const selectedTrays = sensorData?.selectedTrays || [];
+      const targetMoisture = sensorData?.targetMoisture || 14;
+      const moistureTargetReached = sensorData?.moistureTargetReached || false;
+      const weightChange = sensorData?.weightChange || 0;
+      
+      if (selectedTrays.length > 0) {
+        if (moistureTargetReached) {
+          message = `Duration: ${hours}h ${minutes}m | Target moisture ${targetMoisture}% reached for selected trays`;
+        } else {
+          message = `Duration: ${hours}h ${minutes}m | Stopped manually - Target moisture ${targetMoisture}% not yet reached`;
+        }
+        
+        if (weightChange > 0) {
+          message += ` | Avg weight loss: ${weightChange.toFixed(1)}kg per tray`;
+        }
+      } else {
+        message = `Duration: ${hours}h ${minutes}m | No trays selected`;
+      }
     }
 
     // Get all users and collect valid FCM tokens
@@ -177,17 +197,34 @@ const sendDryingNotification = async (dryingData) => {
       console.warn("No valid FCM tokens found for drying notification");
     }
 
+    // Prepare enhanced sensor data for notification
+    const notificationSensorData = sensorData || {
+      temperature,
+      moisture,
+      humidity: 0,
+      moistureavg: 0,
+      moisture1: 0,
+      moisture2: 0,
+      moisture3: 0,
+      moisture4: 0,
+      moisture5: 0,
+      moisture6: 0,
+      weight1: 0,
+      weight2: 0,
+      selectedTrays: [],
+      targetMoisture: 14,
+      targetTemperature: 40,
+      moistureTargetReached: false,
+      weightChange: 0
+    };
+
     // Save notification to database
     const dbNotification = new Notification({
       type: "STABLE",
       event: eventType === 'started' ? "DRYING_STARTED" : "DRYING_COMPLETED",
       title,
       message,
-      sensorData: {
-        temperature,
-        moisture,
-        dryingSeconds
-      },
+      sensorData: notificationSensorData,
       system: "MALA",
       isRead: false
     });

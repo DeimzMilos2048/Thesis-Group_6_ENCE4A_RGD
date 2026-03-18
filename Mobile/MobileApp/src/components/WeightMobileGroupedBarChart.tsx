@@ -109,7 +109,7 @@ const WeightMobileGroupedBarChart: React.FC<WeightMobileGroupedBarChartProps> = 
           </Text>
         </View>
 
-        {beforeDryingData && beforeDryingData.length > 0 ? (
+        {beforeDryingData && beforeDryingData.some(val => val > 0) ? (
           <View style={styles.chartContainer}>
             <BarChart
               data={chartData_formatted}
@@ -149,7 +149,7 @@ const WeightMobileGroupedBarChart: React.FC<WeightMobileGroupedBarChartProps> = 
         )}
 
         {/* Summary Stats */}
-        {statsData && statsData.length > 0 && (
+        {statsData && statsData.some(item => item.reduction > 0) && (
           <View style={styles.statsContainer}>
             <Text style={styles.statsTitle}>Weight Loss Summary</Text>
             <View style={styles.statsGrid}>

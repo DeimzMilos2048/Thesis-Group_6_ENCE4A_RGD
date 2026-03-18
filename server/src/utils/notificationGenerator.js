@@ -46,7 +46,7 @@ export const evaluateSensorData = async (sensorData) => {
     for (let i = 1; i <= 6; i++) {
       const moistureKey = `moisture${i}`;
       if (sensorData[moistureKey] !== undefined) {
-        const trayNotif = evaluateMoisture(sensorData[moistureKey], i);
+        const trayNotif = evaluateMoisture(sensorData[moistureKey], i, sensorData);
         if (trayNotif) {
           generatedNotifications.push(trayNotif);
         }
@@ -138,18 +138,52 @@ const evaluateHumidity = (humidity) => {
 };
 
 /**
+ * Format sensor data for notification message
+ */
+const formatSensorData = (sensorData) => {
+  const temp = sensorData.temperature ?? null;
+  const humidity = sensorData.humidity ?? null;
+  const moisture1 = sensorData.moisture1 ?? null;
+  const moisture2 = sensorData.moisture2 ?? null;
+  const weight1 = sensorData.weight1 ?? null;
+  const weight2 = sensorData.weight2 ?? null;
+
+  // Format sensor values with proper fallbacks
+  const tempStr = temp !== null && temp !== 0 ? `${temp.toFixed(1)}°C` : 'N/A°C';
+  const humidityStr = humidity !== null && humidity !== 0 ? `${humidity.toFixed(1)}%` : 'N/A%';
+  const moisture1Str = moisture1 !== null && moisture1 !== 0 ? `${moisture1.toFixed(1)}%` : 'N/A%';
+  const moisture2Str = moisture2 !== null && moisture2 !== 0 ? `${moisture2.toFixed(1)}%` : 'N/A%';
+  const weight1Str = weight1 !== null && weight1 !== 0 ? `${weight1.toFixed(2)}kg` : 'N/Akg';
+  const weight2Str = weight2 !== null && weight2 !== 0 ? `${weight2.toFixed(2)}kg` : 'N/Akg';
+
+  // Build sensor data summary
+  return [
+    tempStr,
+    `M1: ${moisture1Str}`,
+    `M2: ${moisture2Str}`,
+    humidityStr,
+    `W1: ${weight1Str}`,
+    `W2: ${weight2Str}`
+  ].join('\n');
+};
+
+/**
  * Evaluate moisture per tray and generate notification
  */
-const evaluateMoisture = (moisture, trayNumber) => {
+const evaluateMoisture = (moisture, trayNumber, sensorData) => {
   if (moisture <= THRESHOLDS.MOISTURE_TARGET) {
+    const baseMessage = `Tray ${trayNumber} has reached drying threshold (${moisture}%). Please remove the tray.`;
+    const sensorSummary = formatSensorData(sensorData);
+    
     return {
       type: 'CRITICAL',
       event: 'MOISTURE_TARGET_REACHED',
       title: `✓ Tray ${trayNumber} Ready`,
-      message: `Tray ${trayNumber} has reached drying threshold (${moisture}%). Please remove the tray.`,
+      message: `${baseMessage}\n\n${sensorSummary}`,
       source: 'SENSOR',
       deviceId: 'ESP32_001',
       tray_number: trayNumber,
+      sensorData: sensorData
     };
   }
   return null;
@@ -205,6 +239,29 @@ const evaluateDryingStatus = (status) => {
     };
   }
   return null;
+};
+
+/**
+ * Generate notification for stop button pressed
+ */
+export const generateStopNotification = (sensorData) => {
+  try {
+    const baseMessage = 'Drying process stopped by user. Current sensor readings:';
+    const sensorSummary = formatSensorData(sensorData);
+    
+    return {
+      type: 'INFO',
+      event: 'DRYING_STOPPED',
+      title: 'Drying Stopped',
+      message: `${baseMessage}\n\n${sensorSummary}`,
+      source: 'USER',
+      deviceId: 'ESP32_001',
+      sensorData: sensorData
+    };
+  } catch (error) {
+    console.error('Error generating stop notification:', error);
+    return null;
+  }
 };
 
 /**

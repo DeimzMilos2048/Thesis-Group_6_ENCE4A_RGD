@@ -96,12 +96,112 @@
   color: #ffffff;
 }
 
-.status.stopped {
-  background: #9CA3AF;
-  color: #ffffff;
-}
-
 .status.running {
   background: #3B82F6;
   color: #ffffff;
+}
+
+/* Selected tray highlighting */
+.selected-tray {
+  background-color: #dcfce7 !important;
+  border: 2px solid #16a34a !important;
+  color: #166534 !important;
+  font-weight: 700 !important;
+  transform: scale(1.02);
+  box-shadow: 0 0 2px rgba(22, 163, 74, 0.1);
+}
+
+.history-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.history-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+}
+
+.history-search-bar {
+  padding: 8px 14px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 14px;
+  width: 220px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.history-search-bar:focus {
+  border-color: #6366f1;
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.15);
+}
+
+.export-excel-btn {
+  background-color: #16a34a;
+  color: white;
+}
+
+.export-excel-btn:hover {
+  background-color: #15803d;
+}
+
+.export-graph-btn {
+  background-color: #2563eb;
+  color: white;
+}
+
+.export-graph-btn:hover {
+  background-color: #1d4ed8;
+}
+
+.delete-btn {
+  background-color: #dc2626;
+  color: white;
+}
+
+.delete-btn:hover {
+  background-color: #b91c1c;
+}
+
+.save-btn {
+  background-color: #2563eb;
+  color: white;
+}
+
+.save-btn:hover {
+  background-color: #2563eb;
+}
+
+.saved-filter-btn {
+  background-color: #6b7280;
+  color: white;
+  display: flex;
+  align-items: center;
+}
+
+.saved-filter-btn:hover {
+  background-color: #4b5563;
+}
+
+.saved-filter-btn.active {
+  background-color: #2563eb;
+  color: white;
+}
+
+.saved-filter-btn.active:hover {
+  background-color: #2563eb;
+}
+
+.modal-button.confirm.delete {
+  background-color: #dc2626;
+  color: white;
+}
+
+.modal-button.confirm.delete:hover {
+  background-color: #b91c1c;
 }

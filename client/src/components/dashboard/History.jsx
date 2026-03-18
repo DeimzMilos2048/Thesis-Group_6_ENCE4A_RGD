@@ -1,43 +1,19 @@
 // history
 
-import { useState, useEffect } from 'react';
-import { Activity, AlertTriangle, BarChart2, Bell, CircleUser, Clock, LogOut, Thermometer, Droplets, Waves, ChevronDown, ChevronUp, User, HelpCircle, Settings, Download } from 'lucide-react';
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend, BarChart, Bar } from 'recharts';
+import { useState, useEffect, useRef } from 'react';
+import { Activity, BarChart2, Bell, CircleUser, Clock, AlertTriangle, LogOut, ChevronDown, ChevronUp, User, HelpCircle, Settings, Download, Trash2, Bookmark } from 'lucide-react';
 import './Dashboard.css';
 import './History.css';
+import * as XLSX from 'xlsx';
+import jsPDF from 'jspdf';
 import { useNavigate, useLocation } from 'react-router-dom';
 import authService from '../../api/authService';
 import dryerService from '../../api/dryerService';
 import logo from "../../assets/images/logo2.png";
-import { useSocket } from '../../contexts/SocketContext.js';
-import { useWeight } from '../../contexts/WeightContext.js';
 import useNotificationService from './Usenotificationservice.js';
-import * as XLSX from 'xlsx';
-import html2canvas from 'html2canvas';
-import jsPDF from 'jspdf';
+import { useSocket } from '../../contexts/SocketContext.js';
 
-// ── Helper: generate synthetic time-series data ──────────────────────────────
-const generateTimeSeriesData = (startValue, endValue, points = 20, variance = 0.1) => {
-  const data = [];
-  for (let i = 0; i < points; i++) {
-    const progress = i / (points - 1);
-    const baseValue = startValue + (endValue - startValue) * progress;
-    const variation = (Math.random() - 0.5) * variance * startValue;
-    data.push(baseValue + variation);
-  }
-  return data;
-};
-
-// ── Helper: build evenly-spaced time labels between two ISO timestamps ────────
-const buildTimeLabels = (isoStart, isoEnd, points = 20) => {
-  const start = isoStart ? new Date(isoStart) : (() => { const d = new Date(); d.setHours(d.getHours() - 2); return d; })();
-  const end   = isoEnd   ? new Date(isoEnd)   : new Date();
-  const totalMs = end - start;
-  return Array.from({ length: points }, (_, i) => {
-    const t = new Date(start.getTime() + (i / (points - 1)) * totalMs);
-    return t.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
-  });
-};
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
 export default function History({ view }) {
 
@@ -47,53 +23,20 @@ export default function History({ view }) {
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const [historyData, setHistoryData] = useState([]);
-  const [isMonitoringMoisture, setIsMonitoringMoisture] = useState(false);
-  const [targetMoistureReached, setTargetMoistureReached] = useState(false);
-  const [currentMoisture, setCurrentMoisture] = useState(null);
-
-  // dryingStartTime / dryingEndTime track the *active* session in progress.
-  // They are initialised from localStorage so the History page stays in sync
-  // even when the user navigated away from the Dashboard while drying.
-  const [dryingStartTime, setDryingStartTime] = useState(
-    () => localStorage.getItem('dryingStartTime') || null
-  );
-  const [dryingEndTime, setDryingEndTime] = useState(
-    () => localStorage.getItem('dryingEndTime') || null
-  );
-
-  const [selectedRow, setSelectedRow] = useState(null);
-  const [isDrying, setIsDrying] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedRecords, setSelectedRecords] = useState([]);
+  const [savedRecords, setSavedRecords] = useState([]);
+  const [showSavedOnly, setShowSavedOnly] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const chartRef = useRef(null);
   const navigate = useNavigate();
   const location = useLocation();
 
+  // Add socket for real-time sync with mobile
+  const { socket } = useSocket();
+
+  // Add notification service for badge
   const { unreadCount } = useNotificationService(null, 15000);
-  const { socket, sensorData } = useSocket();
-  const { savedWeights, savedAfterWeights } = useWeight();
-
-  const selectedTrays = Object.keys(savedWeights).filter(trayNum => savedWeights[trayNum]?.frozen);
-  const selectedTraysCount = selectedTrays.length;
-
-  let totalMoisture = 0;
-  selectedTrays.forEach(trayNum => {
-    totalMoisture += sensorData[`moisture${trayNum}`] || 0;
-  });
-  const averageMoistureFromSelected = selectedTraysCount > 0 ? totalMoisture / selectedTraysCount : 0;
-
-  // ── Keep dryingStartTime / dryingEndTime in sync with localStorage ───────────
-  // The Dashboard writes 'dryingStartTime' when Start is pressed and
-  // 'dryingEndTime' when Stop is pressed (or auto-stop triggers).
-  useEffect(() => {
-    const syncTimes = () => {
-      const storedStart = localStorage.getItem('dryingStartTime');
-      const storedEnd   = localStorage.getItem('dryingEndTime');
-      if (storedStart) setDryingStartTime(storedStart);
-      if (storedEnd)   setDryingEndTime(storedEnd);
-    };
-    syncTimes();
-    // Poll every 5 s so the History page picks up changes made on other tabs/pages
-    const interval = setInterval(syncTimes, 5000);
-    return () => clearInterval(interval);
-  }, []);
 
   useEffect(() => {
     const path = location.pathname;
@@ -109,6 +52,12 @@ export default function History({ view }) {
       setActiveTab('dashboard');
     }
   }, [location]);
+
+  useEffect(() => {
+    // Load saved records from localStorage
+    const saved = JSON.parse(localStorage.getItem('savedHistoryRecords') || '[]');
+    setSavedRecords(saved.map(record => record.id));
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -146,6 +95,9 @@ export default function History({ view }) {
           }
         });
 
+        console.log('Response status:', response.status);
+        console.log('Response headers:', response.headers.get('content-type'));
+
         if (!response.ok) {
           const contentType = response.headers.get('content-type');
           if (contentType && contentType.includes('text/html')) {
@@ -172,91 +124,97 @@ export default function History({ view }) {
         const result = await response.json();
 
         if (isMounted) {
-          let rawData = [];
+          console.log('History API Response:', result);
+
+          let sensorData = [];
           if (result.success && result.data) {
-            rawData = result.data;
+            sensorData = result.data;
           } else if (Array.isArray(result)) {
-            rawData = result;
+            sensorData = result;
           } else if (result.data) {
-            rawData = result.data;
+            sensorData = result.data;
+          } else {
+            console.warn('Unexpected response structure:', result);
+            sensorData = [];
           }
 
-          if (!Array.isArray(rawData)) {
+          if (!Array.isArray(sensorData)) {
+            console.error('History API: Expected array but got:', typeof sensorData, sensorData);
             setError('Invalid data format received from server');
             setLoading(false);
             return;
           }
 
-          const safeToString = (value, fallback = 'N/A') => {
-            if (value !== undefined && value !== null) {
-              const num = parseFloat(value);
-              return isNaN(num) ? value.toString() : num.toFixed(2);
-            }
-            return fallback;
+          const safeToString = (value, fallback = 'N/A') =>
+            value !== undefined && value !== null ? value.toString() : fallback;
+
+          // Helper function to format numbers with 2 decimal places
+          const formatNumber = (value) => {
+            const num = parseFloat(value);
+            return isNaN(num) ? 'N/A' : num.toFixed(2);
           };
 
-          const formattedData = rawData.map((item, index) => {
-            // ── Resolve raw ISO strings for start/end ─────────────────────────
-            // Priority: explicit startTime field → timestamp field → null
-            const rawStartISO = item.startTime || item.timestamp || null;
-            // Priority: explicit endTime field → null (session may still be open)
-            const rawEndISO   = item.endTime || null;
-
+          const formattedData = sensorData.map((item, index) => {
             return {
               id: item._id || item.id || index + 1,
 
-              // Human-readable display strings for the table
-              date: rawStartISO
-                ? new Date(rawStartISO).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })
-                : 'N/A',
-              startTime: rawStartISO
-                ? new Date(rawStartISO).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })
-                : 'N/A',
-              endTime: rawEndISO
-                ? new Date(rawEndISO).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })
-                : '—',
+              // Date & Time - use backend formatted values directly
+              date: item.date || 'N/A',
+              startTime: item.startTime || 'N/A',
+              endTime: item.endTime || '—',
 
-              // ── Raw ISO strings kept for graph x-axis calculations ─────────
-              startTimeISO: rawStartISO,
-              endTimeISO:   rawEndISO,
+              // Initial Moisture per tray (T1–T6)
+              initialMoistureT1: formatNumber(item.moisture1),
+              initialMoistureT2: formatNumber(item.moisture2),
+              initialMoistureT3: formatNumber(item.moisture3),
+              initialMoistureT4: formatNumber(item.moisture4),
+              initialMoistureT5: formatNumber(item.moisture5),
+              initialMoistureT6: formatNumber(item.moisture6),
 
-              initialMoistureT1: safeToString(item.moisture1),
-              initialMoistureT2: safeToString(item.moisture2),
-              initialMoistureT3: safeToString(item.moisture3),
-              initialMoistureT4: safeToString(item.moisture4),
-              initialMoistureT5: safeToString(item.moisture5),
-              initialMoistureT6: safeToString(item.moisture6),
-              finalMoistureT1: safeToString(item.finalMoisture1 ?? item.moisture1End),
-              finalMoistureT2: safeToString(item.finalMoisture2 ?? item.moisture2End),
-              finalMoistureT3: safeToString(item.finalMoisture3 ?? item.moisture3End),
-              finalMoistureT4: safeToString(item.finalMoisture4 ?? item.moisture4End),
-              finalMoistureT5: safeToString(item.finalMoisture5 ?? item.moisture5End),
-              finalMoistureT6: safeToString(item.finalMoisture6 ?? item.moisture6End),
-              moistureavg: safeToString(item.moistureavg),
-              temperature: item.temperature !== undefined ? `${parseFloat(item.temperature).toFixed(2)}°` : 'N/A',
-              humidity: item.humidity !== undefined ? parseFloat(item.humidity).toFixed(2) : 'N/A',
-              beforeWeightT1: safeToString(item.weight1_t1 ?? item.weight1),
-              beforeWeightT2: safeToString(item.weight1_t2 ?? item.weight1),
-              beforeWeightT3: safeToString(item.weight1_t3 ?? item.weight1),
-              beforeWeightT4: safeToString(item.weight1_t4 ?? item.weight1),
-              beforeWeightT5: safeToString(item.weight1_t5 ?? item.weight1),
-              beforeWeightT6: safeToString(item.weight1_t6 ?? item.weight1),
-              afterWeightT1: safeToString(item.weight2_t1 ?? item.weight2),
-              afterWeightT2: safeToString(item.weight2_t2 ?? item.weight2),
-              afterWeightT3: safeToString(item.weight2_t3 ?? item.weight2),
-              afterWeightT4: safeToString(item.weight2_t4 ?? item.weight2),
-              afterWeightT5: safeToString(item.weight2_t5 ?? item.weight2),
-              afterWeightT6: safeToString(item.weight2_t6 ?? item.weight2),
+              // Final Moisture per tray (T1–T6) - use direct moisture fields from drying session
+              finalMoistureT1: formatNumber(item.moisture1),
+              finalMoistureT2: formatNumber(item.moisture2),
+              finalMoistureT3: formatNumber(item.moisture3),
+              finalMoistureT4: formatNumber(item.moisture4),
+              finalMoistureT5: formatNumber(item.moisture5),
+              finalMoistureT6: formatNumber(item.moisture6),
+
+              // Moisture average
+              moistureavg: formatNumber(item.moistureavg),
+
+              // Temperature & Humidity
+              temperature: formatNumber(item.temperature),
+              humidity: formatNumber(item.humidity),
+
+              // Before Weight — per tray from backend
+              beforeWeightT1: formatNumber(item.weight1_t1 ?? item.weight1),
+              beforeWeightT2: formatNumber(item.weight1_t2 ?? item.weight1),
+              beforeWeightT3: formatNumber(item.weight1_t3 ?? item.weight1),
+              beforeWeightT4: formatNumber(item.weight1_t4 ?? item.weight1),
+              beforeWeightT5: formatNumber(item.weight1_t5 ?? item.weight1),
+              beforeWeightT6: formatNumber(item.weight1_t6 ?? item.weight1),
+
+              // After Weight — per tray from backend
+              afterWeightT1: formatNumber(item.weight2_t1 ?? item.weight2),
+              afterWeightT2: formatNumber(item.weight2_t2 ?? item.weight2),
+              afterWeightT3: formatNumber(item.weight2_t3 ?? item.weight2),
+              afterWeightT4: formatNumber(item.weight2_t4 ?? item.weight2),
+              afterWeightT5: formatNumber(item.weight2_t5 ?? item.weight2),
+              afterWeightT6: formatNumber(item.weight2_t6 ?? item.weight2),
+
+              // Status
               status: item.status || 'Idle',
             };
           });
 
+          console.log('Formatted History Data:', formattedData);
           setHistoryData(formattedData);
           setError(null);
           setLoading(false);
         }
       } catch (err) {
         if (isMounted) {
+          console.error('History fetch error:', err);
           setError(`Failed to load history: ${err.message}`);
           setLoading(false);
         }
@@ -271,446 +229,1027 @@ export default function History({ view }) {
     };
   }, [navigate]);
 
-  // ── Auto-stop moisture monitoring ────────────────────────────────────────────
-  useEffect(() => {
-    if (!isMonitoringMoisture || targetMoistureReached) return;
+  const handleNavigation = (path, tab) => {
+    setActiveTab(tab);
+    navigate(path);
+  };
 
-    const monitorMoisture = async () => {
-      try {
-        const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001';
-        const token = localStorage.getItem('token');
-        const response = await fetch(`${API_URL}/api/sensor/latest`, {
-          headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
-        });
-        if (!response.ok) return;
-
-        const result = await response.json();
-        const latestData = Array.isArray(result.data) ? result.data[0] : result.data;
-
-        if (latestData && latestData.moistureavg !== undefined) {
-          const avgMoisture = parseFloat(latestData.moistureavg);
-          setCurrentMoisture(avgMoisture);
-
-          if (avgMoisture <= 14 && !targetMoistureReached) {
-            // Record end time on auto-stop
-            const endISO = new Date().toISOString();
-            localStorage.setItem('dryingEndTime', endISO);
-            setDryingEndTime(endISO);
-
-            setTargetMoistureReached(true);
-            setIsMonitoringMoisture(false);
-            try {
-              const stopResponse = await dryerService.stopDrying();
-              if (stopResponse.success) {
-                setTimeout(() => { window.location.reload(); }, 1000);
-              }
-            } catch (err) {
-              console.error('Error auto-stopping drying:', err);
-            }
-          }
-        }
-      } catch (error) {
-        console.warn('Moisture monitoring error:', error);
-      }
-    };
-
-    const monitoringInterval = setInterval(monitorMoisture, 10000);
-    monitorMoisture();
-    return () => clearInterval(monitoringInterval);
-  }, [isMonitoringMoisture, targetMoistureReached]);
-
-  useEffect(() => {
-    if (selectedTraysCount > 0 && socket && socket.connected) {
-      socket.emit('moisture:average:calculated', {
-        selectedTraysCount,
-        averageMoisture: averageMoistureFromSelected,
-        selectedTrays: selectedTrays.map(trayNum => ({
-          trayNumber: trayNum,
-          moisture: sensorData[`moisture${trayNum}`] || 0
-        })),
-        timestamp: new Date().toISOString(),
-        message: `History: Average moisture calculated: ${averageMoistureFromSelected.toFixed(2)}% from ${selectedTraysCount} tray${selectedTraysCount > 1 ? 's' : ''}`
-      });
-    }
-  }, [selectedTraysCount, averageMoistureFromSelected, selectedTrays, sensorData, socket]);
-
-  const handleNavigation = (path, tab) => { setActiveTab(tab); navigate(path); };
   const handleLogoutClick = () => setShowLogoutConfirm(true);
-  const handleLogoutCancel = () => setShowLogoutConfirm(false);
 
   const handleLogoutConfirm = async () => {
     try {
-      await dryerService.stopDrying().catch(() => {});
+      // Clear local data immediately (fast operations)
       localStorage.removeItem('sensorData');
+      localStorage.removeItem('savedWeights');
+      localStorage.removeItem('savedAfterWeights');
       localStorage.removeItem('dryingStatus');
       localStorage.removeItem('dryingStartTime');
-      localStorage.removeItem('dryingEndTime');
       localStorage.removeItem('targetMoisture');
       localStorage.removeItem('targetTemperature');
-      await authService.logout();
+      
+      // Navigate to login immediately (fast operation)
       navigate('/login');
+      
+      // Call auth logout in background (don't wait for it)
+      authService.logout().catch((error) => {
+        console.warn('Background auth logout failed:', error);
+      });
+      
+      console.log('Logout initiated - local data cleared, navigating to login');
     } catch (error) {
       console.error('Logout error:', error);
+      // Always navigate to login even if there's an error
       navigate('/login');
     }
   };
 
-  const startMoistureMonitoring = () => {
-    setIsMonitoringMoisture(true);
-    setTargetMoistureReached(false);
-    setCurrentMoisture(null);
-  };
+  const handleLogoutCancel = () => setShowLogoutConfirm(false);
 
-  const stopMoistureMonitoring = () => {
-    // Record end time on manual stop
-    const endISO = new Date().toISOString();
-    localStorage.setItem('dryingEndTime', endISO);
-    setDryingEndTime(endISO);
-    setIsMonitoringMoisture(false);
-  };
-
-  // ── Excel export ────────────────────────────────────────────────────────────
-  const handleDownloadExcel = () => {
-    const worksheet = XLSX.utils.json_to_sheet(
-      historyData.map(({ startTimeISO, endTimeISO, ...rest }) => rest) // strip raw ISO from sheet
-    );
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'History');
-    XLSX.writeFile(workbook, `drying_history_${new Date().toISOString().split('T')[0]}.xlsx`);
-  };
-
-  // ── SVG chart builder ────────────────────────────────────────────────────────
-  // rowStartISO / rowEndISO: ISO strings from the specific history row being exported.
-  // Falls back to the active-session state values when not provided.
-  const buildSvgLineChart = (
-    dataSets, colors, labels, unit, minVal, maxVal,
-    width = 740, height = 280,
-    rowStartISO = null, rowEndISO = null
-  ) => {
-    const pts = dataSets[0].length;
-    const padL = 48, padR = 20, padT = 20, padB = 60;
-    const chartW = width - padL - padR;
-    const chartH = height - padT - padB;
-    const range = maxVal - minVal || 1;
-
-    const xOf = (i) => padL + (i / (pts - 1)) * chartW;
-    const yOf = (v) => padT + chartH - ((v - minVal) / range) * chartH;
-
-    // Use row-specific timestamps first, then fall back to active session state
-    const effectiveStart = rowStartISO || dryingStartTime;
-    const effectiveEnd   = rowEndISO   || dryingEndTime;
-    const timeLabels = buildTimeLabels(effectiveStart, effectiveEnd, pts);
-
-    // Y axis ticks
-    const yTicks = Array.from({ length: 5 }, (_, i) => minVal + (range / 4) * i);
-    const yTicksSvg = yTicks.map(v =>
-      `<line x1="${padL}" y1="${yOf(v)}" x2="${padL + chartW}" y2="${yOf(v)}" stroke="#e0e0e0" stroke-width="1"/>
-       <text x="${padL - 6}" y="${yOf(v)}" text-anchor="end" dominant-baseline="central" font-size="11" fill="#666">${v.toFixed(1)}</text>`
-    ).join('');
-
-    // X axis ticks (show every nth to avoid crowding)
-    const xTicks = timeLabels.map((time, i) => {
-      const xPos = xOf(i);
-      const showLabel = i % Math.ceil(pts / 8) === 0;
-      return showLabel ? `
-        <text x="${xPos}" y="${height - 35}" text-anchor="middle" font-size="10" fill="#666"
-              transform="rotate(-45 ${xPos} ${height - 35})">${time}</text>
-        <line x1="${xPos}" y1="${padT + chartH}" x2="${xPos}" y2="${padT + chartH + 5}" stroke="#ccc" stroke-width="1"/>
-      ` : '';
-    }).join('');
-
-    // Horizontal grid lines
-    const gridLines = Array.from({ length: 5 }, (_, i) =>
-      `<line x1="${padL}" y1="${yOf(minVal + (range / 4) * i)}" x2="${padL + chartW}" y2="${yOf(minVal + (range / 4) * i)}" stroke="#f0f0f0" stroke-width="1"/>`
-    ).join('');
-
-    // Data lines
-    const linesSvg = dataSets.map((data, idx) => {
-      const points = data.map((v, i) => `${xOf(i)},${yOf(v)}`).join(' ');
-      return `<polyline points="${points}" fill="none" stroke="${colors[idx]}" stroke-width="2.5" stroke-linejoin="round"/>`;
-    }).join('');
-
-    // Axes
-    const axes = `
-      <line x1="${padL}" y1="${padT}" x2="${padL}" y2="${padT + chartH}" stroke="#333" stroke-width="2"/>
-      <line x1="${padL}" y1="${padT + chartH}" x2="${padL + chartW}" y2="${padT + chartH}" stroke="#333" stroke-width="2"/>
+  // Toast notification function
+  const showToast = (message, type = 'info') => {
+    const colors = {
+      success: '#10b981',
+      error: '#ef4444',
+      warning: '#f59e0b',
+      info: '#3b82f6'
+    };
+    
+    const toast = document.createElement('div');
+    toast.style.cssText = `
+      position: fixed;
+      top: 20%;
+      left: 50%;
+      transform: translate(-50%, -50%) scale(0.8);
+      background: ${colors[type] || colors.info};
+      color: white;
+      padding: 16px 24px;
+      border-radius: 12px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+      z-index: 9999;
+      font-weight: 500;
+      min-width: 300px;
+      max-width: 500px;
+      text-align: center;
+      transition: all 0.3s ease-in-out;
+      backdrop-filter: blur(10px);
     `;
-
-    // Legend
-    const legendSvg = labels.map((lbl, i) =>
-      `<rect x="${padL + i * 100}" y="${height - 25}" width="12" height="12" fill="${colors[i]}"/>
-       <text x="${padL + i * 100 + 16}" y="${height - 15}" font-size="11" fill="#444">${lbl}${unit}</text>`
-    ).join('');
-
-    // Sub-header: show actual start → end time range
-    const rangeLabel = effectiveStart
-      ? `${new Date(effectiveStart).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })} → ${effectiveEnd ? new Date(effectiveEnd).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }) : 'In Progress'}`
-      : 'Time →';
-
-    return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" style="background:#fff;font-family:Arial">
-      ${gridLines}
-      ${axes}
-      ${yTicksSvg}
-      ${xTicks}
-      ${linesSvg}
-      <text x="${padL + chartW / 2}" y="${height - 8}" text-anchor="middle" font-size="11" fill="#555">${rangeLabel}</text>
-      <text x="${padL - 35}" y="${padT + chartH / 2}" text-anchor="middle" font-size="12" fill="#333"
-            transform="rotate(-90 ${padL - 35} ${padT + chartH / 2})">Value${unit}</text>
-      ${legendSvg}
-    </svg>`;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    
+    // Animate in
+    setTimeout(() => {
+      toast.style.transform = 'translate(-50%, -50%) scale(1)';
+    }, 100);
+    
+    // Remove after delay
+    setTimeout(() => {
+      toast.style.transform = 'translate(-50%, -50%) scale(0.8)';
+      toast.style.opacity = '0';
+      setTimeout(() => toast.remove(), 300);
+    }, 3000);
   };
 
-  // ── PDF export helper ────────────────────────────────────────────────────────
-  const exportChartAsPdf = async (svgString, filename) => {
-    const container = document.createElement('div');
-    container.style.cssText = 'position:fixed;top:-9999px;left:-9999px;background:white;padding:20px;z-index:9999;';
-    container.innerHTML = svgString;
-    document.body.appendChild(container);
-    await new Promise(r => setTimeout(r, 150));
-    try {
-      const canvas = await html2canvas(container, {
-        scale: 1.5, useCORS: true, backgroundColor: '#ffffff', logging: false
-      });
-      const pdf = new jsPDF('landscape', 'mm', 'a4');
-      const imgW = 277, imgH = (canvas.height * imgW) / canvas.width;
-      pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 10, 10, imgW, Math.min(imgH, 180));
-      pdf.save(filename);
-    } finally {
-      if (document.body.contains(container)) document.body.removeChild(container);
+  const handleDownloadExcel = () => {
+    if (selectedRecords.length === 0) {
+      showToast('Please select records to export', 'success');
+      return;
     }
-  };
 
-  // ── Per-row graph exports ────────────────────────────────────────────────────
-  // Each function passes the row's own ISO timestamps so the x-axis reflects
-  // that specific session's start → end time range.
+    const selectedData = historyData.filter(item => selectedRecords.includes(item.id));
+    
+    // Process data with PHT time conversion and enhanced formatting
+    const processedData = selectedData.map(item => {
+      // Convert times to PHT 12-hour format
+      const convertToPHT = (timeStr) => {
+        if (!timeStr || timeStr === 'N/A' || timeStr === '—') return timeStr;
+        try {
+          const date = new Date(item.date + ' ' + timeStr);
+          return date.toLocaleTimeString('en-PH', {
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: true,
+            timeZone: 'Asia/Manila'
+          });
+        } catch (error) {
+          return timeStr;
+        }
+      };
+      
+      return {
+        'ID': item.id,
+        'Date': item.date,
+        'Start Time (PHT)': convertToPHT(item.startTime),
+        'End Time (PHT)': convertToPHT(item.endTime),
+        'Duration': item.duration || '—',
+        'Status': item.status,
+        'Completion Status': parseFloat(item.moistureavg) <= 14 ? 'Target Reached' : 'Manual Stop',
+        'Temperature (°C)': item.temperature,
+        'Humidity (%)': item.humidity,
+        'Initial Moisture T1 (%)': item.initialMoistureT1,
+        'Initial Moisture T2 (%)': item.initialMoistureT2,
+        'Initial Moisture T3 (%)': item.initialMoistureT3,
+        'Initial Moisture T4 (%)': item.initialMoistureT4,
+        'Initial Moisture T5 (%)': item.initialMoistureT5,
+        'Initial Moisture T6 (%)': item.initialMoistureT6,
+        'Final Moisture T1 (%)': item.finalMoistureT1,
+        'Final Moisture T2 (%)': item.finalMoistureT2,
+        'Final Moisture T3 (%)': item.finalMoistureT3,
+        'Final Moisture T4 (%)': item.finalMoistureT4,
+        'Final Moisture T5 (%)': item.finalMoistureT5,
+        'Final Moisture T6 (%)': item.finalMoistureT6,
+        'Final Moisture AVG (%)': item.moistureavg,
+        'Before Weight T1 (kg)': item.beforeWeightT1,
+        'Before Weight T2 (kg)': item.beforeWeightT2,
+        'Before Weight T3 (kg)': item.beforeWeightT3,
+        'Before Weight T4 (kg)': item.beforeWeightT4,
+        'Before Weight T5 (kg)': item.beforeWeightT5,
+        'Before Weight T6 (kg)': item.beforeWeightT6,
+        'After Weight T1 (kg)': item.afterWeightT1,
+        'After Weight T2 (kg)': item.afterWeightT2,
+        'After Weight T3 (kg)': item.afterWeightT3,
+        'After Weight T4 (kg)': item.afterWeightT4,
+        'After Weight T5 (kg)': item.afterWeightT5,
+        'After Weight T6 (kg)': item.afterWeightT6
+      };
+    });
 
-  const exportTemperatureGraph = async (item) => {
-    const row = item || selectedRow;
-    if (!row) return;
-    const data = generateTimeSeriesData(40, 42, 20, 0.05);
-    const svg = `<div style="padding:16px;background:#fff;font-family:Arial">
-      <h3 style="margin:0 0 4px;color:#333">Temperature — Session ${row.id}</h3>
-      <p style="margin:0 0 12px;font-size:12px;color:#666">${row.startTime} → ${row.endTime}</p>
-      ${buildSvgLineChart([data], ['#efb944'], ['Temp'], '°C', 35, 50, 700, 280, row.startTimeISO, row.endTimeISO)}
-    </div>`;
-    await exportChartAsPdf(svg, `MALA_${row.id}_temperature_graph.pdf`);
-  };
+    // Create workbook with multiple sheets
+    const workbook = XLSX.utils.book_new();
+    
+    // Add main data sheet
+    const worksheet = XLSX.utils.json_to_sheet(processedData);
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'History Data');
 
-  const exportHumidityGraph = async (item) => {
-    const row = item || selectedRow;
-    if (!row) return;
-    const data = generateTimeSeriesData(65, 60, 20, 0.08);
-    const svg = `<div style="padding:16px;background:#fff;font-family:Arial">
-      <h3 style="margin:0 0 4px;color:#333">Humidity — Session ${row.id}</h3>
-      <p style="margin:0 0 12px;font-size:12px;color:#666">${row.startTime} → ${row.endTime}</p>
-      ${buildSvgLineChart([data], ['#3b82f6'], ['Humidity'], '%', 50, 80, 700, 280, row.startTimeISO, row.endTimeISO)}
-    </div>`;
-    await exportChartAsPdf(svg, `MALA_${row.id}_humidity_graph.pdf`);
-  };
+    // Add comparison sheet if 2 or more records selected
+    if (selectedData.length >= 2) {
+      // Calculate comparison data
+      const comparisonData = [];
 
-  const getSelectedTraysForSession = () =>
-    Object.keys(savedWeights).filter(trayNum => savedWeights[trayNum]?.frozen).map(num => `T${num}`);
-
-  const exportMoistureGraph = async (item) => {
-    const row = item || selectedRow;
-    if (!row) return;
-    const activeTrays = getSelectedTraysForSession();
-    const datasets = [
-      generateTimeSeriesData(22,   14,   20, 0.1),
-      generateTimeSeriesData(21,   13.5, 20, 0.1),
-      generateTimeSeriesData(23,   14.5, 20, 0.1),
-      generateTimeSeriesData(20,   13,   20, 0.1),
-      generateTimeSeriesData(24,   15,   20, 0.1),
-      generateTimeSeriesData(22.5, 14.2, 20, 0.1),
-    ];
-    const baseColors = ['#22c55e', '#16a34a', '#15803d', '#166534', '#14532d', '#052e16'];
-    const labels = ['T1', 'T2', 'T3', 'T4', 'T5', 'T6'];
-    const colors = labels.map((lbl, idx) =>
-      activeTrays.length === 0 || activeTrays.includes(lbl) ? baseColors[idx] : baseColors[idx] + '40'
-    );
-    const svg = `<div style="padding:16px;background:#fff;font-family:Arial">
-      <h3 style="margin:0 0 4px;color:#333">Moisture Content — Session ${row.id}</h3>
-      <p style="margin:0 0 12px;font-size:12px;color:#666">${row.startTime} → ${row.endTime}</p>
-      ${buildSvgLineChart(datasets, colors, labels, '%', 10, 30, 700, 280, row.startTimeISO, row.endTimeISO)}
-    </div>`;
-    await exportChartAsPdf(svg, `MALA_${row.id}_moisture_graph.pdf`);
-  };
-
-  const exportWeightGraph = async (item) => {
-    const row = item || selectedRow;
-    if (!row) return;
-    const trays = ['T1', 'T2', 'T3', 'T4', 'T5', 'T6'];
-    const beforeVals = trays.map(t => parseFloat(row[`beforeWeight${t}`]) || 10);
-    const afterVals  = trays.map(t => parseFloat(row[`afterWeight${t}`]) || 9);
-    const svg = `<div style="padding:16px;background:#fff;font-family:Arial">
-      <h3 style="margin:0 0 4px;color:#333">Weight per Tray — Session ${row.id}</h3>
-      <p style="margin:0 0 12px;font-size:12px;color:#666">${row.startTime} → ${row.endTime}</p>
-      ${buildSvgLineChart([beforeVals, afterVals], ['#8884d8', '#22c55e'], ['Before', 'After'], ' kg', 0, Math.max(...beforeVals) + 1, 700, 280, row.startTimeISO, row.endTimeISO)}
-    </div>`;
-    await exportChartAsPdf(svg, `MALA_${row.id}_weight_graph.pdf`);
-  };
-
-  // ── Full-session graph export ─────────────────────────────────────────────────
-  // Each chart is rendered individually — one canvas per chart, one PDF page per
-  // chart — so nothing gets clipped by viewport height.
-  const handleExportGraph = async () => {
-    const temperatureData = generateTimeSeriesData(40, 42, 20, 0.05);
-    const humidityData    = generateTimeSeriesData(65, 60, 20, 0.08);
-    const moistureData = {
-      T1: generateTimeSeriesData(22,   14,   20, 0.1),
-      T2: generateTimeSeriesData(21,   13.5, 20, 0.1),
-      T3: generateTimeSeriesData(23,   14.5, 20, 0.1),
-      T4: generateTimeSeriesData(20,   13,   20, 0.1),
-      T5: generateTimeSeriesData(24,   15,   20, 0.1),
-      T6: generateTimeSeriesData(22.5, 14.2, 20, 0.1),
-    };
-    const weightData = {
-      T1: generateTimeSeriesData(10.5, 9.8,  20, 0.02),
-      T2: generateTimeSeriesData(10.2, 9.5,  20, 0.02),
-      T3: generateTimeSeriesData(10.8, 10.1, 20, 0.02),
-      T4: generateTimeSeriesData(9.9,  9.2,  20, 0.02),
-      T5: generateTimeSeriesData(11.0, 10.3, 20, 0.02),
-      T6: generateTimeSeriesData(10.3, 9.6,  20, 0.02),
-    };
-    const trayColors = ['#4bc0c0', '#9966ff', '#ff6384', '#ff9f40', '#ffcd56', '#c9cbcf'];
-
-    const sessionStart = dryingStartTime
-      ? new Date(dryingStartTime).toLocaleString('en-US', { month: 'short', day: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true })
-      : 'N/A';
-    const sessionEnd = dryingEndTime
-      ? new Date(dryingEndTime).toLocaleString('en-US', { month: 'short', day: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true })
-      : 'In Progress';
-
-    // ── Renders one HTML string into a canvas (independent of viewport) ───────
-    const renderToCanvas = async (html) => {
-      const div = document.createElement('div');
-      // Use a large explicit size so html2canvas captures the full content
-      div.style.cssText =
-        'position:fixed;top:-99999px;left:-99999px;width:1100px;' +
-        'background:white;padding:24px 28px;font-family:Arial,sans-serif;z-index:9999;';
-      div.innerHTML = html;
-      document.body.appendChild(div);
-      await new Promise(r => setTimeout(r, 150));
-      try {
-        return await html2canvas(div, {
-          scale: 2,
-          useCORS: true,
-          backgroundColor: '#ffffff',
-          logging: false,
-          width:       div.scrollWidth,
-          height:      div.scrollHeight,
-          windowWidth: div.scrollWidth,
-          windowHeight: div.scrollHeight,
+      // Moisture T1-T6 comparison
+      for (let i = 1; i <= 6; i++) {
+        const moisture1 = parseFloat(selectedData[0][`initialMoistureT${i}`]) || 0;
+        const moisture2 = parseFloat(selectedData[1][`initialMoistureT${i}`]) || 0;
+        const diff = moisture2 - moisture1;
+        const changePercent = moisture1 !== 0 ? ((diff / moisture1) * 100) : 0;
+        
+        comparisonData.push({
+          'Metric': `Moisture T${i} (%)`,
+          'Record 1': moisture1.toFixed(2),
+          'Record 2': moisture2.toFixed(2),
+          'Difference': diff.toFixed(2),
+          'Change %': changePercent.toFixed(2)
         });
-      } finally {
-        if (document.body.contains(div)) document.body.removeChild(div);
       }
+
+      // Temperature comparison
+      const temp1 = parseFloat(selectedData[0].temperature) || 0;
+      const temp2 = parseFloat(selectedData[1].temperature) || 0;
+      const tempDiff = temp2 - temp1;
+      const tempChangePercent = temp1 !== 0 ? ((tempDiff / temp1) * 100) : 0;
+      
+      comparisonData.push({
+        'Metric': 'Temperature (°C)',
+        'Record 1': temp1.toFixed(2),
+        'Record 2': temp2.toFixed(2),
+        'Difference': tempDiff.toFixed(2),
+        'Change %': tempChangePercent.toFixed(2)
+      });
+
+      // Humidity comparison
+      const humidity1 = parseFloat(selectedData[0].humidity) || 0;
+      const humidity2 = parseFloat(selectedData[1].humidity) || 0;
+      const humidityDiff = humidity2 - humidity1;
+      const humidityChangePercent = humidity1 !== 0 ? ((humidityDiff / humidity1) * 100) : 0;
+      
+      comparisonData.push({
+        'Metric': 'Humidity (%)',
+        'Record 1': humidity1.toFixed(2),
+        'Record 2': humidity2.toFixed(2),
+        'Difference': humidityDiff.toFixed(2),
+        'Change %': humidityChangePercent.toFixed(2)
+      });
+
+      // Weight comparison
+      const weightBefore1 = parseFloat(selectedData[0].beforeWeightT1) || 0;
+      const weightBefore2 = parseFloat(selectedData[1].beforeWeightT1) || 0;
+      const weightAfter1 = parseFloat(selectedData[0].afterWeightT1) || 0;
+      const weightAfter2 = parseFloat(selectedData[1].afterWeightT1) || 0;
+      const weightLoss1 = weightBefore1 - weightAfter1;
+      const weightLoss2 = weightBefore2 - weightAfter2;
+      const weightLossDiff = weightLoss2 - weightLoss1;
+      const weightLossChangePercent = weightLoss1 !== 0 ? ((weightLossDiff / weightLoss1) * 100) : 0;
+      
+      comparisonData.push({
+        'Metric': 'Weight Loss (kg)',
+        'Record 1': weightLoss1.toFixed(2),
+        'Record 2': weightLoss2.toFixed(2),
+        'Difference': weightLossDiff.toFixed(2),
+        'Change %': weightLossChangePercent.toFixed(2)
+      });
+
+      // Add comparison sheet to workbook
+      const comparisonWorksheet = XLSX.utils.json_to_sheet(comparisonData);
+      XLSX.utils.book_append_sheet(workbook, comparisonWorksheet, 'Comparison Data');
+
+      // Add statistical summary sheet
+      const statsData = [];
+
+      // Calculate statistics for all selected records
+      const calculateStats = (values) => {
+        const nums = values.filter(v => !isNaN(v) && v !== null);
+        if (nums.length === 0) return { min: 0, max: 0, avg: 0, median: 0 };
+        
+        nums.sort((a, b) => a - b);
+        const min = nums[0];
+        const max = nums[nums.length - 1];
+        const avg = nums.reduce((sum, val) => sum + val, 0) / nums.length;
+        const median = nums.length % 2 === 0 
+          ? (nums[nums.length / 2 - 1] + nums[nums.length / 2]) / 2 
+          : nums[Math.floor(nums.length / 2)];
+        
+        return { min: min.toFixed(2), max: max.toFixed(2), avg: avg.toFixed(2), median: median.toFixed(2) };
+      };
+
+      // Moisture statistics
+      for (let i = 1; i <= 6; i++) {
+        const moistureValues = selectedData.map(item => parseFloat(item[`initialMoistureT${i}`]) || 0);
+        const stats = calculateStats(moistureValues);
+        
+        statsData.push({
+          'Parameter': `Moisture T${i}`,
+          'Average': stats.avg,
+          'Minimum': stats.min,
+          'Maximum': stats.max,
+          'Median': stats.median
+        });
+      }
+
+      // Temperature statistics
+      const tempValues = selectedData.map(item => parseFloat(item.temperature) || 0);
+      const tempStats = calculateStats(tempValues);
+      statsData.push({
+        'Parameter': 'Temperature',
+        'Average': tempStats.avg,
+        'Minimum': tempStats.min,
+        'Maximum': tempStats.max,
+        'Median': tempStats.median
+      });
+
+      // Humidity statistics
+      const humidityValues = selectedData.map(item => parseFloat(item.humidity) || 0);
+      const humidityStats = calculateStats(humidityValues);
+      statsData.push({
+        'Parameter': 'Humidity',
+        'Average': humidityStats.avg,
+        'Minimum': humidityStats.min,
+        'Maximum': humidityStats.max,
+        'Median': humidityStats.median
+      });
+
+      // Weight loss statistics
+      const weightLossValues = selectedData.map(item => {
+        const before = parseFloat(item.beforeWeightT1) || 0;
+        const after = parseFloat(item.afterWeightT1) || 0;
+        return before - after;
+      });
+      const weightLossStats = calculateStats(weightLossValues);
+      statsData.push({
+        'Parameter': 'Weight Loss',
+        'Average': weightLossStats.avg,
+        'Minimum': weightLossStats.min,
+        'Maximum': weightLossStats.max,
+        'Median': weightLossStats.median
+      });
+
+      // Add statistics sheet to workbook
+      const statsWorksheet = XLSX.utils.json_to_sheet(statsData);
+      XLSX.utils.book_append_sheet(workbook, statsWorksheet, 'Statistical Summary');
+    }
+    
+    XLSX.writeFile(workbook, `MALA_history_${new Date().toISOString().split('T')[0]}.xlsx`);
+  };
+
+  const handleExportGraph = () => {
+    if (selectedRecords.length === 0) {
+      showToast('Please select records to export graph', 'success');
+      return;
+    }
+
+    // Create PDF
+    const pdf = new jsPDF();
+    
+    // Add title with more spacing
+    pdf.setFontSize(16);
+    pdf.text('MALA Multi-Sensor Analysis Report', pdf.internal.pageSize.width / 2, 30, { align: 'center' });
+    
+    // Add date range with increased spacing
+    const selectedData = historyData.filter(item => selectedRecords.includes(item.id));
+    if (selectedData.length > 0) {
+      const startDate = selectedData[0].date;
+      const endDate = selectedData[selectedData.length - 1].date;
+      pdf.setFontSize(10);
+      pdf.text(`Period: ${startDate} - ${endDate}`, pdf.internal.pageSize.width / 2, 40, { align: 'center' });
+    }
+
+    // Create Temperature Graph (Single Line)
+    const createTemperatureGraph = (y, item) => {
+      const graphWidth = 160;
+      const graphHeight = 70;
+      const graphX = 25;
+      const graphY = y;
+      
+      // Draw axes
+      pdf.setLineWidth(0.5);
+      pdf.line(graphX, graphY + graphHeight, graphX + graphWidth, graphY + graphHeight);
+      pdf.line(graphX, graphY, graphX, graphY + graphHeight);
+      
+      // Get temperature value and create time series data
+      const temp = parseFloat(item.temperature) || 0;
+      const startTime = item.startTime || 'N/A';
+      const endTime = item.endTime || 'N/A';
+      
+      // Create time points for x-axis
+      const timePoints = [];
+      if (startTime !== 'N/A' && endTime !== 'N/A') {
+        timePoints.push('Start');
+        timePoints.push('During');
+        timePoints.push('End');
+      }
+      
+      // Draw horizontal line at temperature value
+      const normalizedTemp = Math.min(temp / 60, 1); // Max 60°C
+      const tempY = graphY + graphHeight - (normalizedTemp * graphHeight);
+      
+      pdf.setDrawColor(239, 185, 68); // #efb944ff
+      pdf.setLineWidth(2);
+      pdf.line(graphX, tempY, graphX + graphWidth, tempY);
+      
+      // Add x-axis labels (time)
+      pdf.setFontSize(6);
+      pdf.setTextColor(0, 0, 0);
+      if (timePoints.length > 0) {
+        pdf.text('Start', graphX, graphY + graphHeight + 8);
+        pdf.text('During', graphX + graphWidth/2 - 12, graphY + graphHeight + 8);
+        pdf.text('End', graphX + graphWidth - 8, graphY + graphHeight + 8);
+      }
+      
+      // Add y-axis labels (temperature)
+      pdf.setFontSize(6);
+      pdf.text('60°C', graphX - 15, graphY);
+      pdf.text('30°C', graphX - 15, graphY + graphHeight/2);
+      pdf.text('0°C', graphX - 15, graphY + graphHeight);
+      
+      // Add axis titles
+      pdf.setFontSize(8);
+      pdf.text('Time', graphX + graphWidth/2, graphY + graphHeight + 15, { align: 'center' });
+      pdf.text('Temperature (°C)', graphX - 20, graphY + graphHeight/2, { align: 'center', angle: 90 });
+      
+      // Add current value label
+      pdf.setFontSize(7);
+      pdf.text(`${temp.toFixed(1)}°C`, graphX + graphWidth + 5, tempY + 2);
     };
 
-    // ── One section definition per chart ──────────────────────────────────────
-    // SVG size: 1050 wide × 500 tall — large enough to be fully visible on A4 landscape
-    const sections = [
-      {
-        title: 'Temperature (°C)',
-        svg: buildSvgLineChart([temperatureData], ['#ff6384'], ['Temp'], '°C', 35, 50, 1050, 500, dryingStartTime, dryingEndTime),
-      },
-      {
-        title: 'Humidity (%)',
-        svg: buildSvgLineChart([humidityData], ['#36a2eb'], ['Humidity'], '%', 50, 80, 1050, 500, dryingStartTime, dryingEndTime),
-      },
-      {
-        title: 'Moisture Content (%)',
-        svg: buildSvgLineChart(Object.values(moistureData), trayColors, Object.keys(moistureData), '%', 10, 28, 1050, 500, dryingStartTime, dryingEndTime),
-      },
-      {
-        title: 'Weight (kg)',
-        svg: buildSvgLineChart(Object.values(weightData), trayColors, Object.keys(weightData), ' kg', 8, 12, 1050, 500, dryingStartTime, dryingEndTime),
-      },
-    ];
-
-    try {
-      const pdf = new jsPDF('landscape', 'mm', 'a4'); // 297 × 210 mm usable
-      const PW = 277; // page width with 10 mm margins
-      const PH = 190; // page height with 10 mm margins
-
-      // ── Page 1: cover + summary table ─────────────────────────────────────
-      const coverHtml = `
-        <div style="text-align:center;padding:32px 0 20px">
-          <h2 style="color:#222;margin:0 0 8px;font-size:26px">Drying Session Analytics</h2>
-          <p style="color:#555;margin:0 0 4px;font-size:14px">Generated: ${new Date().toLocaleString()}</p>
-          <p style="color:#777;margin:0;font-size:13px">Session: ${sessionStart} – ${sessionEnd}</p>
-        </div>
-        <table style="width:100%;border-collapse:collapse;font-size:13px">
-          <thead>
-            <tr style="background:#f0f0f0">
-              <th style="padding:10px 12px;border:1px solid #ccc;text-align:left">Parameter</th>
-              <th style="padding:10px 12px;border:1px solid #ccc;text-align:left">Start Value</th>
-              <th style="padding:10px 12px;border:1px solid #ccc;text-align:left">End Value</th>
-              <th style="padding:10px 12px;border:1px solid #ccc;text-align:left">Change</th>
-              <th style="padding:10px 12px;border:1px solid #ccc;text-align:left">Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td style="padding:10px 12px;border:1px solid #ccc;font-weight:600">Temperature</td>
-              <td style="padding:10px 12px;border:1px solid #ccc">${temperatureData[0].toFixed(1)}°C</td>
-              <td style="padding:10px 12px;border:1px solid #ccc">${temperatureData[19].toFixed(1)}°C</td>
-              <td style="padding:10px 12px;border:1px solid #ccc">${(temperatureData[19] - temperatureData[0]).toFixed(1)}°C</td>
-              <td style="padding:10px 12px;border:1px solid #ccc">Stable</td>
-            </tr>
-            <tr style="background:#fafafa">
-              <td style="padding:10px 12px;border:1px solid #ccc;font-weight:600">Humidity</td>
-              <td style="padding:10px 12px;border:1px solid #ccc">${humidityData[0].toFixed(1)}%</td>
-              <td style="padding:10px 12px;border:1px solid #ccc">${humidityData[19].toFixed(1)}%</td>
-              <td style="padding:10px 12px;border:1px solid #ccc">${(humidityData[19] - humidityData[0]).toFixed(1)}%</td>
-              <td style="padding:10px 12px;border:1px solid #ccc">Optimal</td>
-            </tr>
-            <tr>
-              <td style="padding:10px 12px;border:1px solid #ccc;font-weight:600">Avg Moisture</td>
-              <td style="padding:10px 12px;border:1px solid #ccc">${moistureData.T1[0].toFixed(1)}%</td>
-              <td style="padding:10px 12px;border:1px solid #ccc">${moistureData.T1[19].toFixed(1)}%</td>
-              <td style="padding:10px 12px;border:1px solid #ccc">${targetMoistureReached ? 'Target Reached' : 'In Progress'}</td>
-              <td style="padding:10px 12px;border:1px solid #ccc;color:${targetMoistureReached ? '#059669' : '#d97706'}">${targetMoistureReached ? 'Complete' : 'Drying'}</td>
-            </tr>
-            <tr style="background:#fafafa">
-              <td style="padding:10px 12px;border:1px solid #ccc;font-weight:600">Total Weight Loss</td>
-              <td style="padding:10px 12px;border:1px solid #ccc" colspan="3">
-                ${Object.values(weightData).reduce((sum, arr) => sum + (arr[0] - arr[19]), 0).toFixed(2)} kg
-              </td>
-              <td style="padding:10px 12px;border:1px solid #ccc">Good</td>
-            </tr>
-          </tbody>
-        </table>`;
-
-      const coverCanvas = await renderToCanvas(coverHtml);
-      const coverH = (coverCanvas.height * PW) / coverCanvas.width;
-      pdf.addImage(coverCanvas.toDataURL('image/png'), 'PNG', 10, 10, PW, Math.min(coverH, PH));
-
-      // ── Pages 2–5: one full-page chart each ──────────────────────────────
-      for (const { title, svg } of sections) {
-        pdf.addPage();
-        const pageHtml = `
-          <div style="padding:12px 0 10px">
-            <h3 style="margin:0 0 4px;color:#222;font-size:20px">${title}</h3>
-            <p style="margin:0 0 12px;font-size:12px;color:#888">
-              Session: ${sessionStart} – ${sessionEnd}
-            </p>
-            ${svg}
-          </div>`;
-        const chartCanvas = await renderToCanvas(pageHtml);
-        const chartH = (chartCanvas.height * PW) / chartCanvas.width;
-        pdf.addImage(chartCanvas.toDataURL('image/png'), 'PNG', 10, 10, PW, Math.min(chartH, PH));
+    // Create Humidity Graph (Single Line)
+    const createHumidityGraph = (y, item) => {
+      const graphWidth = 160;
+      const graphHeight = 70;
+      const graphX = 25;
+      const graphY = y;
+      
+      // Draw axes
+      pdf.setLineWidth(0.5);
+      pdf.line(graphX, graphY + graphHeight, graphX + graphWidth, graphY + graphHeight);
+      pdf.line(graphX, graphY, graphX, graphY + graphHeight);
+      
+      // Get humidity value
+      const humidity = parseFloat(item.humidity) || 0;
+      
+      // Create time points for x-axis
+      const timePoints = [];
+      if (item.startTime !== 'N/A' && item.endTime !== 'N/A') {
+        timePoints.push('Start');
+        timePoints.push('During');
+        timePoints.push('End');
       }
+      
+      // Draw horizontal line at humidity value
+      const normalizedHumidity = humidity / 100; // Max 100%
+      const humidityY = graphY + graphHeight - (normalizedHumidity * graphHeight);
+      
+      pdf.setDrawColor(59, 130, 246); // #3b82f6
+      pdf.setLineWidth(2);
+      pdf.line(graphX, humidityY, graphX + graphWidth, humidityY);
+      
+      // Add x-axis labels (time)
+      pdf.setFontSize(6);
+      pdf.setTextColor(0, 0, 0);
+      if (timePoints.length > 0) {
+        pdf.text('Start', graphX, graphY + graphHeight + 8);
+        pdf.text('During', graphX + graphWidth/2 - 12, graphY + graphHeight + 8);
+        pdf.text('End', graphX + graphWidth - 8, graphY + graphHeight + 8);
+      }
+      
+      // Add y-axis labels (humidity)
+      pdf.setFontSize(6);
+      pdf.text('100%', graphX - 12, graphY);
+      pdf.text('50%', graphX - 12, graphY + graphHeight/2);
+      pdf.text('0%', graphX - 12, graphY + graphHeight);
+      
+      // Add axis titles
+      pdf.setFontSize(8);
+      pdf.text('Time', graphX + graphWidth/2, graphY + graphHeight + 15, { align: 'center' });
+      pdf.text('Humidity (%)', graphX - 20, graphY + graphHeight/2, { align: 'center', angle: 90 });
+      
+      // Add current value label
+      pdf.setFontSize(7);
+      pdf.text(`${humidity.toFixed(1)}%`, graphX + graphWidth + 5, humidityY + 2);
+    };
 
-      pdf.save(`MALA_drying_analytics_${new Date().toISOString().split('T')[0]}.pdf`);
-    } catch (err) {
-      console.error('Error generating graph:', err);
-      alert('Failed to generate graph. Please try again.');
+    // Create Moisture Graph (Multi-Line for 6 sensors)
+    const createMoistureGraph = (y, item) => {
+      const graphWidth = 160;
+      const graphHeight = 70;
+      const graphX = 25;
+      const graphY = y;
+      
+      // Draw axes
+      pdf.setLineWidth(0.5);
+      pdf.line(graphX, graphY + graphHeight, graphX + graphWidth, graphY + graphHeight);
+      pdf.line(graphX, graphY, graphX, graphY + graphHeight);
+      
+      // Moisture sensor colors (from Analytics.jsx)
+      const colors = ['#22c55e', '#16a34a', '#15803d', '#166534', '#14532d', '#052e16'];
+      
+      // Get moisture values for all 6 trays
+      const moistureValues = [
+        parseFloat(item.initialMoistureT1) || 0,
+        parseFloat(item.initialMoistureT2) || 0,
+        parseFloat(item.initialMoistureT3) || 0,
+        parseFloat(item.initialMoistureT4) || 0,
+        parseFloat(item.initialMoistureT5) || 0,
+        parseFloat(item.initialMoistureT6) || 0
+      ];
+      
+      // Create time points for x-axis
+      const timePoints = [];
+      if (item.startTime !== 'N/A' && item.endTime !== 'N/A') {
+        timePoints.push('Start');
+        timePoints.push('During');
+        timePoints.push('End');
+      }
+      
+      // Draw lines for each moisture sensor
+      moistureValues.forEach((moisture, index) => {
+        if (moisture > 0) {
+          const normalizedMoisture = Math.min(moisture / 30, 1); // Max 30%
+          const moistureY = graphY + graphHeight - (normalizedMoisture * graphHeight);
+          
+          pdf.setDrawColor(colors[index]);
+          pdf.setLineWidth(1.5);
+          pdf.line(graphX, moistureY, graphX + graphWidth, moistureY);
+          
+          // Add sensor label on the right side
+          pdf.setFontSize(5);
+          pdf.text(`T${index + 1}`, graphX + graphWidth + 3, moistureY + 2);
+        }
+      });
+      
+      // Add x-axis labels (time)
+      pdf.setFontSize(6);
+      pdf.setTextColor(0, 0, 0);
+      if (timePoints.length > 0) {
+        pdf.text('Start', graphX, graphY + graphHeight + 8);
+        pdf.text('During', graphX + graphWidth/2 - 12, graphY + graphHeight + 8);
+        pdf.text('End', graphX + graphWidth - 8, graphY + graphHeight + 8);
+      }
+      
+      // Add y-axis labels (moisture)
+      pdf.setFontSize(6);
+      pdf.text('30%', graphX - 10, graphY);
+      pdf.text('15%', graphX - 10, graphY + graphHeight/2);
+      pdf.text('0%', graphX - 10, graphY + graphHeight);
+      
+      // Add axis titles
+      pdf.setFontSize(8);
+      pdf.text('Time', graphX + graphWidth/2, graphY + graphHeight + 15, { align: 'center' });
+      pdf.text('Moisture (%)', graphX - 20, graphY + graphHeight/2, { align: 'center', angle: 90 });
+      
+      // Add legend
+      pdf.setFontSize(5);
+      moistureValues.forEach((moisture, index) => {
+        if (moisture > 0) {
+          pdf.setDrawColor(colors[index]);
+          pdf.setFillColor(colors[index]);
+          pdf.rect(graphX + graphWidth + 15, graphY + index * 6, 3, 2, 'F');
+          pdf.setTextColor(0, 0, 0);
+          pdf.text(`T${index + 1}: ${moisture.toFixed(1)}%`, graphX + graphWidth + 20, graphY + index * 6 + 2);
+        }
+      });
+    };
+
+    // Create Weight Graph (Grouped Bar Chart)
+    const createWeightGraph = (y, item) => {
+      const graphWidth = 160;
+      const graphHeight = 70;
+      const graphX = 25;
+      const graphY = y;
+      
+      // Draw axes
+      pdf.setLineWidth(0.5);
+      pdf.line(graphX, graphY + graphHeight, graphX + graphWidth, graphY + graphHeight);
+      pdf.line(graphX, graphY, graphX, graphY + graphHeight);
+      
+      // Get weight values
+      const beforeWeight = parseFloat(item.beforeWeightT1) || 0;
+      const afterWeight = parseFloat(item.afterWeightT1) || 0;
+      const maxWeight = Math.max(beforeWeight, afterWeight, 100);
+      
+      // Create time points for x-axis
+      const timePoints = [];
+      if (item.startTime !== 'N/A' && item.endTime !== 'N/A') {
+        timePoints.push('Start');
+        timePoints.push('During');
+        timePoints.push('End');
+      }
+      
+      // Bar dimensions - adjusted for better spacing
+      const barWidth = 20;
+      const barSpacing = 30;
+      const startX = graphX + 40;
+      
+      // Draw before weight bar
+      const beforeHeight = (beforeWeight / maxWeight) * graphHeight;
+      const beforeY = graphY + graphHeight - beforeHeight;
+      pdf.setFillColor(59, 130, 246); // #3b82f6
+      pdf.rect(startX, beforeY, barWidth, beforeHeight, 'F');
+      
+      // Draw after weight bar
+      const afterHeight = (afterWeight / maxWeight) * graphHeight;
+      const afterY = graphY + graphHeight - afterHeight;
+      pdf.setFillColor(239, 68, 68); // #ef4444
+      pdf.rect(startX + barSpacing, afterY, barWidth, afterHeight, 'F');
+      
+      // Add value labels on top of bars
+      pdf.setFontSize(6);
+      pdf.setTextColor(0, 0, 0);
+      pdf.text(`${beforeWeight.toFixed(1)}kg`, startX + barWidth/2 - 10, beforeY - 2);
+      pdf.text(`${afterWeight.toFixed(1)}kg`, startX + barSpacing + barWidth/2 - 10, afterY - 2);
+      
+      // Add x-axis labels (time)
+      pdf.setFontSize(6);
+      if (timePoints.length > 0) {
+        pdf.text('Start', graphX, graphY + graphHeight + 8);
+        pdf.text('During', graphX + graphWidth/2 - 12, graphY + graphHeight + 8);
+        pdf.text('End', graphX + graphWidth - 8, graphY + graphHeight + 8);
+      }
+      
+      // Add y-axis labels (weight)
+      pdf.setFontSize(6);
+      pdf.text(`${maxWeight.toFixed(0)}kg`, graphX - 18, graphY);
+      pdf.text(`${(maxWeight/2).toFixed(0)}kg`, graphX - 18, graphY + graphHeight/2);
+      pdf.text('0kg', graphX - 12, graphY + graphHeight);
+      
+      // Add axis titles
+      pdf.setFontSize(8);
+      pdf.text('Time', graphX + graphWidth/2, graphY + graphHeight + 15, { align: 'center' });
+      pdf.text('Weight (kg)', graphX - 20, graphY + graphHeight/2, { align: 'center', angle: 90 });
+      
+      // Add legend
+      pdf.setFillColor(59, 130, 246);
+      pdf.rect(startX + 70, graphY, 4, 4, 'F');
+      pdf.text('Before', startX + 76, graphY + 3);
+      
+      pdf.setFillColor(239, 68, 68);
+      pdf.rect(startX + 70, graphY + 8, 4, 4, 'F');
+      pdf.text('After', startX + 76, graphY + 11);
+    };
+
+    // Add graphs for each selected record
+    selectedData.forEach((item, index) => {
+      // Add new page for each record
+      if (index > 0) {
+        pdf.addPage();
+      }
+      
+      let currentY = 50; // Start lower to avoid title conflict
+      
+      // Record header with proper spacing
+      pdf.setFontSize(14);
+      pdf.text(`Record ${index + 1}: ${item.date} - ${item.status}`, pdf.internal.pageSize.width / 2, currentY, { align: 'center' });
+      currentY += 25;
+      
+      // Temperature Graph - Page 1
+      pdf.setFontSize(12);
+      pdf.text('Temperature Analysis', pdf.internal.pageSize.width / 2, currentY, { align: 'center' });
+      currentY += 15;
+      createTemperatureGraph(currentY, item);
+      
+      // Add new page for Humidity
+      pdf.addPage();
+      currentY = 50; // Consistent start position
+      
+      // Record header on new page
+      pdf.setFontSize(12);
+      pdf.text(`Record ${index + 1}: ${item.date} - ${item.status}`, pdf.internal.pageSize.width / 2, currentY, { align: 'center' });
+      currentY += 25;
+      
+      // Humidity Graph - Page 2
+      pdf.setFontSize(12);
+      pdf.text('Humidity Analysis', pdf.internal.pageSize.width / 2, currentY, { align: 'center' });
+      currentY += 15;
+      createHumidityGraph(currentY, item);
+      
+      // Add new page for Moisture
+      pdf.addPage();
+      currentY = 50; // Consistent start position
+      
+      // Record header on new page
+      pdf.setFontSize(12);
+      pdf.text(`Record ${index + 1}: ${item.date} - ${item.status}`, pdf.internal.pageSize.width / 2, currentY, { align: 'center' });
+      currentY += 25;
+      
+      // Moisture Graph - Page 3
+      pdf.setFontSize(12);
+      pdf.text('Moisture Content Analysis', pdf.internal.pageSize.width / 2, currentY, { align: 'center' });
+      currentY += 15;
+      createMoistureGraph(currentY, item);
+      
+      // Add new page for Weight
+      pdf.addPage();
+      currentY = 50; // Consistent start position
+      
+      // Record header on new page
+      pdf.setFontSize(12);
+      pdf.text(`Record ${index + 1}: ${item.date} - ${item.status}`, pdf.internal.pageSize.width / 2, currentY, { align: 'center' });
+      currentY += 25;
+      
+      // Weight Graph - Page 4
+      pdf.setFontSize(12);
+      pdf.text('Weight Analysis', pdf.internal.pageSize.width / 2, currentY, { align: 'center' });
+      currentY += 15;
+      createWeightGraph(currentY, item);
+      currentY += 80;
+      
+    });
+
+    // Add comparison pages if 2 or more records selected
+    if (selectedData.length >= 2) {
+      // Add comparison page
+      pdf.addPage();
+      let currentY = 50; // Use consistent positioning
+      
+      pdf.setFontSize(16);
+      pdf.text('Comparison Analysis', pdf.internal.pageSize.width / 2, currentY, { align: 'center' });
+      currentY += 25;
+      
+      pdf.setFontSize(12);
+      pdf.text('Record 1 vs Record 2', pdf.internal.pageSize.width / 2, currentY, { align: 'center' });
+      currentY += 25;
+      
+      // Moisture comparison table
+      pdf.setFontSize(10);
+      pdf.text('Moisture Content Comparison:', 15, currentY);
+      currentY += 10;
+      
+      // Table headers
+      pdf.setFontSize(8);
+      pdf.text('Tray', 15, currentY);
+      pdf.text('Record 1 (%)', 40, currentY);
+      pdf.text('Record 2 (%)', 80, currentY);
+      pdf.text('Difference', 120, currentY);
+      currentY += 8;
+      
+      // Moisture data rows
+      for (let i = 1; i <= 6; i++) {
+        const moisture1 = parseFloat(selectedData[0][`initialMoistureT${i}`]) || 0;
+        const moisture2 = parseFloat(selectedData[1][`initialMoistureT${i}`]) || 0;
+        const diff = moisture2 - moisture1;
+        
+        pdf.text(`T${i}`, 15, currentY);
+        pdf.text(moisture1.toFixed(2), 40, currentY);
+        pdf.text(moisture2.toFixed(2), 80, currentY);
+        pdf.text(diff.toFixed(2), 120, currentY);
+        currentY += 8;
+      }
+      
+      currentY += 15;
+      
+      // Temperature and Humidity comparison
+      pdf.setFontSize(10);
+      pdf.text('Environmental Conditions:', 15, currentY);
+      currentY += 10;
+      
+      // Temperature comparison
+      const temp1 = parseFloat(selectedData[0].temperature) || 0;
+      const temp2 = parseFloat(selectedData[1].temperature) || 0;
+      const tempDiff = temp2 - temp1;
+      
+      pdf.setFontSize(8);
+      pdf.text('Temperature:', 15, currentY);
+      pdf.text(`${temp1.toFixed(1)}°C`, 40, currentY);
+      pdf.text(`${temp2.toFixed(1)}°C`, 80, currentY);
+      pdf.text(`${tempDiff.toFixed(1)}°C`, 120, currentY);
+      currentY += 10;
+      
+      // Humidity comparison
+      const humidity1 = parseFloat(selectedData[0].humidity) || 0;
+      const humidity2 = parseFloat(selectedData[1].humidity) || 0;
+      const humidityDiff = humidity2 - humidity1;
+      
+      pdf.text('Humidity:', 15, currentY);
+      pdf.text(`${humidity1.toFixed(1)}%`, 40, currentY);
+      pdf.text(`${humidity2.toFixed(1)}%`, 80, currentY);
+      pdf.text(`${humidityDiff.toFixed(1)}%`, 120, currentY);
+      currentY += 15;
+      
+      // Weight comparison
+      pdf.setFontSize(10);
+      pdf.text('Weight Loss Comparison:', 15, currentY);
+      currentY += 10;
+      
+      const weightBefore1 = parseFloat(selectedData[0].beforeWeightT1) || 0;
+      const weightBefore2 = parseFloat(selectedData[1].beforeWeightT1) || 0;
+      const weightAfter1 = parseFloat(selectedData[0].afterWeightT1) || 0;
+      const weightAfter2 = parseFloat(selectedData[1].afterWeightT1) || 0;
+      const weightLoss1 = weightBefore1 - weightAfter1;
+      const weightLoss2 = weightBefore2 - weightAfter2;
+      const weightLossDiff = weightLoss2 - weightLoss1;
+      
+      pdf.setFontSize(8);
+      pdf.text('Weight Loss:', 15, currentY);
+      pdf.text(`${weightLoss1.toFixed(2)}kg`, 40, currentY);
+      pdf.text(`${weightLoss2.toFixed(2)}kg`, 80, currentY);
+      pdf.text(`${weightLossDiff.toFixed(2)}kg`, 120, currentY);
+    }
+
+    // Save PDF
+    pdf.save(`MALA_drying_analysis_${new Date().toISOString().split('T')[0]}_${selectedRecords.length}_records.pdf`);
+  };
+
+  const handleDelete = () => {
+    if (selectedRecords.length === 0) {
+      showToast('Please select records to delete', 'success');
+      return;
+    }
+
+    // Show confirmation dialog with more details
+    setShowDeleteConfirm(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('Authentication required. Please login again.');
+      }
+      
+      // Show loading state
+      const deleteButton = document.querySelector('.modal-button.confirm.delete');
+      if (deleteButton) {
+        deleteButton.textContent = 'Deleting...';
+        deleteButton.disabled = true;
+      }
+      
+      // Delete selected records from MongoDB
+      const deletePromises = selectedRecords.map(recordId => 
+        fetch(`${API_URL}/api/sensor/history/${recordId}`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          timeout: 10000 // 10 second timeout
+        }).then(response => {
+          if (!response.ok) {
+            if (response.status === 404) {
+              throw new Error(`Record ${recordId} not found. It may have been already deleted.`);
+            } else if (response.status === 500) {
+              throw new Error(`Server error when deleting record ${recordId}. Please try again.`);
+            } else {
+              throw new Error(`Failed to delete record ${recordId}: ${response.status}`);
+            }
+          }
+          return response.json();
+        }).catch(error => {
+          // Handle network errors specifically
+          if (error.name === 'TypeError' || error.message.includes('Failed to fetch')) {
+            throw new Error(`Network error when deleting record ${recordId}. Please check your connection and try again.`);
+          }
+          throw error;
+        })
+      );
+      
+      const results = await Promise.all(deletePromises);
+      console.log('Delete results:', results);
+      
+      // Check if all deletions were successful
+      const failedDeletes = results.filter(result => !result.success);
+      
+      if (failedDeletes.length > 0) {
+        throw new Error(`${failedDeletes.length} records failed to delete`);
+      }
+      
+      // Refresh history data from MongoDB
+      const response = await fetch(`${API_URL}/api/sensor/history`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        timeout: 10000
+      }).catch(error => {
+        if (error.name === 'TypeError' || error.message.includes('Failed to fetch')) {
+          throw new Error('Network error when refreshing data. Please check your connection.');
+        }
+        throw error;
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to refresh data after deletion');
+      }
+      
+      const result = await response.json();
+      let sensorData = [];
+      if (result.success && result.data) {
+        sensorData = result.data;
+      } else if (Array.isArray(result)) {
+        sensorData = result;
+      }
+      
+      // Reformat data (same logic as initial fetch)
+      const safeToString = (value, fallback = 'N/A') =>
+        value !== undefined && value !== null ? value.toString() : fallback;
+
+      // Helper function to format numbers with 2 decimal places
+      const formatNumber = (value) => {
+        const num = parseFloat(value);
+        return isNaN(num) ? 'N/A' : num.toFixed(2);
+      };
+      
+      const formattedData = sensorData.map((item, index) => ({
+        id: item._id || item.id || index + 1,
+        date: item.date || 'N/A',
+        startTime: item.startTime || 'N/A',
+        endTime: item.endTime || '—',
+        initialMoistureT1: formatNumber(item.moisture1),
+        initialMoistureT2: formatNumber(item.moisture2),
+        initialMoistureT3: formatNumber(item.moisture3),
+        initialMoistureT4: formatNumber(item.moisture4),
+        initialMoistureT5: formatNumber(item.moisture5),
+        initialMoistureT6: formatNumber(item.moisture6),
+        // Final Moisture per tray (T1–T6) - use direct moisture fields from drying session
+        finalMoistureT1: formatNumber(item.moisture1),
+        finalMoistureT2: formatNumber(item.moisture2),
+        finalMoistureT3: formatNumber(item.moisture3),
+        finalMoistureT4: formatNumber(item.moisture4),
+        finalMoistureT5: formatNumber(item.moisture5),
+        finalMoistureT6: formatNumber(item.moisture6),
+        moistureavg: formatNumber(item.moistureavg),
+        temperature: formatNumber(item.temperature),
+        humidity: formatNumber(item.humidity),
+        beforeWeightT1: formatNumber(item.weight1_t1 ?? item.weight1),
+        beforeWeightT2: formatNumber(item.weight1_t2 ?? item.weight1),
+        beforeWeightT3: formatNumber(item.weight1_t3 ?? item.weight1),
+        beforeWeightT4: formatNumber(item.weight1_t4 ?? item.weight1),
+        beforeWeightT5: formatNumber(item.weight1_t5 ?? item.weight1),
+        beforeWeightT6: formatNumber(item.weight1_t6 ?? item.weight1),
+        afterWeightT1: formatNumber(item.weight2_t1 ?? item.weight2),
+        afterWeightT2: formatNumber(item.weight2_t2 ?? item.weight2),
+        afterWeightT3: formatNumber(item.weight2_t3 ?? item.weight2),
+        afterWeightT4: formatNumber(item.weight2_t4 ?? item.weight2),
+        afterWeightT5: formatNumber(item.weight2_t5 ?? item.weight2),
+        afterWeightT6: formatNumber(item.weight2_t6 ?? item.weight2),
+        status: item.status || 'Idle',
+      }));
+      
+      setHistoryData(formattedData);
+      setSelectedRecords([]);
+      setShowDeleteConfirm(false);
+      
+      // Show success notification
+      showToast(`Successfully deleted ${selectedRecords.length} record(s) from database`, 'success');
+      
+    } catch (error) {
+      console.error('Delete error:', error);
+      
+      // Show error notification with more specific messaging
+      showToast(error.message, 'error');
+      
+      // Reset button state
+      const deleteButton = document.querySelector('.modal-button.confirm.delete');
+      if (deleteButton) {
+        deleteButton.textContent = 'Delete';
+        deleteButton.disabled = false;
+      }
     }
   };
+
+  const handleDeleteCancel = () => setShowDeleteConfirm(false);
+
+  const handleSave = () => {
+    if (selectedRecords.length === 0) {
+      showToast('Please select records to save', 'success');
+      return;
+    }
+
+    const selectedData = historyData.filter(item => selectedRecords.includes(item.id));
+    
+    // Save to localStorage
+    const existingSaved = JSON.parse(localStorage.getItem('savedHistoryRecords') || '[]');
+    const newSavedRecords = selectedData.filter(item => !existingSaved.some(saved => saved.id === item.id));
+    const updatedSaved = [...existingSaved, ...newSavedRecords];
+  
+    localStorage.setItem('savedHistoryRecords', JSON.stringify(updatedSaved));
+    setSavedRecords(updatedSaved.map(record => record.id));
+  
+    // Show success notification with actual count of newly saved records
+    if (newSavedRecords.length > 0) {
+      showToast(`Successfully saved ${newSavedRecords.length} record(s)`, 'success');
+    } else {
+      showToast('Selected records are already saved', 'info');
+    }
+
+    // Emit socket events to sync with mobile app
+    if (socket) {
+      selectedData.forEach(record => {
+        // Emit before weight save events
+        if (record.beforeWeightT1 !== null && record.beforeWeightT1 !== 'N/A') {
+          socket.emit('weight:saved_before', {
+            tray: 1,
+            weight: parseFloat(record.beforeWeightT1),
+            timestamp: new Date().toISOString()
+          });
+        }
+        if (record.beforeWeightT2 !== null && record.beforeWeightT2 !== 'N/A') {
+          socket.emit('weight:saved_before', {
+            tray: 2,
+            weight: parseFloat(record.beforeWeightT2),
+            timestamp: new Date().toISOString()
+          });
+        }
+        
+        // Emit after weight save events
+        if (record.afterWeightT1 !== null && record.afterWeightT1 !== 'N/A') {
+          socket.emit('weight:saved_after', {
+            tray: 1,
+            weight: parseFloat(record.afterWeightT1),
+            timestamp: new Date().toISOString()
+          });
+        }
+        if (record.afterWeightT2 !== null && record.afterWeightT2 !== 'N/A') {
+          socket.emit('weight:saved_after', {
+            tray: 2,
+            weight: parseFloat(record.afterWeightT2),
+            timestamp: new Date().toISOString()
+          });
+        }
+      });
+      
+      console.log(`History: Emitted weight save events for ${newSavedRecords.length} records`);
+    }
+  };
+
+  const handleRecordSelect = (recordId) => {
+    setSelectedRecords(prev => 
+      prev.includes(recordId) 
+        ? prev.filter(id => id !== recordId)
+        : [...prev, recordId]
+    );
+  };
+
+  const handleSelectAll = () => {
+    if (selectedRecords.length === filteredData.length) {
+      setSelectedRecords([]);
+    } else {
+      setSelectedRecords(filteredData.map(item => item.id));
+    }
+  };
+
+  const handleSearch = (e) => {
+    setSearchTerm(e.target.value);
+  };
+
+  const handleToggleSavedOnly = () => {
+    setShowSavedOnly(prev => !prev);
+    setSelectedRecords([]);
+  };
+
+  const filteredData = historyData.filter(item => {
+    const searchLower = searchTerm.toLowerCase();
+    const matchesSearch = (
+      item.date.toLowerCase().includes(searchLower) ||
+      item.startTime.toLowerCase().includes(searchLower) ||
+      item.endTime.toLowerCase().includes(searchLower) ||
+      item.status.toLowerCase().includes(searchLower) ||
+      item.moistureavg.toLowerCase().includes(searchLower)
+    );
+    
+    const matchesSavedFilter = !showSavedOnly || savedRecords.includes(item.id);
+    
+    return matchesSearch && matchesSavedFilter;
+  });
 
   return (
-    <div>
+    <div className="dashboard-container">
       {error && (
         <div className="error-banner">
           <AlertTriangle size={20} />
@@ -724,6 +1263,27 @@ export default function History({ view }) {
         </div>
       )}
 
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="modal-overlay" onClick={handleDeleteCancel}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <Trash2 size={24} />
+              <h3>Confirm Delete</h3>
+            </div>
+            <div className="modal-body">
+              <p>Are you sure you want to delete <strong>{selectedRecords.length}</strong> selected record(s)?</p>
+              <p style={{ fontSize: '14px', color: '#6b7280', marginTop: '8px' }}>This action will permanently remove the records from the MongoDB database and cannot be undone.</p>
+            </div>
+            <div className="modal-footer">
+              <button className="modal-button cancel" onClick={handleDeleteCancel}>Cancel</button>
+              <button className="modal-button confirm delete" onClick={handleDeleteConfirm}>Delete</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Logout Confirmation Modal */}
       {showLogoutConfirm && (
         <div className="modal-overlay" onClick={handleLogoutCancel}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
@@ -742,6 +1302,7 @@ export default function History({ view }) {
         </div>
       )}
 
+      {/* Topbar */}
       <header className="topbar">
         <div className="topbar-logo-section">
           <img src={logo} alt="Logo" className="topbar-logo" />
@@ -784,6 +1345,7 @@ export default function History({ view }) {
         </div>
       </header>
 
+      {/* Main Content */}
       <div className="main-content">
         <div className="unified-dashboard">
           <div className="dashboard-header history-header">
@@ -791,113 +1353,157 @@ export default function History({ view }) {
               <h1>History</h1>
               <p>Review past drying sessions and activity.</p>
             </div>
-            <div className="history-header-controls" style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
-              <button className="download-btn" onClick={handleDownloadExcel}>Export Excel</button>
-              <button className="download-btn" onClick={handleExportGraph}>Export Graph</button>
+            <div className="history-header-actions">
+              <input
+                type="text"
+                className="history-search-bar"
+                placeholder="Search records..."
+                value={searchTerm}
+                onChange={handleSearch}
+              />
+              <button className="download-btn export-excel-btn" onClick={handleDownloadExcel}>Export Excel</button>
+              <button className="download-btn export-graph-btn" onClick={handleExportGraph}>Export Graph</button>
+              <button className="download-btn save-btn" onClick={handleSave}>Save</button>
+              <button className={`download-btn saved-filter-btn ${showSavedOnly ? 'active' : ''}`} onClick={handleToggleSavedOnly}>
+                <Bookmark size={14} style={{ marginRight: '4px' }} />
+                {showSavedOnly ? 'Show All' : 'Saved Only'}
+              </button>
+              <button className="download-btn delete-btn" onClick={handleDelete}>Delete</button>
             </div>
           </div>
-
-          {isMonitoringMoisture && (
-            <div style={{
-              backgroundColor: '#FEF3C7', border: '1px solid #FCD34D', borderRadius: '8px',
-              padding: '12px 16px', marginBottom: '16px', display: 'flex',
-              justifyContent: 'space-between', alignItems: 'center'
-            }}>
-              <div>
-                <span style={{ fontWeight: '600', color: '#92400E' }}>
-                  ◐ Monitoring Moisture • Current: {currentMoisture !== null ? `${currentMoisture.toFixed(2)}%` : 'Loading...'}
-                </span>
-                <p style={{ fontSize: '12px', color: '#78350F', margin: '4px 0 0 0' }}>
-                  Drying will automatically stop when moisture reaches 14%
-                </p>
-              </div>
-              <button
-                onClick={stopMoistureMonitoring}
-                style={{
-                  padding: '6px 12px', backgroundColor: '#EF4444', color: 'white',
-                  border: 'none', borderRadius: '4px', cursor: 'pointer',
-                  fontSize: '12px', fontWeight: '600'
-                }}
-              >
-                Stop Monitoring
-              </button>
-            </div>
-          )}
-
-          {targetMoistureReached && (
-            <div style={{
-              backgroundColor: '#D1FAE5', border: '1px solid #6EE7B7', borderRadius: '8px',
-              padding: '12px 16px', marginBottom: '16px', color: '#065F46', fontWeight: '600'
-            }}>
-              ✓ Target moisture (14%) reached! Drying session has been completed and saved.
-            </div>
-          )}
-
           <div className="table-wrapper">
             <table className="history-table">
               <thead>
                 <tr>
+                  <th rowSpan="2">
+                    <input 
+                      type="checkbox" 
+                      checked={selectedRecords.length === filteredData.length && filteredData.length > 0}
+                      onChange={handleSelectAll}
+                      title="Select all records"
+                    />
+                  </th>
+                  {/* ── Fixed columns ── */}
                   <th rowSpan="2">Date</th>
                   <th rowSpan="2">Starting Time</th>
                   <th rowSpan="2">End Time</th>
                   <th rowSpan="2" title="Auto-stopped when moisture reached 14%">Completion Status</th>
+
+                  {/* ── Moisture groups ── */}
                   <th colSpan="6">Initial Moisture</th>
                   <th colSpan="7">Final Moisture</th>
+
+                  {/* ── Env columns ── */}
                   <th rowSpan="2">Temperature</th>
                   <th rowSpan="2">Humidity</th>
+
+                  {/* ── Weight groups ── */}
                   <th colSpan="6">Before Weight</th>
                   <th colSpan="6">After Weight</th>
+
                   <th rowSpan="2">Status</th>
-                  <th rowSpan="2">Export</th>
+                  <th rowSpan="2">Duration</th>
                 </tr>
                 <tr>
+                  {/* Initial Moisture sub-headers */}
                   <th>T1</th><th>T2</th><th>T3</th><th>T4</th><th>T5</th><th>T6</th>
+                  {/* Final Moisture sub-headers + AVG */}
                   <th>T1</th><th>T2</th><th>T3</th><th>T4</th><th>T5</th><th>T6</th><th>AVG</th>
+                  {/* Before Weight sub-headers */}
                   <th>T1</th><th>T2</th><th>T3</th><th>T4</th><th>T5</th><th>T6</th>
+                  {/* After Weight sub-headers */}
                   <th>T1</th><th>T2</th><th>T3</th><th>T4</th><th>T5</th><th>T6</th>
                 </tr>
               </thead>
 
               <tbody>
-                {historyData.length === 0 ? (
+                {filteredData.length === 0 ? (
                   <tr>
                     <td colSpan="36" style={{ textAlign: 'center', padding: '2rem', color: '#888' }}>
-                      No history data available.
+                      {searchTerm ? 'No records found matching your search.' : 'No history data available.'}
                     </td>
                   </tr>
                 ) : (
-                  historyData.map((item) => {
+                  filteredData.map((item) => {
+                    // Determine completion status based on final moisture
                     const finalMoistureAvg = parseFloat(item.moistureavg);
                     const isTargetReached = finalMoistureAvg <= 14;
-
+                    const isSelected = selectedRecords.includes(item.id);
+                    const isSaved = savedRecords.includes(item.id);
+                    
+                    // Calculate duration - Fixed for cross-day sessions
+                    let duration = '—';
+                    if (item.startTime !== 'N/A' && item.endTime !== '—') {
+                      try {
+                        // Parse start and end times properly
+                        const startDateTime = new Date(item.date + ' ' + item.startTime);
+                        let endDateTime;
+                        
+                        // Handle cross-day sessions
+                        if (item.endTime.includes('AM') && item.startTime.includes('PM')) {
+                          // If start is PM and end is AM, it's next day
+                          const nextDay = new Date(item.date);
+                          nextDay.setDate(nextDay.getDate() + 1);
+                          endDateTime = new Date(nextDay.toDateString().split(' ').slice(0, 4).join(' ') + ' ' + item.endTime);
+                        } else {
+                          // Same day
+                          endDateTime = new Date(item.date + ' ' + item.endTime);
+                        }
+                        
+                        if (!isNaN(startDateTime.getTime()) && !isNaN(endDateTime.getTime())) {
+                          const diffMs = endDateTime.getTime() - startDateTime.getTime();
+                          
+                          // Handle negative differences (shouldn't happen with fix, but just in case)
+                          const adjustedDiffMs = diffMs < 0 ? diffMs + (24 * 60 * 60 * 1000) : diffMs;
+                          
+                          const hours = Math.floor(adjustedDiffMs / (1000 * 60 * 60));
+                          const minutes = Math.floor((adjustedDiffMs % (1000 * 60 * 60)) / (1000 * 60));
+                          duration = `${hours}h ${minutes}m`;
+                        }
+                      } catch (error) {
+                        console.warn('Duration calculation error:', error, {
+                          date: item.date,
+                          startTime: item.startTime,
+                          endTime: item.endTime
+                        });
+                      }
+                    }
+                    
                     return (
-                      <tr
-                        key={item.id}
-                        className={selectedRow?.id === item.id ? 'selected-row' : ''}
-                        onClick={() => setSelectedRow(item)}
-                        style={{ cursor: 'pointer' }}
-                      >
-                        <td>{item.date}</td>
-                        {/* Starting time: set when user presses Start on Dashboard */}
-                        <td>{item.startTime}</td>
-                        {/* End time: set when 14% moisture triggers auto-stop OR user presses Stop */}
-                        <td>{item.endTime}</td>
-
+                      <tr key={item.id} className={isSelected ? 'selected-row' : ''}>
                         <td>
-                          <span
+                          <input 
+                            type="checkbox" 
+                            checked={isSelected}
+                            onChange={() => handleRecordSelect(item.id)}
+                          />
+                        </td>
+                        {/* Fixed */}
+                        <td>
+                          {isSaved && <Bookmark size={14} color="#2563eb" style={{ marginRight: '4px' }} />}
+                          {item.date}
+                        </td>
+                        <td>{item.startTime}</td>
+                        <td>{item.endTime}</td>
+                        <td>
+                          <span 
                             style={{
-                              padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: '600',
+                              padding: '2px 8px',
+                              borderRadius: '4px',
+                              fontSize: '12px',
+                              fontWeight: '600',
                               backgroundColor: isTargetReached ? '#D1FAE5' : '#FEF3C7',
                               color: isTargetReached ? '#065F46' : '#92400E'
                             }}
-                            title={isTargetReached
-                              ? 'Session ended automatically when moisture reached 14%'
+                            title={isTargetReached 
+                              ? 'Session ended automatically when moisture reached 14%' 
                               : 'Session ended manually (moisture did not reach 14%)'}
                           >
                             {isTargetReached ? '✓ Target' : '◐ Manual'}
                           </span>
                         </td>
 
+                        {/* Initial Moisture */}
                         <td>{item.initialMoistureT1}</td>
                         <td>{item.initialMoistureT2}</td>
                         <td>{item.initialMoistureT3}</td>
@@ -905,6 +1511,7 @@ export default function History({ view }) {
                         <td>{item.initialMoistureT5}</td>
                         <td>{item.initialMoistureT6}</td>
 
+                        {/* Final Moisture + AVG */}
                         <td>{item.finalMoistureT1}</td>
                         <td>{item.finalMoistureT2}</td>
                         <td>{item.finalMoistureT3}</td>
@@ -915,54 +1522,38 @@ export default function History({ view }) {
                           {item.moistureavg}
                         </td>
 
+                        {/* Env */}
                         <td>{item.temperature}</td>
                         <td>{item.humidity}</td>
 
-                        <td>{savedWeights[1]?.frozen ? savedWeights[1].before.toFixed(2) : item.beforeWeightT1}</td>
-                        <td>{savedWeights[2]?.frozen ? savedWeights[2].before.toFixed(2) : item.beforeWeightT2}</td>
-                        <td>{savedWeights[3]?.frozen ? savedWeights[3].before.toFixed(2) : item.beforeWeightT3}</td>
-                        <td>{savedWeights[4]?.frozen ? savedWeights[4].before.toFixed(2) : item.beforeWeightT4}</td>
-                        <td>{savedWeights[5]?.frozen ? savedWeights[5].before.toFixed(2) : item.beforeWeightT5}</td>
-                        <td>{savedWeights[6]?.frozen ? savedWeights[6].before.toFixed(2) : item.beforeWeightT6}</td>
+                        {/* Before Weight */}
+                        <td>{item.beforeWeightT1}</td>
+                        <td>{item.beforeWeightT2}</td>
+                        <td>{item.beforeWeightT3}</td>
+                        <td>{item.beforeWeightT4}</td>
+                        <td>{item.beforeWeightT5}</td>
+                        <td>{item.beforeWeightT6}</td>
 
-                        <td>{savedAfterWeights[1]?.frozen ? savedAfterWeights[1].after.toFixed(2) : item.afterWeightT1}</td>
-                        <td>{savedAfterWeights[2]?.frozen ? savedAfterWeights[2].after.toFixed(2) : item.afterWeightT2}</td>
-                        <td>{savedAfterWeights[3]?.frozen ? savedAfterWeights[3].after.toFixed(2) : item.afterWeightT3}</td>
-                        <td>{savedAfterWeights[4]?.frozen ? savedAfterWeights[4].after.toFixed(2) : item.afterWeightT4}</td>
-                        <td>{savedAfterWeights[5]?.frozen ? savedAfterWeights[5].after.toFixed(2) : item.afterWeightT5}</td>
-                        <td>{savedAfterWeights[6]?.frozen ? savedAfterWeights[6].after.toFixed(2) : item.afterWeightT6}</td>
+                        {/* After Weight */}
+                        <td>{item.afterWeightT1}</td>
+                        <td>{item.afterWeightT2}</td>
+                        <td>{item.afterWeightT3}</td>
+                        <td>{item.afterWeightT4}</td>
+                        <td>{item.afterWeightT5}</td>
+                        <td>{item.afterWeightT6}</td>
 
+                        {/* Status */}
                         <td>
                           <span className={`status ${item.status.toLowerCase()}`}>
                             {item.status}
                           </span>
                         </td>
-
-                        <td style={{ textAlign: 'center', padding: '8px', whiteSpace: 'nowrap' }}>
-                          {[
-                            { fn: exportTemperatureGraph, color: '#efb944', icon: <Thermometer size={12} />, title: 'Export Temperature Graph' },
-                            { fn: exportHumidityGraph,   color: '#3b82f6', icon: <Droplets size={12} />,    title: 'Export Humidity Graph' },
-                            { fn: exportMoistureGraph,   color: '#22c55e', icon: <Waves size={12} />,       title: 'Export Moisture Graph' },
-                            { fn: exportWeightGraph,     color: '#8884d8', icon: <Download size={12} />,    title: 'Export Weight Graph' },
-                          ].map(({ fn, color, icon, title }, btnIdx) => (
-                            <button
-                              key={btnIdx}
-                              onClick={(e) => { e.stopPropagation(); fn(item); }}
-                              style={{
-                                padding: '4px 8px',
-                                marginRight: btnIdx < 3 ? '4px' : 0,
-                                fontSize: '11px',
-                                backgroundColor: color,
-                                color: 'white',
-                                border: 'none',
-                                borderRadius: '4px',
-                                cursor: 'pointer',
-                              }}
-                              title={title}
-                            >
-                              {icon}
-                            </button>
-                          ))}
+                        
+                        {/* Duration */}
+                        <td>
+                          <span style={{ fontWeight: '500', color: '#374151' }}>
+                            {duration}
+                          </span>
                         </td>
                       </tr>
                     );
@@ -975,4 +1566,5 @@ export default function History({ view }) {
       </div>
     </div>
   );
-}
+  
+};
