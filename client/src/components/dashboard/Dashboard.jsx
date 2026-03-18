@@ -232,26 +232,34 @@ export default function RiceDryingDashboard({ view }) {
     }
   };
 
-  const handleResetBeforeWeight = async () => {
-    if (!canResetBefore) return;
-    
-    setWeightOperationLoading(true);
-    try {
-      // Update UI immediately for responsiveness
-      showToast('info', `Resetting Tray ${currentTray} before weight...`);
-      
-      // Run backend operations in background
-      resetBeforeWeight(currentTray);
-      
-      // Show success message immediately (optimistic UI)
-      showToast('success', `Tray ${currentTray} before weight reset.`);
-    } catch (error) {
-      console.error('Error resetting before weight:', error);
-      showToast('error', 'Failed to reset before weight. Please try again.');
-    } finally {
-      setWeightOperationLoading(false);
-    }
-  };
+ const handleResetBeforeWeight = async () => {
+  if (!canResetBefore) return;
+
+  setWeightOperationLoading(true);
+
+  try {
+    showToast('info', `Resetting Tray ${currentTray} before weight...`);
+
+    // reset weight locally
+    resetBeforeWeight(currentTray);
+
+    // remove tray from MongoDB
+    await fetch("http://10.42.0.1:5002/api/system/tray/remove", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ value: currentTray })
+    });
+
+    showToast('success', `Tray ${currentTray} removed and before weight reset.`);
+  } catch (error) {
+    console.error("Tray removal failed:", error);
+    showToast('error', 'Failed to remove tray.');
+  } finally {
+    setWeightOperationLoading(false);
+  }
+};
 
   const handleResetAfterWeight = async () => {
     if (!canResetAfter) return;
@@ -656,10 +664,14 @@ export default function RiceDryingDashboard({ view }) {
                       <button
                         key={tray}
                         className={`selector-btn tray-btn ${currentTray === tray ? 'selected-tray' : ''} ${savedWeights[tray]?.frozen ? 'tray-btn-frozen' : ''}`}
-                        onClick={async () => {
-                          try { setCurrentTray(tray); await setTray(tray); }
-                          catch (err) { console.error('Tray update failed:', err); }
-                        }}
+                       onClick={async () => {
+  try {
+    await setTray(tray);
+    setCurrentTray(tray);
+  } catch (err) {
+    console.error('Tray update failed:', err);
+  }
+}}
                         disabled={isProcessing}
                       >
                         T{tray}{savedWeights[tray]?.frozen && <span className="tray-frozen-dot" />}
