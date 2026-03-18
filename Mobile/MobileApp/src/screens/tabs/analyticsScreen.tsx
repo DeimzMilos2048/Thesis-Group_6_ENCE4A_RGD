@@ -129,7 +129,8 @@ const AnalyticsScreen = () => {
       // Try production backend first, then fallback to local Raspberry Pi
       const urls = [
         'https://mala-backend-u0gt.onrender.com',  // Production backend (more reliable)
-        'http://10.30.105.83:5001'           // Local development
+        //'http://10.30.105.83:5001',
+        'http://192.168.0.109:5001'           // Local development
       ];
       return urls[0]; // Will try first URL, fallback can be implemented if needed
     };

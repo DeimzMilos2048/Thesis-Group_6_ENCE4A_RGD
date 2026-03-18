@@ -20,6 +20,7 @@ import { io } from 'socket.io-client';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSystemControl } from '../../contexts/SystemControlContext';
 import { useWeight } from '../../contexts/WeightContext';
+import { useNotificationServiceNative } from '../../services/Usenotificationservicenative';
 
 type RootStackParmList = {
   LandingPage: undefined;
@@ -47,9 +48,9 @@ const Header: React.FC<{ onNotificationPress: () => void; unreadCount: number }>
           <Ionicons name="notifications-outline" size={24} color="#27AE60" />
           {unreadCount > 0 && (
             <View style={styles.badgeDot}>
-              {unreadCount <= 9 && (
-                <Text style={styles.badgeText}>{unreadCount}</Text>
-              )}
+              <Text style={styles.badgeText}>
+                {unreadCount > 99 ? '99+' : unreadCount}
+              </Text>
             </View>
           )}
         </TouchableOpacity>
@@ -66,6 +67,17 @@ const DashboardPageScreen: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [unreadCount, setUnreadCount] = useState(0);
+
+  // Test notification service
+  const apiBaseUrl = __DEV__ 
+    ? 'http://192.168.0.109:5001'
+    : 'https://mala-backend-u0gt.onrender.com';
+    
+  const { 
+    fcmToken, 
+    notificationSettings, 
+    requestNotificationPermission 
+  } = useNotificationServiceNative(apiBaseUrl);
 
   // Fetch unread count for badge
   const getAPIBaseUrl = () => {
@@ -182,8 +194,8 @@ const DashboardPageScreen: React.FC = () => {
     const connectSocketWithFallback = async () => {
       const urls = [
         'https://mala-backend-u0gt.onrender.com',  // Production backend (more reliable)
-        // 'http://192.168.0.109:5001',           // Local development
-        'http://10.30.105.83:5001',
+        'http://192.168.0.109:5001',           // Local development
+        //'http://10.30.105.83:5001',
         'http://10.0.2.2:5001'                // Android emulator host
       ];
       
@@ -299,8 +311,6 @@ const DashboardPageScreen: React.FC = () => {
       <Header onNotificationPress={handleNotificationPress} unreadCount={unreadCount} />
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
-
-        {/* Status Row */}
         <View style={styles.statusGrid}>
           <View style={styles.statusCard}>
             <Text style={styles.statusTitle}>System Status</Text>
@@ -516,20 +526,21 @@ const styles = StyleSheet.create<Styles>({
     position: 'absolute',
     top: 2,
     right: 2,
-    minWidth: 18,
-    height: 18,
-    borderRadius: 9,
+    minWidth: 20,
+    height: 20,
+    borderRadius: 10,
     backgroundColor: '#E74C3C',
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1.5,
     borderColor: '#FFFFFF',
-    paddingHorizontal: 3,
+    paddingHorizontal: 4,
   },
   badgeText: {
-    fontSize: 12,
+    fontSize: 10,
     fontWeight: '900',
     color: '#FFFFFF',
+    textAlign: 'center',
   },
   statusGrid: {
     flexDirection: 'row',
