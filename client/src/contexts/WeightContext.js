@@ -232,7 +232,8 @@ export function WeightProvider({ children }) {
 
   return (
     <WeightContext.Provider value={{
-      savedWeights, savedAfterWeights,
+      savedWeights, setSavedWeights,
+      savedAfterWeights, setSavedAfterWeights,
       saveBeforeWeight, saveAfterWeight,
       resetBeforeWeight, resetAfterWeight,
     }}>
