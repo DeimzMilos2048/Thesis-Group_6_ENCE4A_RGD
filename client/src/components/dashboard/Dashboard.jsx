@@ -196,37 +196,32 @@ export default function RiceDryingDashboard({ view }) {
     }
   };
 
-  const handleSaveWeight = () => {
-    const currentWeight = sensorData.weight1 ?? sensorData.weightbefore1 ?? 0;
-    if (savedWeights[currentTray]?.frozen) { showToast('error', `Tray ${currentTray} weight is already saved and locked.`); return; }
-    if (currentWeight <= 0) { showToast('error', `No weight data available for Tray ${currentTray}.`); return; }
-    
-    // Save the current tray's before weight - this should be instant now
-    saveBeforeWeight(currentTray, currentWeight);
-    
-    // Show success immediately
-    showToast('success', `Tray ${currentTray} before weight saved: ${currentWeight.toFixed(2)} kg`);
-    setTabNotifications(prev => ({ ...prev, history: true }));
-    
-    // Run socket emissions in background to avoid any potential delays
-    setTimeout(() => {
-      // Send notification to web and mobile
-      if (socket && socket.connected) {
-        socket.emit('tray:weight:saved', {
-          trayNumber: currentTray,
-          weight: currentWeight,
-          type: 'before',
-          timestamp: new Date().toISOString(),
-          message: `Tray ${currentTray} before weight saved: ${currentWeight.toFixed(2)} kg`
-        });
-      }
-      
-      // Dispatch custom event for History component
-      window.dispatchEvent(new CustomEvent('weightDataUpdated', {
-        detail: { type: 'before', tray: currentTray, weight: currentWeight }
-      }));
-    }, 0);
-  };
+  const handleSaveWeight = async () => {
+  const currentWeight = sensorData.weight1 ?? sensorData.weightbefore1 ?? 0;
+
+  if (savedWeights[currentTray]?.frozen) {
+    showToast('error', `Tray ${currentTray} weight is already saved and locked.`);
+    return;
+  }
+
+  if (currentWeight <= 0) {
+    showToast('error', `No weight data available for Tray ${currentTray}.`);
+    return;
+  }
+
+  // SAVE LOCALLY
+  saveBeforeWeight(currentTray, currentWeight);
+
+  // ? ADD THIS LINE (VERY IMPORTANT)
+  try {
+    await setTray(currentTray);
+    console.log("Tray added to Mongo:", currentTray);
+  } catch (err) {
+    console.error("Failed to save tray to Mongo:", err);
+  }
+
+  showToast('success', `Tray ${currentTray} before weight saved: ${currentWeight.toFixed(2)} kg`);
+};
 
   const handleSaveAfterWeight = () => {
     const currentWeight = sensorData.weight1 ?? sensorData.weightbefore1 ?? 0;
@@ -752,13 +747,8 @@ export default function RiceDryingDashboard({ view }) {
                       <button
                         key={tray}
                         className={`selector-btn tray-btn ${currentTray === tray ? 'selected-tray' : ''} ${savedWeights[tray]?.frozen ? 'tray-btn-frozen' : ''}`}
-                       onClick={async () => {
-  try {
-    await setTray(tray);
-    setCurrentTray(tray);
-  } catch (err) {
-    console.error('Tray update failed:', err);
-  }
+                onClick={() => {
+  setCurrentTray(tray);
 }}
                         disabled={isProcessing}
                       >
