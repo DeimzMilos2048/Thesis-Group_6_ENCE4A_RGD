@@ -98,7 +98,7 @@ const latestValue = (arr: ChartDataPoint[], unit: string): string => {
   const lastValue = arr[arr.length - 1];
   if (!lastValue || typeof lastValue.value !== 'number') return 'N/A';
   if (!isFinite(lastValue.value) || isNaN(lastValue.value)) return 'N/A';
-  return `${lastValue.value.toFixed(1)}${unit}`;
+  return `${lastValue.value.toFixed(2)}${unit}`;
 };
 
 interface LatestValues {
@@ -168,7 +168,7 @@ const AnalyticsScreen = () => {
   const fmt = (val: number | null, unit: string): string => {
     if (val === null) return 'N/A';
     if (!isFinite(val) || isNaN(val)) return 'N/A';
-    return `${Number(val).toFixed(1)}${unit}`;
+    return `${Number(val).toFixed(2)}${unit}`;
   };
 
   useEffect(() => {

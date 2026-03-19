@@ -598,6 +598,13 @@ export default function Profile({ view }) {
                         <p>Yes, go to the History page and use the export button to download your data in CSV/XLSX format.</p>
                       </div>
 
+                      <div className="faq-item">
+                        <strong>Can I monitor the system remotely</strong>
+                        <p>Yes, the web and mobile app provides real-time monitoring anywhere with internet connection either WIFI or Mobile Data. 
+                          You'll receive notifications from Web and Mobile and can view current sensor readings, drying status and history data.
+                          In Web you can control system controls, view sensor reading, but in mobile you cannot do system controls it is meant for view only. </p>
+                      </div>
+
                       
                     </div>
                   </div>

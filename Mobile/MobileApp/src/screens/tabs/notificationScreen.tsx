@@ -701,7 +701,7 @@ const NotificationScreen: React.FC = () => {
                       <Text style={styles.alertMessage}>{alert.message}</Text>
                       <Text style={styles.alertSensorData}>
                         {alert.sensorData?.temperature != null ? `${alert.sensorData.temperature}°C | ` : 'N/A°C | '}
-                        {alert.sensorData?.moistureavg != null ? `Moisture: ${alert.sensorData.moistureavg.toFixed(1)}%` : 'N/A%'}
+                        {alert.sensorData?.moistureavg != null ? `Moisture: ${alert.sensorData.moistureavg.toFixed(2)}%` : 'N/A%'}
                         {alert.sensorData?.moisture1 != null && alert.sensorData?.moisture2 != null
                           ? ` | M1: ${alert.sensorData.moisture1}% M2: ${alert.sensorData.moisture2}%`
                           : alert.sensorData?.moisture1 != null
@@ -733,7 +733,7 @@ const NotificationScreen: React.FC = () => {
                             ? ` | Target not reached`
                             : ''}
                         {alert.sensorData?.weightChange != null && alert.sensorData.weightChange > 0
-                          ? ` | Weight loss: ${alert.sensorData.weightChange.toFixed(1)}kg`
+                          ? ` | Weight loss: ${alert.sensorData.weightChange.toFixed(2)}kg`
                           : ''}
                       </Text>
                     </View>
@@ -781,7 +781,7 @@ const NotificationScreen: React.FC = () => {
                     <Ionicons name="water" size={16} color="#666" />
                     <Text style={styles.sensorText}>
                       {selectedAlert.sensorData.moistureavg != null
-                        ? `Moisture: ${selectedAlert.sensorData.moistureavg.toFixed(1)}%`
+                        ? `Moisture: ${selectedAlert.sensorData.moistureavg.toFixed(2)}%`
                         : 'N/A%'}
                     </Text>
                   </View>
@@ -857,7 +857,7 @@ const NotificationScreen: React.FC = () => {
                     <View style={styles.sensorItem}>
                       <Ionicons name="trending-down" size={16} color="#666" />
                       <Text style={styles.sensorText}>
-                        Weight loss: {selectedAlert.sensorData.weightChange.toFixed(1)}kg
+                        Weight loss: {selectedAlert.sensorData.weightChange.toFixed(2)}kg
                       </Text>
                     </View>
                   )}

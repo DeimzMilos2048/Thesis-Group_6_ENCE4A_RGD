@@ -230,7 +230,7 @@ export default function Analytics({ view }) {
     };
   }, [socket, currentTray, savedWeights, savedAfterWeights]);
 
-  const fmt = (val, unit) => val === null ? 'N/A' : `${Number(val).toFixed(1)}${unit}`;
+  const fmt = (val, unit) => val === null ? 'N/A' : `${Number(val).toFixed(2)}${unit}`;
 
   const DualLineGraph = ({ data, color1, color2, unit, minValue, maxValue }) => (
     <ResponsiveContainer width="100%" height="100%" minWidth={0} aspect={undefined}>

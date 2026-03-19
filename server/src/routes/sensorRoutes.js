@@ -343,6 +343,52 @@ function calculateAverageAfterWeight(item) {
   return (weights.reduce((sum, w) => sum + w, 0) / weights.length).toFixed(2);
 }
 
+// GET /api/sensor/latest/weights — get per-tray before/after weights from latest record
+router.get('/latest/weights', async (req, res) => {
+  try {
+    const latest = await SensorData.findOne().sort({ timestamp: -1 });
+    if (!latest) {
+      return res.status(404).json({ success: false, message: 'No sensor record found.' });
+    }
+
+    // Build weights object in the format expected by mobile app
+    const weights = {};
+    const afterWeights = {};
+    
+    for (let i = 1; i <= 6; i++) {
+      const beforeWeight = latest[`weight1_t${i}`];
+      const afterWeight = latest[`weight2_t${i}`];
+      
+      if (beforeWeight !== null && beforeWeight !== undefined && beforeWeight > 0) {
+        weights[i] = {
+          before: beforeWeight,
+          unit: 'kg',
+          frozen: true,
+          timestamp: latest.timestamp
+        };
+      }
+      
+      if (afterWeight !== null && afterWeight !== undefined && afterWeight > 0) {
+        afterWeights[i] = {
+          after: afterWeight,
+          unit: 'kg',
+          frozen: true,
+          timestamp: latest.timestamp
+        };
+      }
+    }
+
+    res.json({ 
+      success: true, 
+      weights,
+      afterWeights
+    });
+  } catch (error) {
+    console.error('Error fetching weights:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // PATCH /api/sensor/latest/weights — save per-tray before/after weight onto latest record
 router.patch('/latest/weights', async (req, res) => {
   try {
@@ -372,6 +418,25 @@ router.patch('/latest/weights', async (req, res) => {
     if (io) {
       const payload = buildSensorDataPayload(latest);
       io.emit('sensor_readings_table', payload);
+      
+      // Emit weight-specific events for mobile app
+      if (beforeWeight !== undefined && beforeWeight !== null) {
+        io.emit('weight:saved_before', {
+          tray,
+          weight: beforeWeight,
+          timestamp: latest.timestamp
+        });
+        console.log(`Emitted weight:saved_before for tray ${tray}`);
+      }
+      
+      if (afterWeight !== undefined && afterWeight !== null) {
+        io.emit('weight:saved_after', {
+          tray,
+          weight: afterWeight,
+          timestamp: latest.timestamp
+        });
+        console.log(`Emitted weight:saved_after for tray ${tray}`);
+      }
     }
 
     res.json({ success: true, data: latest });

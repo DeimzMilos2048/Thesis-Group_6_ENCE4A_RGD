@@ -358,7 +358,7 @@ const DashboardPageScreen: React.FC = () => {
               <Ionicons name="thermometer-outline" size={28} color="#FFFFFF" />
             </View>
             <Text style={styles.label}>Temperature</Text>
-            <Text style={styles.value}>{(sensorData.temperature || 0).toFixed(1)}°C</Text>
+            <Text style={styles.value}>{(sensorData.temperature || 0).toFixed(2)}°C</Text>
             <View style={styles.statusIndicator}>
               <View style={[styles.indicatorDot, sensorData.temperature >= 40 && sensorData.temperature <= 45 ? styles.indicatorGreen : styles.indicatorOrange]} />
               <Text style={styles.sub}>Normal (40–45 °C)</Text>
@@ -369,7 +369,7 @@ const DashboardPageScreen: React.FC = () => {
               <Ionicons name="water-outline" size={28} color="#FFFFFF" />
             </View>
             <Text style={styles.label}>Humidity</Text>
-            <Text style={styles.value}>{(sensorData.humidity || 0).toFixed(1)}%</Text>
+            <Text style={styles.value}>{(sensorData.humidity || 0).toFixed(2)}%</Text>
             <View style={styles.statusIndicator}>
               <View style={[styles.indicatorDot, sensorData.humidity <= 100 ? styles.indicatorGreen : styles.indicatorRed]} />
               <Text style={styles.sub}>Target (≤ 100%)</Text>
@@ -389,7 +389,7 @@ const DashboardPageScreen: React.FC = () => {
                   <Ionicons name="leaf-outline" size={28} color="#FFFFFF" />
                 </View>
                 <Text style={styles.label}>Tray {i}</Text>
-                <Text style={styles.value}>{moistureValue.toFixed(1)}%</Text>
+                <Text style={styles.value}>{moistureValue.toFixed(2)}%</Text>
                 <View style={styles.statusIndicator}>
                   <View style={[styles.indicatorDot, isInRange ? styles.indicatorGreen : styles.indicatorOrange]} />
                   <Text style={styles.sub}>Target 13–14%</Text>
@@ -441,7 +441,7 @@ const DashboardPageScreen: React.FC = () => {
                   <Text style={styles.label}>Tray {i}</Text>
                   {weightLoss > 0 && (
                     <View style={styles.weightLossBadge}>
-                      <Text style={styles.weightLossText}>-{weightLoss.toFixed(1)}%</Text>
+                      <Text style={styles.weightLossText}>-{weightLoss.toFixed(2)}%</Text>
                     </View>
                   )}
                 </View>

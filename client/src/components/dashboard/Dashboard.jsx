@@ -150,10 +150,10 @@ export default function RiceDryingDashboard({ view }) {
       
       // Get the current moisture of the selected tray
       const selectedTrayMoisture = sensorData[`moisture${currentTray}`] || 0;
-      console.log(`Starting drying for Tray ${currentTray} with current moisture: ${selectedTrayMoisture.toFixed(1)}%`);
+      console.log(`Starting drying for Tray ${currentTray} with current moisture: ${selectedTrayMoisture.toFixed(2)}%`);
       
       // Show immediate success feedback
-      showToast('success', `Drying started — Tray ${currentTray} · Target: ${selectedTemp}°C · Current: ${selectedTrayMoisture.toFixed(1)}% → Target: ${selectedMoisture}%`);
+      showToast('success', `Drying started — Tray ${currentTray} · Target: ${selectedTemp}°C · Current: ${selectedTrayMoisture.toFixed(2)}% → Target: ${selectedMoisture}%`);
       setIsMonitoring(true);
       setTabNotifications(prev => ({
         ...prev,
@@ -196,37 +196,32 @@ export default function RiceDryingDashboard({ view }) {
     }
   };
 
-  const handleSaveWeight = () => {
-    const currentWeight = sensorData.weight1 ?? sensorData.weightbefore1 ?? 0;
-    if (savedWeights[currentTray]?.frozen) { showToast('error', `Tray ${currentTray} weight is already saved and locked.`); return; }
-    if (currentWeight <= 0) { showToast('error', `No weight data available for Tray ${currentTray}.`); return; }
-    
-    // Save the current tray's before weight - this should be instant now
-    saveBeforeWeight(currentTray, currentWeight);
-    
-    // Show success immediately
-    showToast('success', `Tray ${currentTray} before weight saved: ${currentWeight.toFixed(2)} kg`);
-    setTabNotifications(prev => ({ ...prev, history: true }));
-    
-    // Run socket emissions in background to avoid any potential delays
-    setTimeout(() => {
-      // Send notification to web and mobile
-      if (socket && socket.connected) {
-        socket.emit('tray:weight:saved', {
-          trayNumber: currentTray,
-          weight: currentWeight,
-          type: 'before',
-          timestamp: new Date().toISOString(),
-          message: `Tray ${currentTray} before weight saved: ${currentWeight.toFixed(2)} kg`
-        });
-      }
-      
-      // Dispatch custom event for History component
-      window.dispatchEvent(new CustomEvent('weightDataUpdated', {
-        detail: { type: 'before', tray: currentTray, weight: currentWeight }
-      }));
-    }, 0);
-  };
+  const handleSaveWeight = async () => {
+  const currentWeight = sensorData.weight1 ?? sensorData.weightbefore1 ?? 0;
+
+  if (savedWeights[currentTray]?.frozen) {
+    showToast('error', `Tray ${currentTray} weight is already saved and locked.`);
+    return;
+  }
+
+  if (currentWeight <= 0) {
+    showToast('error', `No weight data available for Tray ${currentTray}.`);
+    return;
+  }
+
+  // SAVE LOCALLY
+  saveBeforeWeight(currentTray, currentWeight);
+
+  // ? ADD THIS LINE (VERY IMPORTANT)
+  try {
+    await setTray(currentTray);
+    console.log("Tray added to Mongo:", currentTray);
+  } catch (err) {
+    console.error("Failed to save tray to Mongo:", err);
+  }
+
+  showToast('success', `Tray ${currentTray} before weight saved: ${currentWeight.toFixed(2)} kg`);
+};
 
   const handleSaveAfterWeight = () => {
     const currentWeight = sensorData.weight1 ?? sensorData.weightbefore1 ?? 0;
@@ -261,19 +256,21 @@ export default function RiceDryingDashboard({ view }) {
     }, 0);
   };
 
-  const handleResetBeforeWeight = async () => {
-    if (!canResetBefore) return;
-    setWeightOperationLoading(true);
-    try {
-    // Update UI immediately for responsiveness
+ const handleResetBeforeWeight = async () => {
+  if (!canResetBefore) return;
+
+  setWeightOperationLoading(true);
+
+  try {
     showToast('info', `Resetting Tray ${currentTray} before weight...`);
-     
+
     // reset weight locally
     resetBeforeWeight(currentTray);
     
     // remove tray from MongoDB
     await fetch("http://10.42.0.1:5002/api/system/tray/remove", {
       method: 'POST',
+
       headers: {
         "Content-Type": "application/json"
       },
@@ -355,7 +352,7 @@ export default function RiceDryingDashboard({ view }) {
         setTabNotifications(prev => ({ ...prev, dashboard: true }));
         
         // Show toast notification for tray ready for removal
-        //showToast('success', `Tray ${trayNum} is ready for removal! Moisture: ${trayMoisture.toFixed(1)}%`);
+        //showToast('success', `Tray ${trayNum} is ready for removal! Moisture: ${trayMoisture.toFixed(2)}%`);
         
         // Also trigger notification service for mobile/web
         if (socket && socket.connected) {
@@ -539,7 +536,7 @@ export default function RiceDryingDashboard({ view }) {
                     <div className="sensor-icon orange"><Thermometer size={24} /></div>
                     <div className="sensor-label">Temperature</div>
                     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-                      <div className="sensor-value-sm">{(sensorData.temperature || 0).toFixed(1)}°C</div>
+                      <div className="sensor-value-sm">{(sensorData.temperature || 0).toFixed(2)}°C</div>
                       <div className="progress-bar"><div className="progress-fill orange" style={{ width: `${Math.min(((sensorData.temperature || 0) / 45) * 100, 100)}%` }}></div></div>
                     </div>
                     <div className="sensor-range">Range: 40-45°C</div>
@@ -549,7 +546,7 @@ export default function RiceDryingDashboard({ view }) {
                     <div className="sensor-icon cyan"><Droplets size={24} /></div>
                     <div className="sensor-label">Humidity</div>
                     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-                      <div className="sensor-value-sm">{(sensorData.humidity || 0).toFixed(1)}%</div>
+                      <div className="sensor-value-sm">{(sensorData.humidity || 0).toFixed(2)}%</div>
                       <div className="progress-bar"><div className="progress-fill cyan" style={{ width: `${sensorData.humidity || 0}%` }}></div></div>
                     </div>
                     <div className="sensor-range">Target: &lt;100%</div>
@@ -672,7 +669,7 @@ export default function RiceDryingDashboard({ view }) {
                               <div className="weight-ba-label" style={{ fontSize: '10px', minWidth: '12px', flexShrink: 0 }}>B</div>
                               <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '1px' }}>
                                 <div className="sensor-value-sm" style={{ fontSize: '18px', lineHeight: 1, color: isFrozen ? '#059669' : undefined, textAlign: 'left' }}>
-                                  {hasBeforeVal ? `${beforeVal.toFixed(1)}kg` : <span style={{ color: '#d1d5db' }}>—</span>}
+                                  {hasBeforeVal ? `${beforeVal.toFixed(2)}kg` : <span style={{ color: '#d1d5db' }}>—</span>}
                                 </div>
                                 <div className="progress-bar" style={{ marginBottom: 0, height: '5px', minHeight: '5px' }}><div className="progress-fill green" style={{ width: `${beforePct}%` }} /></div>
                               </div>
@@ -681,7 +678,7 @@ export default function RiceDryingDashboard({ view }) {
                               <div className="weight-ba-label after" style={{ fontSize: '10px', minWidth: '12px', flexShrink: 0 }}>A</div>
                               <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '1px' }}>
                                 <div className="sensor-value-sm" style={{ fontSize: '18px', lineHeight: 1, color: afterFrozenTray ? '#059669' : undefined, textAlign: 'left' }}>
-                                  {hasAfterVal ? `${afterVal.toFixed(1)}kg` : <span style={{ color: '#d1d5db' }}>—</span>}
+                                  {hasAfterVal ? `${afterVal.toFixed(2)}kg` : <span style={{ color: '#d1d5db' }}>—</span>}
                                 </div>
                                 <div className="progress-bar" style={{ marginBottom: 0, height: '5px', minHeight: '5px' }}><div className="progress-fill" style={{ width: `${afterPct}%`, backgroundColor: '#3b82f6' }} /></div>
                               </div>
@@ -750,10 +747,9 @@ export default function RiceDryingDashboard({ view }) {
                       <button
                         key={tray}
                         className={`selector-btn tray-btn ${currentTray === tray ? 'selected-tray' : ''} ${savedWeights[tray]?.frozen ? 'tray-btn-frozen' : ''}`}
-                        onClick={async () => {
-                          try { setCurrentTray(tray); await setTray(tray); }
-                          catch (err) { console.error('Tray update failed:', err); }
-                        }}
+                onClick={() => {
+  setCurrentTray(tray);
+}}
                         disabled={isProcessing}
                       >
                         T{tray}{savedWeights[tray]?.frozen && <span className="tray-frozen-dot" />}

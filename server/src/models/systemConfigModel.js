@@ -12,9 +12,9 @@ const systemConfigSchema = new mongoose.Schema({
     enum: [13, 14],
     default: 13
   },
-  selectedTray: {
-    type: Number,
-    default: 1
+  selectedTrays: {
+    type: [Number],
+    default: []
   },
   // Drying status and timing - Backend is source of truth
   dryerStatus: {
