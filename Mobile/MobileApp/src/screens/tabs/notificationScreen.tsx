@@ -348,7 +348,7 @@ const NotificationScreen: React.FC = () => {
   const getAPIBaseUrls = () => {
     if (__DEV__) {
       return [
-        'http://192.168.0.109:5001',
+        'http://10.42.0.1:5001',
         'http://10.0.2.2:5001',
         'https://mala-backend-u0gt.onrender.com',
       ];

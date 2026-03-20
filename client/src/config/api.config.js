@@ -34,7 +34,7 @@ const getBaseURL = () => {
   } else {
 
     console.log('Mobile environment detected, using Raspberry Pi URL');
-    return ['http://192.168.0.109:5001', 'http://192.168.86.193:5001','https://objurgatory-darrell-nonconversantly.ngrok-free.dev'];
+    return ['http://10.0.2.2:5001', 'http://192.168.86.193:5001','https://objurgatory-darrell-nonconversantly.ngrok-free.dev'];
   }
 };
 

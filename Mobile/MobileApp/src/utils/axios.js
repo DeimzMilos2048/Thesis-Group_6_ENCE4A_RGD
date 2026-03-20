@@ -8,6 +8,7 @@ const getBaseURL = () => {
       'http://192.168.0.109:5001',   // Backup local IP
       'http://10.0.2.2:5001',        // Android emulator
       'http://127.0.0.1:5001',       // Localhost
+      'http://10.42.0.1:5001',       // Raspberry Pi
       'https://mala-backend-u0gt.onrender.com',  // Production fallback
     ];
   } else {
