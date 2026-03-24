@@ -7,7 +7,7 @@ const DEV_API_URL = 'http://192.168.86.255:5001/api';
 const PROD_API_URL = 'https://mala-backend-u0gt.onrender.com/api';
 
 // ESP32 Server URL (Raspberry Pi communication) 
-const ESP32_API_URL = 'http://10.42.0.1:5001/api/system';
+const ESP32_API_URL = 'http://10.42.0.1:5002/api/system';
 
 // Select based on environment
 export const API_BASE_URL = __DEV__ ? DEV_API_URL : PROD_API_URL;

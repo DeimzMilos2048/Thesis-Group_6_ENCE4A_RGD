@@ -38,7 +38,7 @@ const defaultNotifications: NotificationSettings = {
 const editnotificationscreen: React.FC = () => {
   const navigation = useNavigation();
   const apiBaseUrl = __DEV__ 
-    ? 'http://10.42.0.1:5001'
+    ? 'http://10.42.0.1:5002'
     : 'https://mala-backend-u0gt.onrender.com';
 
   const {

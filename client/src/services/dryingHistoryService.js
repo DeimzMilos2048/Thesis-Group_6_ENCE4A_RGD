@@ -92,6 +92,16 @@ export const startMoistureMonitoringService = (onMoistureUpdate, selectedTray = 
                   timestamp: new Date().toISOString()
                 });
               }
+              
+              // Emit socket event for target reached notification
+              try {
+                // Import socket context to emit directly
+                // Note: This will work if the service has access to socket
+                // For now, we'll rely on the dashboard's socket event handlers
+                console.log('Target reached - dashboard will handle notification via callbacks');
+              } catch (socketError) {
+                console.error('Failed to emit target reached socket event:', socketError);
+              }
             }
           } catch (stopError) {
             console.error('Error auto-stopping drying:', stopError);

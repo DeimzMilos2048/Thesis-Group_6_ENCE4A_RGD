@@ -4,8 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const getAPIBaseUrl = () => {
   // Try local Raspberry Pi first, then fallback to Render backend
   const urls = [
-    'http://192.168.86.255:5001',
-    'http://10.30.105.83:5001',
+    'http://10.42.0.1:5002',
     'https://mala-backend-u0gt.onrender.com'
   ];
   return urls;

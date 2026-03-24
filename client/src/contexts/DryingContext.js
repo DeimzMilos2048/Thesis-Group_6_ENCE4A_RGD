@@ -154,6 +154,7 @@ export function DryingProvider({ children }) {
           socket.emit('drying_stopped', {
             dryingSeconds: elapsedSeconds,
             timestamp: endISO,
+            autoStopped: response.data?.autoStopped || false // Flag if auto-stopped due to target reached
           });
         }
       }

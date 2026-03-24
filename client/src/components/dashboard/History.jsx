@@ -155,6 +155,19 @@ export default function History({ view }) {
           };
 
           const formattedData = sensorData.map((item, index) => {
+            // Debug: Log what moisture fields are available
+            console.log(`Item ${index} moisture fields:`, {
+              initialMoistureT1: item.initialMoistureT1,
+              finalMoistureT1: item.finalMoistureT1,
+              finalMoistureT2: item.finalMoistureT2,
+              finalMoistureT3: item.finalMoistureT3,
+              finalMoistureT4: item.finalMoistureT4,
+              finalMoistureT5: item.finalMoistureT5,
+              finalMoistureT6: item.finalMoistureT6,
+              moistureavg: item.moistureavg,
+              allFields: Object.keys(item).filter(key => key.toLowerCase().includes('moisture'))
+            });
+
             return {
               id: item._id || item.id || index + 1,
 
@@ -163,21 +176,13 @@ export default function History({ view }) {
               startTime: item.startTime || 'N/A',
               endTime: item.endTime || '—',
 
-              // Initial Moisture per tray (T1–T6)
-              initialMoistureT1: formatNumber(item.moisture1),
-              initialMoistureT2: formatNumber(item.moisture2),
-              initialMoistureT3: formatNumber(item.moisture3),
-              initialMoistureT4: formatNumber(item.moisture4),
-              initialMoistureT5: formatNumber(item.moisture5),
-              initialMoistureT6: formatNumber(item.moisture6),
-
-              // Final Moisture per tray (T1–T6) - use direct moisture fields from drying session
-              finalMoistureT1: formatNumber(item.moisture1),
-              finalMoistureT2: formatNumber(item.moisture2),
-              finalMoistureT3: formatNumber(item.moisture3),
-              finalMoistureT4: formatNumber(item.moisture4),
-              finalMoistureT5: formatNumber(item.moisture5),
-              finalMoistureT6: formatNumber(item.moisture6),
+              // Final Moisture per tray (T1–T6) - from end of drying session (when 13-14% reached or stop pressed)
+              finalMoistureT1: formatNumber(item.finalMoistureT1),
+              finalMoistureT2: formatNumber(item.finalMoistureT2),
+              finalMoistureT3: formatNumber(item.finalMoistureT3),
+              finalMoistureT4: formatNumber(item.finalMoistureT4),
+              finalMoistureT5: formatNumber(item.finalMoistureT5),
+              finalMoistureT6: formatNumber(item.finalMoistureT6),
 
               // Moisture average
               moistureavg: formatNumber(item.moistureavg),
@@ -345,12 +350,6 @@ export default function History({ view }) {
         'Completion Status': parseFloat(item.moistureavg) <= 14 ? 'Target Reached' : 'Manual Stop',
         'Temperature (°C)': item.temperature,
         'Humidity (%)': item.humidity,
-        'Initial Moisture T1 (%)': item.initialMoistureT1,
-        'Initial Moisture T2 (%)': item.initialMoistureT2,
-        'Initial Moisture T3 (%)': item.initialMoistureT3,
-        'Initial Moisture T4 (%)': item.initialMoistureT4,
-        'Initial Moisture T5 (%)': item.initialMoistureT5,
-        'Initial Moisture T6 (%)': item.initialMoistureT6,
         'Final Moisture T1 (%)': item.finalMoistureT1,
         'Final Moisture T2 (%)': item.finalMoistureT2,
         'Final Moisture T3 (%)': item.finalMoistureT3,
@@ -387,8 +386,8 @@ export default function History({ view }) {
 
       // Moisture T1-T6 comparison
       for (let i = 1; i <= 6; i++) {
-        const moisture1 = parseFloat(selectedData[0][`initialMoistureT${i}`]) || 0;
-        const moisture2 = parseFloat(selectedData[1][`initialMoistureT${i}`]) || 0;
+        const moisture1 = parseFloat(selectedData[0][`finalMoistureT${i}`]) || 0;
+        const moisture2 = parseFloat(selectedData[1][`finalMoistureT${i}`]) || 0;
         const diff = moisture2 - moisture1;
         const changePercent = moisture1 !== 0 ? ((diff / moisture1) * 100) : 0;
         
@@ -472,7 +471,7 @@ export default function History({ view }) {
 
       // Moisture statistics
       for (let i = 1; i <= 6; i++) {
-        const moistureValues = selectedData.map(item => parseFloat(item[`initialMoistureT${i}`]) || 0);
+        const moistureValues = selectedData.map(item => parseFloat(item[`finalMoistureT${i}`]) || 0);
         const stats = calculateStats(moistureValues);
         
         statsData.push({
@@ -680,14 +679,14 @@ export default function History({ view }) {
       // Moisture sensor colors (from Analytics.jsx)
       const colors = ['#22c55e', '#16a34a', '#15803d', '#166534', '#14532d', '#052e16'];
       
-      // Get moisture values for all 6 trays
-      const moistureValues = [
-        parseFloat(item.initialMoistureT1) || 0,
-        parseFloat(item.initialMoistureT2) || 0,
-        parseFloat(item.initialMoistureT3) || 0,
-        parseFloat(item.initialMoistureT4) || 0,
-        parseFloat(item.initialMoistureT5) || 0,
-        parseFloat(item.initialMoistureT6) || 0
+      // Get moisture values for all 6 trays - show both initial and final
+      const finalMoistureValues = [
+        parseFloat(item.finalMoistureT1) || 0,
+        parseFloat(item.finalMoistureT2) || 0,
+        parseFloat(item.finalMoistureT3) || 0,
+        parseFloat(item.finalMoistureT4) || 0,
+        parseFloat(item.finalMoistureT5) || 0,
+        parseFloat(item.finalMoistureT6) || 0
       ];
       
       // Create time points for x-axis
@@ -698,19 +697,24 @@ export default function History({ view }) {
         timePoints.push('End');
       }
       
-      // Draw lines for each moisture sensor
-      moistureValues.forEach((moisture, index) => {
-        if (moisture > 0) {
-          const normalizedMoisture = Math.min(moisture / 30, 1); // Max 30%
-          const moistureY = graphY + graphHeight - (normalizedMoisture * graphHeight);
+      // Draw lines for each moisture sensor - show initial to final progression
+      finalMoistureValues.forEach((finalMoisture, index) => {
+        if (finalMoisture > 0) {
+          // Draw line from initial to final moisture
+          const normalizedFinalMoisture = Math.min(finalMoisture / 30, 1);
+          const finalY = graphY + graphHeight - (normalizedFinalMoisture * graphHeight);
           
           pdf.setDrawColor(colors[index]);
           pdf.setLineWidth(1.5);
-          pdf.line(graphX, moistureY, graphX + graphWidth, moistureY);
           
-          // Add sensor label on the right side
-          pdf.setFontSize(5);
-          pdf.text(`T${index + 1}`, graphX + graphWidth + 3, moistureY + 2);
+          // Draw horizontal line showing moisture reduction
+          pdf.line(graphX, finalY, graphX + graphWidth, finalY);
+          
+          // Add sensor labels with both values
+          pdf.setFontSize(4);
+          pdf.setTextColor(0, 0, 0);
+          pdf.text(`T${index + 1}: ${finalMoisture.toFixed(1)}%`, 
+                   graphX + graphWidth + 3, finalY + 2);
         }
       });
       
@@ -736,13 +740,14 @@ export default function History({ view }) {
       
       // Add legend
       pdf.setFontSize(5);
-      moistureValues.forEach((moisture, index) => {
-        if (moisture > 0) {
+      finalMoistureValues.forEach((finalMoisture, index) => {
+        if (finalMoisture > 0) {
           pdf.setDrawColor(colors[index]);
           pdf.setFillColor(colors[index]);
           pdf.rect(graphX + graphWidth + 15, graphY + index * 6, 3, 2, 'F');
           pdf.setTextColor(0, 0, 0);
-          pdf.text(`T${index + 1}: ${moisture.toFixed(1)}%`, graphX + graphWidth + 20, graphY + index * 6 + 2);
+          pdf.text(`T${index + 1}: ${finalMoisture.toFixed(1)}%`, 
+                   graphX + graphWidth + 20, graphY + index * 6 + 2);
         }
       });
     };
@@ -921,8 +926,8 @@ export default function History({ view }) {
       
       // Moisture data rows
       for (let i = 1; i <= 6; i++) {
-        const moisture1 = parseFloat(selectedData[0][`initialMoistureT${i}`]) || 0;
-        const moisture2 = parseFloat(selectedData[1][`initialMoistureT${i}`]) || 0;
+        const moisture1 = parseFloat(selectedData[0][`finalMoistureT${i}`]) || 0;
+        const moisture2 = parseFloat(selectedData[1][`finalMoistureT${i}`]) || 0;
         const diff = moisture2 - moisture1;
         
         pdf.text(`T${i}`, 15, currentY);
@@ -1090,19 +1095,12 @@ export default function History({ view }) {
         date: item.date || 'N/A',
         startTime: item.startTime || 'N/A',
         endTime: item.endTime || '—',
-        initialMoistureT1: formatNumber(item.moisture1),
-        initialMoistureT2: formatNumber(item.moisture2),
-        initialMoistureT3: formatNumber(item.moisture3),
-        initialMoistureT4: formatNumber(item.moisture4),
-        initialMoistureT5: formatNumber(item.moisture5),
-        initialMoistureT6: formatNumber(item.moisture6),
-        // Final Moisture per tray (T1–T6) - use direct moisture fields from drying session
-        finalMoistureT1: formatNumber(item.moisture1),
-        finalMoistureT2: formatNumber(item.moisture2),
-        finalMoistureT3: formatNumber(item.moisture3),
-        finalMoistureT4: formatNumber(item.moisture4),
-        finalMoistureT5: formatNumber(item.moisture5),
-        finalMoistureT6: formatNumber(item.moisture6),
+        finalMoistureT1: formatNumber(item.finalMoistureT1),
+        finalMoistureT2: formatNumber(item.finalMoistureT2),
+        finalMoistureT3: formatNumber(item.finalMoistureT3),
+        finalMoistureT4: formatNumber(item.finalMoistureT4),
+        finalMoistureT5: formatNumber(item.finalMoistureT5),
+        finalMoistureT6: formatNumber(item.finalMoistureT6),
         moistureavg: formatNumber(item.moistureavg),
         temperature: formatNumber(item.temperature),
         humidity: formatNumber(item.humidity),
@@ -1389,9 +1387,8 @@ export default function History({ view }) {
                   <th rowSpan="2">End Time</th>
                   <th rowSpan="2" title="Auto-stopped when moisture reached 14%">Completion Status</th>
 
-                  {/* ── Moisture groups ── */}
-                  <th colSpan="6">Initial Moisture</th>
-                  <th colSpan="7">Final Moisture</th>
+                  {/* ── Final Moisture group ── */}
+                  <th colSpan="7">Moisture Content</th>
 
                   {/* ── Env columns ── */}
                   <th rowSpan="2">Temperature</th>
@@ -1405,9 +1402,7 @@ export default function History({ view }) {
                   <th rowSpan="2">Duration</th>
                 </tr>
                 <tr>
-                  {/* Initial Moisture sub-headers */}
-                  <th>T1</th><th>T2</th><th>T3</th><th>T4</th><th>T5</th><th>T6</th>
-                  {/* Final Moisture sub-headers + AVG */}
+                  {/* Final Moisture sub-headers */}
                   <th>T1</th><th>T2</th><th>T3</th><th>T4</th><th>T5</th><th>T6</th><th>AVG</th>
                   {/* Before Weight sub-headers */}
                   <th>T1</th><th>T2</th><th>T3</th><th>T4</th><th>T5</th><th>T6</th>
@@ -1503,15 +1498,7 @@ export default function History({ view }) {
                           </span>
                         </td>
 
-                        {/* Initial Moisture */}
-                        <td>{item.initialMoistureT1}</td>
-                        <td>{item.initialMoistureT2}</td>
-                        <td>{item.initialMoistureT3}</td>
-                        <td>{item.initialMoistureT4}</td>
-                        <td>{item.initialMoistureT5}</td>
-                        <td>{item.initialMoistureT6}</td>
-
-                        {/* Final Moisture + AVG */}
+                        {/* Final Moisture */}
                         <td>{item.finalMoistureT1}</td>
                         <td>{item.finalMoistureT2}</td>
                         <td>{item.finalMoistureT3}</td>

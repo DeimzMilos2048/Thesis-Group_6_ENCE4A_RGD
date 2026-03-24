@@ -234,7 +234,7 @@ export const WeightProvider: React.FC<WeightProviderProps> = ({ children }) => {
         return;
       }
 
-      const response = await fetch('http://10.42.0.1:5001/api/sensor/latest/weights', {
+      const response = await fetch('http://10.42.0.1:5002/api/sensor/latest/weights', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',

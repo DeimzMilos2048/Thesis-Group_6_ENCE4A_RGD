@@ -208,7 +208,7 @@ export const SystemControlProvider: React.FC<{ children: React.ReactNode }> = ({
   const connectSocketWithFallback = async () => {
     const urls = [
       'https://mala-backend-u0gt.onrender.com',  // Production backend (more reliable)
-      'http//10.42.0.1:5001'           
+      'http://10.42.0.1:5002'           
     ];
 
     for (const url of urls) {

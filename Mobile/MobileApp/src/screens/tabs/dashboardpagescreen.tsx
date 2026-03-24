@@ -70,7 +70,7 @@ const DashboardPageScreen: React.FC = () => {
 
   // Test notification service
   const apiBaseUrl = __DEV__ 
-    ? 'http://10.42.0.1:5001'
+    ? 'http://10.42.0.1:5002'
     : 'https://mala-backend-u0gt.onrender.com';
     
   const { 
@@ -83,7 +83,7 @@ const DashboardPageScreen: React.FC = () => {
   const getAPIBaseUrl = () => {
     // Try local Raspberry Pi first, then fallback to ngrok
     const urls = [
-      'http://10.42.0.1:5001',
+      'http://10.42.0.1:5002',
       'https://mala-backend-u0gt.onrender.com'
     ];
     return urls[0]; // Will try first URL, fallback can be implemented if needed
@@ -91,7 +91,7 @@ const DashboardPageScreen: React.FC = () => {
 
   const fetchUnreadCount = async () => {
     const urls = [
-      'http://10.42.0.1:5001',
+      'http://10.42.0.1:5002',
       'https://mala-backend-u0gt.onrender.com'
     ];
     
@@ -194,7 +194,7 @@ const DashboardPageScreen: React.FC = () => {
     const connectSocketWithFallback = async () => {
       const urls = [
         'https://mala-backend-u0gt.onrender.com',  // Production backend (more reliable)
-        'http://192.168.86.255:5001',           // Local development
+        'http://10.42.0.1:5002',           // Local development
         //'http://10.30.105.83:5001',
         'http://10.0.2.2:5001'                // Android emulator host
       ];

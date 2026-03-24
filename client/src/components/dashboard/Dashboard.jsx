@@ -424,6 +424,96 @@ export default function RiceDryingDashboard({ view }) {
     };
   }, [socket, currentTray, savedWeights, savedAfterWeights, showToast]);
 
+  // Socket event handlers for drying completion notifications
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleDryingStopped = (data) => {
+      console.log('Drying stopped event received:', data);
+      const { autoStopped } = data;
+      
+      // Show appropriate notification based on how drying stopped
+      if (autoStopped) {
+        showToast('success', '✓ Drying completed automatically! Target moisture reached.');
+      } else {
+        showToast('info', 'Drying process stopped manually.');
+      }
+      
+      setIsMonitoring(false);
+      
+      // Update tab notifications
+      setTabNotifications(prev => ({
+        ...prev,
+        history: true,
+        analytics: true
+      }));
+    };
+
+    const handleTargetReached = (data) => {
+      console.log('Target moisture reached event received:', data);
+      // Show specific notification when target moisture is reached
+      const { finalMoisture, tray } = data;
+      showToast(
+        'success', 
+        `Target moisture reached! Tray ${tray || 'selected'} reached ${finalMoisture.toFixed(1)}%`,
+        5000
+      );
+    };
+
+    // Register socket event listeners
+    socket.on('drying_stopped', handleDryingStopped);
+    socket.on('drying:target_reached', handleTargetReached);
+
+    // Cleanup listeners on unmount
+    return () => {
+      socket.off('drying_stopped', handleDryingStopped);
+      socket.off('drying:target_reached', handleTargetReached);
+    };
+  }, [socket, showToast, setIsMonitoring, setTabNotifications]);
+
+  // Moisture monitoring setup for drying completion notifications
+  useEffect(() => {
+    if (isProcessing && isMonitoring) {
+      // Start moisture monitoring when drying is active and monitoring is enabled
+      const onMoistureUpdate = (moistureLevel) => {
+        console.log(`Moisture update: ${moistureLevel.toFixed(1)}%`);
+      };
+      
+      const onTargetReached = (data) => {
+        console.log('Target reached callback:', data);
+        // Show notification when target is reached
+        const { finalMoisture, tray } = data;
+        showToast(
+          'success', 
+          `Target moisture reached! Tray ${tray || 'selected'} reached ${finalMoisture.toFixed(1)}%`,
+          8000
+        );
+        
+        // Stop monitoring
+        setIsMonitoring(false);
+        stopMoistureMonitoringService();
+        
+        // Update tab notifications
+        setTabNotifications(prev => ({
+          ...prev,
+          history: true,
+          analytics: true
+        }));
+      };
+      
+      // Start monitoring for the selected tray or average moisture
+      startMoistureMonitoringService(onMoistureUpdate, currentTray);
+      
+      return () => {
+        // Cleanup monitoring when component unmounts or drying stops
+        stopMoistureMonitoringService();
+      };
+    } else {
+      // Stop monitoring if drying is not active
+      stopMoistureMonitoringService();
+    }
+  }, [isProcessing, isMonitoring, currentTray, showToast, setIsMonitoring, setTabNotifications]);
+
   // Send notifications for average moisture calculations
   useEffect(() => {
     if (selectedTraysCount > 0 && socket && socket.connected) {
